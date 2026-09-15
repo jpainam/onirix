@@ -30,7 +30,10 @@
     "dev:worker": "turbo run dev -F worker --",
     "infra:up": "docker compose up -d postgres opensearch redis minio",
     "infra:down": "docker compose stop postgres opensearch redis minio",
-    "db:migrate:deploy": "turbo run db:migrate:deploy -F @onirix/db --"
+    "db:migrate:deploy": "turbo run db:migrate:deploy -F @onirix/db --",
+    "email:dev": "turbo run email:dev -F @onirix/transactional --",
+    "docker:web": "docker compose up -d --build web",
+    "docker:restart": "docker compose restart"
   },
   "dependencies": {
     "zod": "catalog:"

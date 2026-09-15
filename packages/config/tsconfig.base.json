@@ -4,7 +4,11 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ESNext"],
+    // DOM + jsx are set repo-wide because @onirix/transactional exports its
+    // React Email templates as source: any package that transitively imports
+    // the mailer typechecks those .tsx files.
+    "lib": ["ESNext", "DOM"],
+    "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
     "strict": true,
     "skipLibCheck": true,

@@ -1,5 +1,5 @@
 {
-  "name": "@onirix/auth",
+  "name": "@onirix/transactional",
   "type": "module",
   "exports": {
     ".": {
@@ -10,17 +10,21 @@
     }
   },
   "scripts": {
+    "email:dev": "email dev --dir ./emails --port 3003",
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@better-auth/expo": "catalog:",
-    "@onirix/db": "workspace:*",
-    "@onirix/transactional": "workspace:*",
-    "better-auth": "catalog:",
+    "@react-email/render": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-email": "catalog:",
+    "retransmit.dev": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@onirix/config": "workspace:*",
+    "@react-email/ui": "catalog:",
+    "@types/react": "catalog:",
     "typescript": "^6.0.3"
   }
 }

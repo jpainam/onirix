@@ -6,7 +6,8 @@ import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 
 export default function LoginPage() {
-  const [showSignIn, setShowSignIn] = useState(false);
+  // Sign in is the default: most visitors to /login already have an account.
+  const [showSignIn, setShowSignIn] = useState(true);
 
   return showSignIn ? (
     <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
