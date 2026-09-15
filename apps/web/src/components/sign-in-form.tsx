@@ -49,7 +49,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
             // A sign-in blocked on verification is expected rather than broken,
             // so point at the inbox instead of surfacing a raw auth error.
             if (error.error.code === "EMAIL_NOT_VERIFIED") {
-              toast.error("Verify your email first — we just sent you a new link.");
+              toast.error("Verify your email first. We just sent you a new link.");
               return;
             }
             toast.error(error.error.message || error.error.statusText);

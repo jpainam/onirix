@@ -20,7 +20,7 @@ export default async function KnowledgePage() {
       <PageHeader
         icon={BookOpenIcon}
         title="Knowledge"
-        description="Browse what Onirix knows, organized into collections like Engineering or HR."
+        description="Documents grouped into collections, like Engineering or HR."
         action={
           <Button disabled>
             <FolderPlusIcon />
@@ -35,8 +35,7 @@ export default async function KnowledgePage() {
           </EmptyMedia>
           <EmptyTitle>No collections yet</EmptyTitle>
           <EmptyDescription>
-            Collections group documents so an agent can be scoped to one team&apos;s
-            material. This area is not built yet — connect a source to get started.
+            Connect a source to start building your knowledge base.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

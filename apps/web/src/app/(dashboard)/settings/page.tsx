@@ -79,7 +79,7 @@ export default async function SettingsPage() {
 
         <Section
           title="Appearance"
-          description="Applies to this browser only — it is not shared with your team."
+          description="Applies to this browser only, not shared with your team."
         >
           <ThemeSetting />
         </Section>
