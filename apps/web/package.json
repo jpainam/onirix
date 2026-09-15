@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3001",
+    "lint": "eslint .",
     "build": "next build",
     "check-types": "tsc --noEmit",
     "start": "next start",
@@ -39,11 +40,14 @@
   },
   "devDependencies": {
     "@onirix/config": "workspace:*",
+    "@shadcn/lint": "^0.1.0",
     "@tailwindcss/postcss": "catalog:",
     "@tanstack/react-query-devtools": "^5.102.8",
     "@types/node": "catalog:",
     "@types/react": "^19.2.18",
     "@types/react-dom": "catalog:",
+    "@typescript-eslint/parser": "^8.70.0",
+    "eslint": "^10.10.0",
     "tailwindcss": "catalog:",
     "typescript": "^6.0.3"
   }
