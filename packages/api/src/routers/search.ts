@@ -5,8 +5,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
-import { buildAccessControlList } from "../access";
-
 import { orgProcedure, router } from "../index";
 
 export const searchRouter = router({
@@ -39,7 +37,7 @@ export const searchRouter = router({
         numHits: input.limit,
         filters: {
           organizationId: ctx.organizationId,
-          accessControlList: buildAccessControlList(ctx.session.user.id, ctx.membership.role),
+          accessControlList: ctx.principal.accessControlList,
           sourceTypes: input.sourceTypes,
         },
       });

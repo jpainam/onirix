@@ -17,7 +17,24 @@ export const indexDocumentJobSchema = z.object({
   documentId: z.string(),
 });
 
-export const jobSchema = indexDocumentJobSchema;
+/**
+ * Pushes a document's current permissions into its already-indexed chunks.
+ *
+ * Its own job type rather than a re-index: the text has not changed, so paying
+ * to re-extract and re-embed it would be waste. It is also the reason a
+ * visibility change is not instant — until the worker picks this up, retrieval
+ * still enforces the previous permissions.
+ */
+export const syncDocumentAccessJobSchema = z.object({
+  type: z.literal("sync_document_access"),
+  organizationId: z.string(),
+  documentId: z.string(),
+});
+
+export const jobSchema = z.discriminatedUnion("type", [
+  indexDocumentJobSchema,
+  syncDocumentAccessJobSchema,
+]);
 export type Job = z.infer<typeof jobSchema>;
 
 export function createQueueClient(redisUrl: string): Redis {

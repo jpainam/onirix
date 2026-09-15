@@ -4,9 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import {
   BookOpenIcon,
   BotIcon,
+  BuildingIcon,
+  CpuIcon,
   DatabaseIcon,
   FileTextIcon,
-  Settings2Icon,
+  PaletteIcon,
   SquarePenIcon,
   UsersIcon,
 } from "lucide-react";
@@ -35,7 +37,9 @@ const DESTINATIONS = [
   { title: "Sources", url: "/sources", icon: DatabaseIcon },
   { title: "Explore agents", url: "/agents", icon: BotIcon },
   { title: "Team", url: "/team", icon: UsersIcon },
-  { title: "Settings", url: "/settings", icon: Settings2Icon },
+  { title: "Language models", url: "/admin/language-models", icon: CpuIcon },
+  { title: "Organization", url: "/admin/organization", icon: BuildingIcon },
+  { title: "Appearance", url: "/admin/appearance", icon: PaletteIcon },
 ] as const;
 
 /** Opens the palette on ⌘K / Ctrl-K from anywhere in the app shell. */

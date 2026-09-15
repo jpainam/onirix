@@ -1,21 +1,29 @@
 /**
- * Resolves the caller's organization and its model configuration.
+ * Resolves the caller's organization, teams, and model configuration.
  *
- * Used by route handlers, which do not go through the tRPC `orgProcedure`
- * middleware but need the same scoping.
+ * Used by server components and by the route handlers that do not go through
+ * the tRPC `orgProcedure` middleware but need exactly the same scoping. The
+ * access tokens come from `resolvePrincipal`, so a page, a tRPC call and the
+ * chat endpoint all enforce one rule.
  */
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { member } from "@onirix/db/schema";
+import type { Principal } from "@onirix/db/principal";
+import { resolvePrincipal } from "@onirix/db/principal";
+import { organization } from "@onirix/db/schema";
 
 import { auth, getDb } from "@/services";
 
 export type Workspace = {
   organizationId: string;
   organizationName: string;
-  role: string;
+  role: Principal["role"];
+  /** Teams the caller belongs to inside this organization. */
+  teamIds: string[];
+  /** Tokens the caller holds, for filtering documents and chunks. */
+  accessControlList: string[];
   llmConfig: {
     chatProvider: string;
     chatModel: string;
@@ -30,19 +38,27 @@ export type Workspace = {
   } | null;
 };
 
-export async function loadWorkspace(userId: string): Promise<Workspace | null> {
-  const membership = await getDb().query.member.findFirst({
-    where: eq(member.userId, userId),
-    with: { organization: { with: { llmConfig: true } } },
-  });
+export async function loadWorkspace(
+  userId: string,
+  activeOrganizationId?: string | null,
+): Promise<Workspace | null> {
+  const db = getDb();
+  const principal = await resolvePrincipal(db, userId, activeOrganizationId);
+  if (!principal) return null;
 
-  if (!membership) return null;
+  const org = await db.query.organization.findFirst({
+    where: eq(organization.id, principal.organizationId),
+    with: { llmConfig: true },
+  });
+  if (!org) return null;
 
   return {
-    organizationId: membership.organizationId,
-    organizationName: membership.organization.name,
-    role: membership.role,
-    llmConfig: membership.organization.llmConfig ?? null,
+    organizationId: principal.organizationId,
+    organizationName: org.name,
+    role: principal.role,
+    teamIds: principal.teamIds,
+    accessControlList: principal.accessControlList,
+    llmConfig: org.llmConfig ?? null,
   };
 }
 
@@ -60,7 +76,13 @@ export async function requireSession(): Promise<{
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/login");
 
-  return { user: session.user, workspace: await loadWorkspace(session.user.id) };
+  return {
+    user: session.user,
+    workspace: await loadWorkspace(
+      session.user.id,
+      session.session.activeOrganizationId,
+    ),
+  };
 }
 
 /**

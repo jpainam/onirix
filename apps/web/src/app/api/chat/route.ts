@@ -16,7 +16,6 @@ import {
 import { and, asc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
-import { buildAccessControlList } from "@onirix/api/access";
 import { chat, citation, message } from "@onirix/db/schema";
 import {
   DEFAULT_CONTEXT_CHUNKS,
@@ -47,7 +46,10 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as { messages: UIMessage[]; chatId?: string };
-  const workspace = await loadWorkspace(session.user.id);
+  const workspace = await loadWorkspace(
+    session.user.id,
+    session.session.activeOrganizationId,
+  );
 
   if (!workspace) {
     return Response.json({ error: "You do not belong to an organization." }, { status: 403 });
@@ -101,9 +103,12 @@ export async function POST(request: Request) {
 
   const { hits, context } = await retrieveContext({
     queryText: searchQuery,
+    // The only filter retrieval gets. Everything the model is allowed to read
+    // is decided here, before a single token is generated — an answer cannot
+    // cite what was never retrieved.
     filters: {
       organizationId: workspace.organizationId,
-      accessControlList: buildAccessControlList(session.user.id, workspace.role),
+      accessControlList: workspace.accessControlList,
     },
     limit: DEFAULT_CONTEXT_CHUNKS,
     index,

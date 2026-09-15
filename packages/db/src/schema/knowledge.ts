@@ -12,13 +12,30 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
-import { organization } from "./organization";
+import { organization, team } from "./organization";
+
+/**
+ * Who inside an organization may read a document.
+ *
+ * `organization` is workspace-wide. `teams` restricts to the departments listed
+ * in `document_team` — this is what keeps HR's files out of Sales' answers.
+ * `private` restricts to the uploader alone.
+ *
+ * Nothing here can widen access across organizations: every query is scoped by
+ * `organization_id` first, and visibility only ever narrows from there.
+ */
+export const documentVisibility = pgEnum("document_visibility", [
+  "organization",
+  "teams",
+  "private",
+]);
 
 export const sourceType = pgEnum("source_type", [
   "file_upload",
@@ -51,6 +68,19 @@ export const source = pgTable(
     name: text("name").notNull(),
     /** Connector-specific settings and credentials. */
     config: jsonb("config").$type<Record<string, unknown>>().default({}).notNull(),
+
+    /**
+     * Visibility stamped onto documents this source produces.
+     *
+     * Pointing a connector at a department's drive is the practical way to keep
+     * that department's knowledge contained — tagging each synced file by hand
+     * does not scale, and a connector that syncs nightly would need re-tagging
+     * forever. Documents take a copy at ingest time, so changing this affects
+     * new documents only; existing ones are retargeted explicitly.
+     */
+    defaultVisibility: documentVisibility("default_visibility")
+      .notNull()
+      .default("organization"),
 
     status: syncStatus("status").notNull().default("not_started"),
     lastSyncedAt: timestamp("last_synced_at"),
@@ -117,11 +147,19 @@ export const document = pgTable(
     indexError: text("index_error"),
 
     /**
-     * Whether everyone in the organization may see this document. When false,
-     * visibility is decided by `accessControlList`. Mirrored into OpenSearch
-     * so retrieval can filter without a second round trip.
+     * Who may read this document. The authoritative answer, together with the
+     * `document_team` rows it points at.
      */
-    isPublic: text("is_public").notNull().default("true"),
+    visibility: documentVisibility("visibility").notNull().default("organization"),
+    /**
+     * The tokens a reader must hold to see this document, derived from
+     * `visibility` and `document_team` by `resolveDocumentAcl`. Empty when
+     * visibility is `organization`, which grants access on its own.
+     *
+     * Materialized rather than joined at query time because the same list has
+     * to be mirrored into every OpenSearch chunk, where no join exists. Treat
+     * it as a cache with exactly one writer: never set it by hand.
+     */
     accessControlList: jsonb("access_control_list").$type<string[]>().default([]).notNull(),
 
     uploadedBy: text("uploaded_by").references(() => user.id, { onDelete: "set null" }),
@@ -137,6 +175,51 @@ export const document = pgTable(
     index("document_org_idx").on(table.organizationId),
     index("document_source_idx").on(table.sourceId),
     index("document_status_idx").on(table.status),
+    // Listing a workspace's documents always filters on visibility first.
+    index("document_org_visibility_idx").on(table.organizationId, table.visibility),
+  ],
+);
+
+/**
+ * Teams a source grants its documents to, applied when `defaultVisibility` is
+ * `teams`.
+ */
+export const sourceDefaultTeam = pgTable(
+  "source_default_team",
+  {
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => source.id, { onDelete: "cascade" }),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => team.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.sourceId, table.teamId] }),
+    index("source_default_team_team_idx").on(table.teamId),
+  ],
+);
+
+/**
+ * Teams a document is shared with, consulted when `visibility` is `teams`.
+ *
+ * Deleting a team removes its grants, which narrows access rather than widening
+ * it — the safe direction to fail in. A document left with no teams becomes
+ * readable by its uploader alone.
+ */
+export const documentTeam = pgTable(
+  "document_team",
+  {
+    documentId: text("document_id")
+      .notNull()
+      .references(() => document.id, { onDelete: "cascade" }),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => team.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.documentId, table.teamId] }),
+    index("document_team_team_idx").on(table.teamId),
   ],
 );
 
@@ -146,6 +229,12 @@ export const sourceRelations = relations(source, ({ one, many }) => ({
     references: [organization.id],
   }),
   documents: many(document),
+  defaultTeams: many(sourceDefaultTeam),
+}));
+
+export const sourceDefaultTeamRelations = relations(sourceDefaultTeam, ({ one }) => ({
+  source: one(source, { fields: [sourceDefaultTeam.sourceId], references: [source.id] }),
+  team: one(team, { fields: [sourceDefaultTeam.teamId], references: [team.id] }),
 }));
 
 export const collectionRelations = relations(collection, ({ one, many }) => ({
@@ -156,7 +245,7 @@ export const collectionRelations = relations(collection, ({ one, many }) => ({
   documents: many(document),
 }));
 
-export const documentRelations = relations(document, ({ one }) => ({
+export const documentRelations = relations(document, ({ one, many }) => ({
   organization: one(organization, {
     fields: [document.organizationId],
     references: [organization.id],
@@ -166,4 +255,13 @@ export const documentRelations = relations(document, ({ one }) => ({
     fields: [document.collectionId],
     references: [collection.id],
   }),
+  teams: many(documentTeam),
+}));
+
+export const documentTeamRelations = relations(documentTeam, ({ one }) => ({
+  document: one(document, {
+    fields: [documentTeam.documentId],
+    references: [document.id],
+  }),
+  team: one(team, { fields: [documentTeam.teamId], references: [team.id] }),
 }));

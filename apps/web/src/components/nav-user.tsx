@@ -93,7 +93,7 @@ export function NavUser({
               <DropdownMenuLabel>
                 {organizationName}
               </DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => router.push("/settings")}>
+              <DropdownMenuItem onClick={() => router.push("/admin/language-models")}>
                 <BadgeCheckIcon />
                 Workspace settings
               </DropdownMenuItem>

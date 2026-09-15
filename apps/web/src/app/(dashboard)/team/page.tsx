@@ -1,45 +1,12 @@
-import { UserPlusIcon, UsersIcon } from "lucide-react";
-
-import { Button } from "@onirix/ui/components/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@onirix/ui/components/empty";
-
-import { Page, PageHeader } from "@/components/page";
 import { requireConfiguredWorkspace } from "@/lib/workspace";
 
-export default async function TeamPage() {
-  await requireConfiguredWorkspace();
+import { TeamView } from "./team-view";
 
-  return (
-    <Page>
-      <PageHeader
-        icon={UsersIcon}
-        title="Users & Requests"
-        description="Invite colleagues and manage the roles that decide what each of them can see."
-        action={
-          <Button disabled>
-            <UserPlusIcon />
-            Invite users
-          </Button>
-        }
-      />
-      <Empty variant="outline">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <UsersIcon />
-          </EmptyMedia>
-          <EmptyTitle>Invites are not wired up yet</EmptyTitle>
-          <EmptyDescription>
-            Membership and roles are defined in the product spec but have no backend
-            behind them so far.
-          </EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    </Page>
-  );
+export default async function TeamPage() {
+  const { workspace } = await requireConfiguredWorkspace();
+
+  // Rendering decision only. Every mutation the page offers is re-authorized on
+  // the server by Better Auth, so a member who forces the controls open still
+  // gets refused.
+  return <TeamView canManage={workspace.role !== "member"} />;
 }

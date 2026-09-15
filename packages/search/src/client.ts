@@ -135,6 +135,46 @@ export class DocumentIndex {
     });
   }
 
+  /**
+   * Rewrites the access fields on every chunk of a document, in place.
+   *
+   * Re-running the whole pipeline would re-extract and re-embed a document
+   * whose text has not changed, which is slow and costs a provider call per
+   * chunk. Permissions are just two fields, so they are updated directly.
+   *
+   * `refresh: true` matters here in a way it does not for indexing: until the
+   * refresh completes the index still answers with the old permissions, and a
+   * revoked reader would keep seeing the document.
+   */
+  async updateDocumentAccess(
+    organizationId: string,
+    documentId: string,
+    access: { isPublic: boolean; accessControlList: string[] },
+  ): Promise<void> {
+    await this.client.updateByQuery({
+      index: this.indexName,
+      refresh: true,
+      // Conflicts happen when indexing writes the same chunk concurrently; that
+      // write already carries the new permissions, so skipping is correct.
+      conflicts: "proceed",
+      body: {
+        query: {
+          bool: {
+            filter: [
+              { term: { [FIELD.organizationId]: organizationId } },
+              { term: { [FIELD.documentId]: documentId } },
+            ],
+          },
+        },
+        script: {
+          source: `ctx._source['${FIELD.public}'] = params.isPublic; ctx._source['${FIELD.accessControlList}'] = params.acl;`,
+          lang: "painless",
+          params: { isPublic: access.isPublic, acl: access.accessControlList },
+        },
+      },
+    });
+  }
+
   async hybridSearch(options: {
     queryText: string;
     queryVector: number[];

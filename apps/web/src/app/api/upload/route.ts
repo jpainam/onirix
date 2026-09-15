@@ -9,7 +9,9 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
-import { document, member, source } from "@onirix/db/schema";
+import { resolveDocumentAcl } from "@onirix/db/access";
+import { resolvePrincipal } from "@onirix/db/principal";
+import { document, documentTeam, source, sourceDefaultTeam } from "@onirix/db/schema";
 import { buildFileKey, isSupportedMimeType, putFile } from "@onirix/ingestion";
 import { enqueue } from "@onirix/jobs";
 
@@ -26,12 +28,15 @@ export async function POST(request: Request) {
   }
 
   const db = getDb();
-  const membership = await db.query.member.findFirst({
-    where: eq(member.userId, session.user.id),
-  });
-  if (!membership) {
+  const principal = await resolvePrincipal(
+    db,
+    session.user.id,
+    session.session.activeOrganizationId,
+  );
+  if (!principal) {
     return Response.json({ error: "You do not belong to an organization." }, { status: 403 });
   }
+  const { organizationId } = principal;
 
   const formData = await request.formData();
   const files = formData.getAll("files").filter((f): f is File => f instanceof File);
@@ -41,7 +46,24 @@ export async function POST(request: Request) {
   }
 
   // Uploads all land in a single implicit "File uploads" source per workspace.
-  const uploadSource = await getOrCreateUploadSource(db, membership.organizationId);
+  const uploadSource = await getOrCreateUploadSource(db, organizationId);
+
+  // New documents inherit the source's audience rather than defaulting to
+  // workspace-wide, so pointing a connector at a department's drive is enough
+  // to keep its files inside that department.
+  const defaultTeamIds = (
+    await db
+      .select({ teamId: sourceDefaultTeam.teamId })
+      .from(sourceDefaultTeam)
+      .where(eq(sourceDefaultTeam.sourceId, uploadSource.id))
+  ).map((row) => row.teamId);
+
+  const visibility = uploadSource.defaultVisibility;
+  const accessControlList = resolveDocumentAcl({
+    visibility,
+    teamIds: defaultTeamIds,
+    uploadedBy: session.user.id,
+  });
 
   await ensureStorageReady();
   const storage = getStorage();
@@ -61,31 +83,39 @@ export async function POST(request: Request) {
     }
 
     const documentId = randomUUID();
-    const fileKey = buildFileKey(membership.organizationId, documentId, file.name);
+    const fileKey = buildFileKey(organizationId, documentId, file.name);
     const buffer = Buffer.from(await file.arrayBuffer());
 
     await putFile(storage, env.S3_BUCKET, fileKey, buffer, file.type);
 
-    await db.insert(document).values({
-      id: documentId,
-      organizationId: membership.organizationId,
-      sourceId: uploadSource.id,
-      title: file.name,
-      fileKey,
-      mimeType: file.type,
-      sizeBytes: file.size,
-      status: "pending",
-      // Uploaded files are workspace-wide by default; restricting them is a
-      // per-document action once groups land.
-      isPublic: "true",
-      accessControlList: [],
-      uploadedBy: session.user.id,
-      sourceUpdatedAt: new Date(file.lastModified),
+    await db.transaction(async (tx) => {
+      await tx.insert(document).values({
+        id: documentId,
+        organizationId,
+        sourceId: uploadSource.id,
+        title: file.name,
+        fileKey,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        status: "pending",
+        visibility,
+        accessControlList,
+        uploadedBy: session.user.id,
+        sourceUpdatedAt: new Date(file.lastModified),
+      });
+
+      // The grants are recorded as rows as well as in the token list, so a
+      // team that is later renamed or deleted still resolves correctly.
+      if (visibility === "teams" && defaultTeamIds.length > 0) {
+        await tx
+          .insert(documentTeam)
+          .values(defaultTeamIds.map((teamId) => ({ documentId, teamId })));
+      }
     });
 
     await enqueue(queue, {
       type: "index_document",
-      organizationId: membership.organizationId,
+      organizationId,
       documentId,
     });
 

@@ -3,6 +3,7 @@ import { chatRouter } from "./chat";
 import { knowledgeRouter } from "./knowledge";
 import { onboardingRouter } from "./onboarding";
 import { searchRouter } from "./search";
+import { teamRouter } from "./team";
 
 export const appRouter = router({
   healthCheck: publicProcedure.query(() => "OK"),
@@ -10,6 +11,7 @@ export const appRouter = router({
   knowledge: knowledgeRouter,
   chat: chatRouter,
   search: searchRouter,
+  team: teamRouter,
 });
 
 export type AppRouter = typeof appRouter;

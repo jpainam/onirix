@@ -29,6 +29,18 @@ export const session = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * Which organization and team the session is currently acting as, written
+     * by Better Auth's organization plugin. A user can belong to several
+     * organizations, so this — not "their first membership" — is what scopes a
+     * request. Both stay null until something calls `setActive`.
+     *
+     * Deliberately no foreign key: Better Auth clears these itself when an
+     * organization or team goes away, and a cascade here would delete a user's
+     * session along with an organization they merely had open.
+     */
+    activeOrganizationId: text("active_organization_id"),
+    activeTeamId: text("active_team_id"),
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );

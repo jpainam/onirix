@@ -1,11 +1,39 @@
 import { expo } from "@better-auth/expo";
 import type { Database } from "@onirix/db";
-import * as schema from "@onirix/db/schema/auth";
+import { account, session, user, verification } from "@onirix/db/schema/auth";
+import {
+  invitation,
+  member,
+  organization as organizationTable,
+  team,
+  teamMember,
+} from "@onirix/db/schema/organization";
 import { type EmailConfig, createMailer } from "@onirix/transactional";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { organization } from "better-auth/plugins/organization";
 import { magicLink } from "better-auth/plugins/magic-link";
+
+/**
+ * Tables the adapter may read and write.
+ *
+ * The organization plugin owns `organization`, `member`, `invitation`, `team`
+ * and `teamMember`; the keys here have to match the model names it asks for,
+ * which is why `teamMember` is spelled in camel case while its table is
+ * `team_member`.
+ */
+const schema = {
+  user,
+  session,
+  account,
+  verification,
+  organization: organizationTable,
+  member,
+  invitation,
+  team,
+  teamMember,
+};
 
 export type AuthConfig = EmailConfig & {
   BETTER_AUTH_URL: string;
@@ -70,6 +98,28 @@ export function createAuth(env: AuthConfig, database: Database) {
     // nextCookies must come last: plugins with `hooks.after` that run after it
     // set cookies the framework cookie store never receives.
     plugins: [
+      organization({
+        // Teams are departments — Engineering, Sales, HR — and the unit that
+        // document visibility is granted to. Onirix's whole privacy model rests
+        // on them, so they are on unconditionally rather than by configuration.
+        teams: { enabled: true },
+        // A workspace is created during onboarding and is the customer's
+        // tenant boundary; letting members spin up more from the UI would
+        // fragment their knowledge across tenants that cannot see each other.
+        allowUserToCreateOrganization: false,
+        // Long enough to survive a weekend, short enough that a forwarded
+        // invitation does not stay live indefinitely.
+        invitationExpiresIn: 60 * 60 * 24 * 7,
+        cancelPendingInvitationsOnReInvite: true,
+        sendInvitationEmail: async ({ email, organization: org, inviter, invitation: invite }) => {
+          await mailer.sendOrganizationInvite({
+            to: email,
+            organizationName: org.name,
+            inviterName: inviter.user.name || inviter.user.email,
+            url: `${env.BETTER_AUTH_URL}/accept-invitation/${invite.id}`,
+          });
+        },
+      }),
       magicLink({
         // Clicking the link is itself proof of address ownership, so a magic
         // link signup produces an already-verified user that Google can link to.

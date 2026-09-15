@@ -1,7 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DatabaseIcon, FileTextIcon, UploadIcon } from "lucide-react";
+import {
+  Building2Icon,
+  DatabaseIcon,
+  FileTextIcon,
+  GlobeIcon,
+  LockIcon,
+  UploadIcon,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +21,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@onirix/ui/components/empty";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@onirix/ui/components/select";
 import { Spinner } from "@onirix/ui/components/spinner";
 import {
   Table,
@@ -35,7 +49,19 @@ const STATUS_VARIANT = {
   failed: "destructive",
 } as const;
 
-export function SourcesView() {
+/**
+ * How each audience reads in the table.
+ *
+ * Wording is about who can reach the document, not about the mechanism — an
+ * admin retargeting a file needs to know the consequence, not the ACL.
+ */
+const VISIBILITY = {
+  organization: { label: "Everyone", icon: GlobeIcon },
+  teams: { label: "Departments", icon: Building2Icon },
+  private: { label: "Only me", icon: LockIcon },
+} as const;
+
+export function SourcesView({ canManage }: { canManage: boolean }) {
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -58,6 +84,24 @@ export function SourcesView() {
       return (summary?.pending ?? 0) > 0 ? 2000 : false;
     },
   });
+
+  const teams = useQuery({
+    ...trpc.team.listTeams.queryOptions(),
+    enabled: canManage,
+  });
+
+  const setVisibility = useMutation(
+    trpc.knowledge.setDocumentVisibility.mutationOptions({
+      onSuccess: () => {
+        // Retrieval keeps enforcing the old permissions until the worker
+        // rewrites the chunks, so the toast promises a change in progress
+        // rather than one already in force.
+        toast.success("Visibility updated. Search will reflect it shortly.");
+        void queryClient.invalidateQueries();
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
 
   const retry = useMutation(
     trpc.knowledge.retryDocument.mutationOptions({
@@ -168,6 +212,7 @@ export function SourcesView() {
                   <TableRow>
                     <TableHead>Title</TableHead>
                     <TableHead className="w-40">Status</TableHead>
+                    <TableHead className="w-44">Visible to</TableHead>
                     <TableHead className="w-24 text-right">Chunks</TableHead>
                     <TableHead className="w-24" />
                   </TableRow>
@@ -185,6 +230,21 @@ export function SourcesView() {
                             {doc.indexError}
                           </p>
                         ) : null}
+                      </TableCell>
+                      <TableCell>
+                        <DocumentVisibility
+                          documentId={doc.id}
+                          visibility={doc.visibility}
+                          teams={teams.data ?? []}
+                          canManage={canManage}
+                          onChange={(visibility, teamIds) =>
+                            setVisibility.mutate({
+                              documentId: doc.id,
+                              visibility,
+                              teamIds,
+                            })
+                          }
+                        />
                       </TableCell>
                       <TableCell variant="figure" className="text-right">
                         {doc.chunkCount}
@@ -214,5 +274,94 @@ export function SourcesView() {
         </Section>
       </div>
     </Page>
+  );
+}
+
+type Visibility = "organization" | "teams" | "private";
+
+/**
+ * The audience control on a document row.
+ *
+ * Choosing "Departments" needs a department to be named, so the picker stays
+ * on screen until one is — a document restricted to no department at all would
+ * silently collapse to "only its uploader", which is not what the person
+ * clicking meant.
+ */
+function DocumentVisibility({
+  documentId,
+  visibility,
+  teams,
+  canManage,
+  onChange,
+}: {
+  documentId: string;
+  visibility: Visibility;
+  teams: { id: string; name: string }[];
+  canManage: boolean;
+  onChange: (visibility: Visibility, teamIds: string[]) => void;
+}) {
+  const [pendingTeams, setPendingTeams] = useState(false);
+  const current = VISIBILITY[visibility];
+  const Icon = current.icon;
+
+  if (!canManage) {
+    return (
+      <span className="text-ink-03 flex items-center gap-1.5 text-xs">
+        <Icon className="size-3.5" />
+        {current.label}
+      </span>
+    );
+  }
+
+  if (pendingTeams) {
+    return (
+      <Select
+        value=""
+        onValueChange={(value) => {
+          setPendingTeams(false);
+          onChange("teams", [String(value)]);
+        }}
+      >
+        <SelectTrigger data-size="sm" aria-label="Choose a department">
+          <SelectValue placeholder="Department…" />
+        </SelectTrigger>
+        <SelectContent>
+          {teams.map((group) => (
+            <SelectItem key={group.id} value={group.id}>
+              {group.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  return (
+    <Select
+      value={visibility}
+      onValueChange={(value) => {
+        const next = String(value) as Visibility;
+        if (next === "teams") {
+          if (teams.length === 0) {
+            toast.error("Create a department on the Users & Teams page first.");
+            return;
+          }
+          setPendingTeams(true);
+          return;
+        }
+        onChange(next, []);
+      }}
+    >
+      <SelectTrigger data-size="sm" aria-label={`Visibility of ${documentId}`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {(Object.keys(VISIBILITY) as Visibility[]).map((key) => (
+          <SelectItem key={key} value={key}>
+            {VISIBILITY[key].label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

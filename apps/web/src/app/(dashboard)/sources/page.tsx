@@ -3,7 +3,9 @@ import { requireConfiguredWorkspace } from "@/lib/workspace";
 import { SourcesView } from "./sources-view";
 
 export default async function SourcesPage() {
-  await requireConfiguredWorkspace();
+  const { workspace } = await requireConfiguredWorkspace();
 
-  return <SourcesView />;
+  // Retargeting a document is an admin action; members see the audience but
+  // cannot change it. The server enforces this again on the mutation.
+  return <SourcesView canManage={workspace.role !== "member"} />;
 }

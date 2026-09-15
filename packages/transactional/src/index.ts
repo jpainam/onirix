@@ -9,6 +9,10 @@ import { Retransmit } from "retransmit.dev";
 import { createElement } from "react";
 
 import { AuthLinkEmail, type AuthLinkKind, subjectFor } from "./auth-link";
+import {
+  ORGANIZATION_INVITE_SUBJECT,
+  OrganizationInviteEmail,
+} from "./organization-invite";
 
 export type EmailConfig = {
   RETRANSMIT_API_KEY: string;
@@ -17,6 +21,12 @@ export type EmailConfig = {
 
 export type Mailer = {
   sendAuthLink: (input: { kind: AuthLinkKind; to: string; url: string }) => Promise<void>;
+  sendOrganizationInvite: (input: {
+    to: string;
+    organizationName: string;
+    inviterName: string;
+    url: string;
+  }) => Promise<void>;
 };
 
 export function createMailer(env: EmailConfig): Mailer {
@@ -44,6 +54,33 @@ export function createMailer(env: EmailConfig): Mailer {
       // sign-in link would leave the user waiting for mail that never arrives.
       if (error) {
         throw new Error(`Failed to send ${kind} email: ${JSON.stringify(error)}`);
+      }
+    },
+
+    async sendOrganizationInvite({ to, organizationName, inviterName, url }) {
+      const element = createElement(OrganizationInviteEmail, {
+        organizationName,
+        inviterName,
+        url,
+      });
+      const [html, text] = await Promise.all([
+        render(element),
+        render(element, { plainText: true }),
+      ]);
+
+      const { error } = await client.emails.send({
+        from: env.EMAIL_FROM,
+        to,
+        subject: ORGANIZATION_INVITE_SUBJECT(organizationName),
+        html,
+        text,
+        tags: [{ name: "category", value: "organization-invite" }],
+      });
+
+      // A dropped invitation looks to the inviter like it was sent, and to the
+      // colleague like it never existed. Surface the failure instead.
+      if (error) {
+        throw new Error(`Failed to send invitation email: ${JSON.stringify(error)}`);
       }
     },
   };

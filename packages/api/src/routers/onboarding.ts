@@ -13,7 +13,8 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { llmConfig, member, organization } from "@onirix/db/schema";
+import { llmConfig, member, organization as organizationTable } from "@onirix/db/schema";
+import { resolvePrincipal } from "@onirix/db/principal";
 import {
   PROVIDERS,
   type ProviderId,
@@ -106,17 +107,25 @@ export const onboardingRouter = router({
 
   /** Which setup steps are still outstanding. */
   status: protectedProcedure.query(async ({ ctx }) => {
-    const membership = await ctx.db.query.member.findFirst({
-      where: eq(member.userId, ctx.session!.user.id),
-      with: { organization: { with: { llmConfig: true } } },
-    });
+    const principal = await resolvePrincipal(
+      ctx.db,
+      ctx.session!.user.id,
+      ctx.session!.session.activeOrganizationId,
+    );
 
-    const config = membership?.organization.llmConfig ?? null;
+    const organization = principal
+      ? await ctx.db.query.organization.findFirst({
+          where: eq(organizationTable.id, principal.organizationId),
+          with: { llmConfig: true },
+        })
+      : null;
+
+    const config = organization?.llmConfig ?? null;
 
     return {
-      hasOrganization: Boolean(membership),
+      hasOrganization: Boolean(principal),
       hasModelConfig: Boolean(config),
-      organizationName: membership?.organization.name ?? null,
+      organizationName: organization?.name ?? null,
       connectedProvider: config?.chatProvider ?? null,
       connectedModels: config?.chatModels ?? [],
     };
@@ -141,7 +150,7 @@ export const onboardingRouter = router({
       const organizationId = randomUUID();
 
       await ctx.db.transaction(async (tx) => {
-        await tx.insert(organization).values({
+        await tx.insert(organizationTable).values({
           id: organizationId,
           name: input.name,
           slug: slugify(input.name),

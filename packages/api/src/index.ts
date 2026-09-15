@@ -1,7 +1,6 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { eq } from "drizzle-orm";
 
-import { member } from "@onirix/db/schema";
+import { resolvePrincipal } from "@onirix/db/principal";
 
 import type { Context } from "./context";
 
@@ -21,19 +20,21 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 /**
- * Resolves the caller's organization membership and puts it on the context.
+ * Resolves the caller's organization, teams, and access tokens onto the context.
  *
- * Every knowledge and chat query is organization-scoped, and PRODUCT.md
- * requires organizations to stay isolated, so resolving membership once here is
- * safer than repeating the join at each call site.
+ * Every knowledge and chat query is scoped by organization and then filtered by
+ * team, and PRODUCT.md requires both boundaries to hold, so this is resolved
+ * once here rather than rebuilt at each call site — a call site that forgets is
+ * a leak, and there is no way to forget if the answer is already on `ctx`.
  */
 export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  const membership = await ctx.db.query.member.findFirst({
-    where: eq(member.userId, ctx.session!.user.id),
-    with: { organization: { with: { llmConfig: true } } },
-  });
+  const principal = await resolvePrincipal(
+    ctx.db,
+    ctx.session.user.id,
+    ctx.session.session.activeOrganizationId,
+  );
 
-  if (!membership) {
+  if (!principal) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "You do not belong to an organization yet.",
@@ -41,19 +42,28 @@ export const orgProcedure = protectedProcedure.use(async ({ ctx, next }) => {
     });
   }
 
+  const organization = await ctx.db.query.organization.findFirst({
+    where: (table, { eq }) => eq(table.id, principal.organizationId),
+    with: { llmConfig: true },
+  });
+
+  if (!organization) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Organization not found." });
+  }
+
   return next({
     ctx: {
       ...ctx,
-      membership,
-      organizationId: membership.organizationId,
-      organization: membership.organization,
+      principal,
+      organizationId: principal.organizationId,
+      organization,
     },
   });
 });
 
 /** Requires owner or admin. Used for configuration and source management. */
 export const adminProcedure = orgProcedure.use(({ ctx, next }) => {
-  if (ctx.membership.role === "member") {
+  if (ctx.principal.role === "member") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "This action requires an admin or owner role.",

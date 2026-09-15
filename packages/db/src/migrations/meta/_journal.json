@@ -15,6 +15,20 @@
       "when": 1789509891561,
       "tag": "0001_flowery_prowler",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789514731976,
+      "tag": "0002_org_teams_and_visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789514747875,
+      "tag": "0003_drop_legacy_visibility_columns",
+      "breakpoints": true
     }
   ]
 }

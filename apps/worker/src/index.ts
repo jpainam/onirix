@@ -8,6 +8,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { createDb } from "@onirix/db";
+import { isOrganizationWide } from "@onirix/db/access";
 import { runMigrations } from "@onirix/db/migrate";
 import { document, llmConfig, source } from "@onirix/db/schema";
 import {
@@ -71,6 +72,52 @@ async function main() {
 }
 
 async function handle(job: Job): Promise<void> {
+  if (job.type === "sync_document_access") {
+    await syncDocumentAccess(job);
+    return;
+  }
+
+  await indexOneDocument(job);
+}
+
+/**
+ * Mirrors a document's current permissions onto its indexed chunks.
+ *
+ * Until this runs, retrieval still enforces whatever the chunks last said, so
+ * a visibility change is not complete when the database row is updated — it is
+ * complete when this finishes.
+ */
+async function syncDocumentAccess(job: Job): Promise<void> {
+  const doc = await db.query.document.findFirst({
+    where: eq(document.id, job.documentId),
+  });
+  if (!doc) {
+    console.warn(`[worker] document ${job.documentId} no longer exists, skipping`);
+    return;
+  }
+
+  const config = await db.query.llmConfig.findFirst({
+    where: eq(llmConfig.organizationId, job.organizationId),
+  });
+  if (!config) {
+    throw new Error("Organization has no model configuration.");
+  }
+
+  const index = new DocumentIndex(
+    searchClient,
+    getIndexName(config.embeddingModel),
+    Number(config.embeddingDimension),
+  );
+
+  await index.updateDocumentAccess(job.organizationId, doc.id, {
+    isPublic: isOrganizationWide(doc.visibility),
+    accessControlList: doc.accessControlList,
+  });
+
+  console.log(`[worker] access updated for "${doc.title}" (${doc.visibility})`);
+}
+
+async function indexOneDocument(job: Job): Promise<void> {
   const started = Date.now();
 
   const doc = await db.query.document.findFirst({
@@ -127,7 +174,9 @@ async function handle(job: Job): Promise<void> {
       mimeType: doc.mimeType ?? "text/plain",
       fileName: doc.title,
       buffer,
-      isPublic: doc.isPublic === "true",
+      // Both come straight from the row: `accessControlList` was written by
+      // `resolveDocumentAcl`, which is the only thing allowed to compute it.
+      isPublic: isOrganizationWide(doc.visibility),
       accessControlList: doc.accessControlList,
       collectionIds: doc.collectionId ? [doc.collectionId] : undefined,
       sourceUpdatedAt: doc.sourceUpdatedAt,
@@ -152,6 +201,11 @@ async function handle(job: Job): Promise<void> {
 }
 
 async function markFailed(job: Job, error: unknown): Promise<void> {
+  // Only indexing failures belong on the document. A failed permission sync
+  // leaves a perfectly well-indexed document, and flagging it "failed" would
+  // invite an admin to retry an expensive re-index that fixes nothing.
+  if (job.type !== "index_document") return;
+
   const reason = error instanceof Error ? error.message : String(error);
   try {
     await db
