@@ -37,6 +37,16 @@ export type ProviderSpec = {
   selfHosted: boolean;
   /** Present when the endpoint is user-configurable (self-hosted, proxies). */
   defaultBaseUrl?: string;
+  /** Wording for the self-hosted mode in the setup dialog. */
+  selfHostedLabel?: string;
+  /**
+   * Set when the same models are also offered as a hosted API, so setup can
+   * offer both modes: an endpoint you run, or a key against their cloud.
+   */
+  cloud?: {
+    label: string;
+    baseUrl: string;
+  };
   chatModels: ChatModelSpec[];
   embeddingModels: EmbeddingModelSpec[];
 };
@@ -106,7 +116,14 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     description: "Models running on your own infrastructure. No data leaves your network.",
     requiresApiKey: false,
     selfHosted: true,
+    // Onirix runs in a container, so `localhost` would resolve to the
+    // container itself rather than the host running Ollama.
     defaultBaseUrl: "http://host.docker.internal:11434/v1",
+    selfHostedLabel: "Self-hosted Ollama",
+    cloud: {
+      label: "Ollama Cloud",
+      baseUrl: "https://ollama.com/v1",
+    },
     chatModels: [
       { id: "llama3.3", label: "Llama 3.3" },
       { id: "qwen2.5", label: "Qwen 2.5" },

@@ -6,23 +6,15 @@ import {
   Settings2Icon,
   ShieldIcon,
 } from "lucide-react";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-
 import { Badge } from "@onirix/ui/components/badge";
 
 import { Page, PageHeader, Row, Section } from "@/components/page";
+import { ResetSettings } from "@/components/reset-settings";
 import { ThemeSetting } from "@/components/theme-setting";
-import { loadWorkspace } from "@/lib/workspace";
-import { auth } from "@/services";
+import { requireConfiguredWorkspace } from "@/lib/workspace";
 
 export default async function SettingsPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) redirect("/login");
-
-  const workspace = await loadWorkspace(session.user.id);
-  if (!workspace?.llmConfig) redirect("/onboarding");
-
+  const { user, workspace } = await requireConfiguredWorkspace();
   const { llmConfig } = workspace;
   const roleLabel = workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1);
 
@@ -42,7 +34,7 @@ export default async function SettingsPage() {
           <Row
             icon={<BuildingIcon />}
             title={workspace.organizationName}
-            description={`You are signed in as ${session.user.email}`}
+            description={`You are signed in as ${user.email}`}
             action={
               <Badge variant="secondary">{roleLabel}</Badge>
             }
@@ -98,6 +90,13 @@ export default async function SettingsPage() {
             title="Your data stays in this deployment"
             description="Documents are indexed into your own search cluster; only prompts reach the model provider."
           />
+        </Section>
+
+        <Section
+          title="Danger zone"
+          description="Start setup over without touching what the workspace has learned."
+        >
+          <ResetSettings />
         </Section>
       </div>
     </Page>

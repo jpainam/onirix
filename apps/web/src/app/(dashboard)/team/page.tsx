@@ -10,8 +10,11 @@ import {
 } from "@onirix/ui/components/empty";
 
 import { Page, PageHeader } from "@/components/page";
+import { requireConfiguredWorkspace } from "@/lib/workspace";
 
-export default function TeamPage() {
+export default async function TeamPage() {
+  await requireConfiguredWorkspace();
+
   return (
     <Page>
       <PageHeader

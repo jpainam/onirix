@@ -5,6 +5,7 @@ import {
   BotIcon,
   DatabaseIcon,
   PanelLeftIcon,
+  RocketIcon,
   SearchIcon,
   Settings2Icon,
   SquarePenIcon,
@@ -27,13 +28,13 @@ import {
 } from "@onirix/ui/components/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@onirix/ui/components/tooltip";
 
+import { CommandPalette, useCommandPalette } from "@/components/command-palette";
 import { NavUser } from "@/components/nav-user";
 import { OnirixMark, OnirixWordmark } from "@/components/onirix-mark";
 
-/** The two entry points that start work, pinned above the sections. */
+/** The entry point that starts work, pinned above the sections. */
 const PRIMARY_ITEMS = [
   { title: "New Session", url: "/chat", icon: SquarePenIcon },
-  { title: "Search", url: "/search", icon: SearchIcon },
 ] as const;
 
 const KNOWLEDGE_ITEMS = [
@@ -45,14 +46,18 @@ const AGENT_ITEMS = [{ title: "Explore Agents", url: "/agents", icon: BotIcon }]
 
 export function AppSidebar({
   organizationName,
+  setupComplete,
   user,
 }: {
-  organizationName: string;
+  organizationName: string | null;
+  /** False until a model is connected, which gates most of the product. */
+  setupComplete: boolean;
   user: { name: string; email: string; avatar?: string | null };
 }) {
   const pathname = usePathname();
   const { toggleSidebar, state } = useSidebar();
   const collapsed = state === "collapsed";
+  const palette = useCommandPalette();
 
   return (
     <Sidebar collapsible="icon">
@@ -106,6 +111,20 @@ export function AppSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
+            {!setupComplete ? (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={pathname.startsWith("/onboarding")}
+                  tooltip="Finish setup"
+                  render={
+                    <Link href="/onboarding">
+                      <RocketIcon />
+                      <span>Finish setup</span>
+                    </Link>
+                  }
+                />
+              </SidebarMenuItem>
+            ) : null}
             {PRIMARY_ITEMS.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
@@ -120,6 +139,15 @@ export function AppSidebar({
                 />
               </SidebarMenuItem>
             ))}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip="Search"
+                onClick={() => palette.setOpen(true)}
+              >
+                <SearchIcon />
+                <span>Search</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
@@ -202,10 +230,12 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
         <NavUser
-          organizationName={organizationName}
+          organizationName={organizationName ?? "Your workspace"}
           user={{ ...user, avatar: user.avatar ?? "" }}
         />
       </SidebarFooter>
+
+      <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
     </Sidebar>
   );
 }

@@ -6,7 +6,16 @@
  * column on the data, not a convention.
  */
 import { relations } from "drizzle-orm";
-import { index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 import { user } from "./auth";
 
@@ -59,7 +68,18 @@ export const llmConfig = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
 
     chatProvider: text("chat_provider").notNull(),
+    /** The model answers are generated with unless the caller picks another. */
     chatModel: text("chat_model").notNull(),
+    /**
+     * Every model the workspace has enabled for this provider. `chatModel` is
+     * the default among them.
+     */
+    chatModels: jsonb("chat_models").$type<string[]>().notNull().default([]),
+    /**
+     * Track the built-in catalog: when Onirix ships support for new models
+     * from this provider, enable them without the admin revisiting setup.
+     */
+    autoUpdateModels: boolean("auto_update_models").notNull().default(true),
     // Null for self-hosted providers that need no credential.
     chatApiKey: text("chat_api_key"),
     chatBaseUrl: text("chat_base_url"),
