@@ -1,15 +1,14 @@
 "use client";
 
 import {
+  BookOpenIcon,
   BuildingIcon,
   CpuIcon,
-  FilesIcon,
+  DatabaseIcon,
   HistoryIcon,
   PaletteIcon,
   PieChartIcon,
-  PlugIcon,
   ShieldIcon,
-  UserIcon,
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -37,16 +36,13 @@ const ADMIN_SECTIONS = [
   {
     label: "Documents & Knowledge",
     items: [
-      { title: "Connectors", icon: PlugIcon },
-      { title: "Document Sets", icon: FilesIcon },
+      { title: "Sources", url: "/admin/sources", icon: DatabaseIcon },
+      { title: "Knowledge", url: "/admin/knowledge", icon: BookOpenIcon },
     ],
   },
   {
     label: "Permissions",
-    items: [
-      { title: "Users", icon: UserIcon },
-      { title: "Groups", icon: UsersIcon },
-    ],
+    items: [{ title: "Users & Teams", url: "/admin/users", icon: UsersIcon }],
   },
   {
     label: "Organization",

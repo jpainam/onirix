@@ -33,10 +33,10 @@ import { trpc } from "@/utils/trpc";
 
 const DESTINATIONS = [
   { title: "New session", url: "/chat", icon: SquarePenIcon },
-  { title: "Knowledge", url: "/knowledge", icon: BookOpenIcon },
-  { title: "Sources", url: "/sources", icon: DatabaseIcon },
+  { title: "Knowledge", url: "/admin/knowledge", icon: BookOpenIcon },
+  { title: "Sources", url: "/admin/sources", icon: DatabaseIcon },
   { title: "Explore agents", url: "/agents", icon: BotIcon },
-  { title: "Team", url: "/team", icon: UsersIcon },
+  { title: "Users & teams", url: "/admin/users", icon: UsersIcon },
   { title: "Language models", url: "/admin/language-models", icon: CpuIcon },
   { title: "Organization", url: "/admin/organization", icon: BuildingIcon },
   { title: "Appearance", url: "/admin/appearance", icon: PaletteIcon },
@@ -114,7 +114,7 @@ export function CommandPalette({
                   <CommandItem
                     key={hit.documentId}
                     value={hit.documentId}
-                    onSelect={() => go("/sources")}
+                    onSelect={() => go("/admin/sources")}
                   >
                     <FileTextIcon />
                     <span className="flex min-w-0 flex-1 flex-col">

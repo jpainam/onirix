@@ -2,7 +2,7 @@ import { requireConfiguredWorkspace } from "@/lib/workspace";
 
 import { TeamView } from "./team-view";
 
-export default async function TeamPage() {
+export default async function UsersPage() {
   const { workspace } = await requireConfiguredWorkspace();
 
   // Rendering decision only. Every mutation the page offers is re-authorized on

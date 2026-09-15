@@ -2,15 +2,12 @@
 
 import {
   ArrowLeftIcon,
-  BookOpenIcon,
   BotIcon,
-  DatabaseIcon,
   PanelLeftIcon,
   RocketIcon,
   SearchIcon,
   Settings2Icon,
   SquarePenIcon,
-  UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -42,14 +39,9 @@ const PRIMARY_ITEMS = [
   { title: "New Session", url: "/chat", icon: SquarePenIcon },
 ] as const;
 
-const KNOWLEDGE_ITEMS = [
-  { title: "Knowledge", url: "/knowledge", icon: BookOpenIcon },
-  { title: "Sources", url: "/sources", icon: DatabaseIcon },
-] as const;
-
 const AGENT_ITEMS = [{ title: "Explore Agents", url: "/agents", icon: BotIcon }] as const;
 
-/** Where Settings lands, and the prefix that decides which menu is showing. */
+/** Where the Admin Panel entry lands; `/admin` also decides which menu shows. */
 const ADMIN_HOME = "/admin/language-models";
 
 export function AppSidebar({
@@ -120,8 +112,8 @@ export function AppSidebar({
         </div>
       </SidebarHeader>
 
-      {/* The two menus are stacked in one clipping frame and slide as a pair,
-          so Settings reads as stepping sideways rather than as a new screen. */}
+      {/* The two menus are stacked in one clipping frame and slide as a pair, so
+          the admin panel reads as stepping sideways rather than as a new screen. */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <Pane hidden={inAdmin} offset={inAdmin ? "left" : "none"}>
           <SidebarContent>
@@ -187,26 +179,6 @@ export function AppSidebar({
               </SidebarMenu>
             </SidebarGroup>
 
-            <SidebarGroup>
-              <SidebarGroupLabel>Knowledge</SidebarGroupLabel>
-              <SidebarMenu>
-                {KNOWLEDGE_ITEMS.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      isActive={pathname.startsWith(item.url)}
-                      tooltip={item.title}
-                      render={
-                        <Link href={item.url}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      }
-                    />
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
-
             <SidebarGroup className="group-data-[collapsible=icon]:hidden">
               <SidebarGroupLabel>Recents</SidebarGroupLabel>
               {/* `chat.list` already returns past conversations, but reopening one
@@ -223,23 +195,11 @@ export function AppSidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={inAdmin}
-                  tooltip="Settings"
+                  tooltip="Admin Panel"
                   render={
                     <Link href={ADMIN_HOME}>
                       <Settings2Icon />
-                      <span>Settings</span>
-                    </Link>
-                  }
-                />
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={pathname.startsWith("/team")}
-                  tooltip="Team"
-                  render={
-                    <Link href="/team">
-                      <UsersIcon />
-                      <span>Team</span>
+                      <span>Admin Panel</span>
                     </Link>
                   }
                 />
