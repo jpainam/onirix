@@ -1,0 +1,3 @@
+{
+  "extends": "@onirix/config/tsconfig.base.json"
+}
