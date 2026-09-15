@@ -10,7 +10,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@onirix/ui/components/dropdown-menu"
@@ -38,7 +37,7 @@ export function NavUser({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
+              <SidebarMenuButton size="lg" />
             }
           >
             <Avatar>
@@ -58,7 +57,7 @@ export function NavUser({
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="p-0 font-normal">
+              <div>
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar>
                     <AvatarImage src={user.avatar} alt={user.name} />
@@ -69,7 +68,7 @@ export function NavUser({
                     <span className="truncate text-xs">{user.email}</span>
                   </div>
                 </div>
-              </DropdownMenuLabel>
+              </div>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>

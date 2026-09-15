@@ -62,7 +62,7 @@ export default function SearchPage() {
         <div className="flex flex-col gap-2">
           {results.data?.map((hit) => (
             <Card key={`${hit.documentId}-${hit.score}`}>
-              <CardContent className="flex flex-col gap-1 py-4">
+              <CardContent className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium">{hit.title}</span>
                   <Badge variant="outline">{hit.sourceType}</Badge>

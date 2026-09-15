@@ -170,7 +170,9 @@ export function SourcesView() {
               <TableBody>
                 {documents.data?.map((doc) => (
                   <TableRow key={doc.id}>
-                    <TableCell className="font-medium">{doc.title}</TableCell>
+                    <TableCell>
+                      <span className="font-medium">{doc.title}</span>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[doc.status] ?? "secondary"}>
                         {doc.status}

@@ -20,7 +20,7 @@ export function AnswerWithCitations({ message }: { message: UIMessage }) {
   }
 
   return (
-    <div className="prose prose-sm dark:prose-invert max-w-none">
+    <div className="max-w-none">
       <Streamdown>{text}</Streamdown>
     </div>
   );

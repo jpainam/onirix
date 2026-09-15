@@ -19,9 +19,25 @@ export default defineConfig([
     },
     rules: {
       // Pages may place and size components, but not restyle them.
-      "shadcn/no-restyle": ["error", { allow: ["layout"] }],
+      "shadcn/no-restyle": [
+        "error",
+        {
+          allow: ["layout"],
+          contracts: [
+            // CardContent owns the card's padding, but arranging its own
+            // children is the page's call. Gap only -- padding stays closed.
+            { pattern: "^CardContent$", allow: ["layout", "gap-*"] },
+          ],
+        },
+      ],
       "shadcn/no-raw-colors": "error",
-      "shadcn/no-arbitrary-values": "error",
+      "shadcn/no-arbitrary-values": [
+        "error",
+        {
+          // Grid templates have no theme scale to draw from.
+          allow: ["grid-rows-*", "grid-cols-*"],
+        },
+      ],
       "shadcn/no-inline-styles": "error",
       "shadcn/no-unknown-classes": "error",
       "shadcn/require-static-classes": "error",
