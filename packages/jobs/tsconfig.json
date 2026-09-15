@@ -1,0 +1,6 @@
+{
+  "extends": "@onirix/config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  }
+}

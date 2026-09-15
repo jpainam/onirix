@@ -14,7 +14,6 @@ export default function Home() {
   const { colorScheme } = useColorScheme();
   const theme = colorScheme === "dark" ? NAV_THEME.dark : NAV_THEME.light;
   const healthCheck = useQuery(trpc.healthCheck.queryOptions());
-  const privateData = useQuery(trpc.privateData.queryOptions());
   const isConnected = healthCheck?.data === "OK";
   const isLoading = healthCheck?.isLoading;
   const { data: session } = authClient.useSession();
@@ -101,29 +100,6 @@ export default function Home() {
                 </Host>
               </View>
             </View>
-          </View>
-
-          <View
-            style={[
-              styles.privateDataCard,
-              { backgroundColor: theme.card, borderColor: theme.border },
-            ]}
-          >
-            <Host style={styles.cardTitleHost} matchContents={{ vertical: true }}>
-              <ExpoUIText textStyle={{ color: theme.text, fontSize: 16, fontWeight: "bold" }}>
-                Private Data
-              </ExpoUIText>
-            </Host>
-            {privateData && (
-              <Host matchContents={{ vertical: true }}>
-                <ExpoUIText
-                  textStyle={{ color: theme.text, fontSize: 14 }}
-                  style={{ opacity: 0.7 }}
-                >
-                  {privateData.data?.message ?? ""}
-                </ExpoUIText>
-              </Host>
-            )}
           </View>
 
           {!session?.user && (

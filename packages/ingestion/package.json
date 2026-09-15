@@ -1,0 +1,30 @@
+{
+  "name": "@onirix/ingestion",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.982.0",
+    "@onirix/llm": "workspace:*",
+    "@onirix/search": "workspace:*",
+    "ai": "catalog:",
+    "gpt-tokenizer": "^3.0.1",
+    "mammoth": "^1.12.0",
+    "unpdf": "^1.4.0",
+    "xlsx": "^0.18.5",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@onirix/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

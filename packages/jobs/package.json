@@ -1,0 +1,19 @@
+{
+  "name": "@onirix/jobs",
+  "type": "module",
+  "exports": {
+    ".": { "default": "./src/index.ts" },
+    "./*": { "default": "./src/*.ts" }
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ioredis": "^5.9.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@onirix/config": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

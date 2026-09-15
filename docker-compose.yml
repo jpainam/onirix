@@ -1,5 +1,13 @@
 name: onirix
 
+# Service topology mirrors Onyx (github.com/onyx-dot-app/onyx):
+#   postgres   - relational metadata
+#   opensearch - hybrid vector + keyword document index
+#   redis      - cache and background job queue
+#   minio      - S3-compatible file store for uploads
+#   web        - Next.js application
+#   worker     - background indexing (replaces Onyx's Celery workers)
+
 services:
   web:
     build:
@@ -17,8 +25,22 @@ services:
       BETTER_AUTH_URL: http://localhost:3001
       CORS_ORIGIN: http://localhost:3001
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/onirix
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_REST_API_PORT: "9200"
+      OPENSEARCH_ADMIN_PASSWORD: ${OPENSEARCH_ADMIN_PASSWORD:-StrongPassword123!}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-onirix-file-store}
     depends_on:
       postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     healthcheck:
       test:
@@ -26,23 +48,59 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://localhost:3001/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://localhost:3001/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 20s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+      secrets:
+        - web_env
+    init: true
+    env_file:
+      - path: apps/web/.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/onirix
+      OPENSEARCH_HOST: opensearch
+      OPENSEARCH_REST_API_PORT: "9200"
+      OPENSEARCH_ADMIN_PASSWORD: ${OPENSEARCH_ADMIN_PASSWORD:-StrongPassword123!}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-onirix-file-store}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
 
   postgres:
     image: postgres:18
     container_name: onirix-postgres
+    shm_size: 1g
+    command: -c 'max_connections=250'
     environment:
       POSTGRES_DB: onirix
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
     ports:
-      - "5432:5432"
+      # Host 5432 is commonly taken by a local Postgres install; publish on
+      # 5433 so the container is reachable without fighting it. Other services
+      # still reach it as postgres:5432 on the compose network.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
     volumes:
       - onirix_postgres_data:/var/lib/postgresql
     healthcheck:
@@ -52,8 +110,87 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Hybrid vector + keyword index. Onyx migrated off Vespa to OpenSearch; the
+  # index mapping in packages/search is a direct port of theirs.
+  opensearch:
+    image: opensearchproject/opensearch:3.6.0
+    container_name: onirix-opensearch
+    environment:
+      # Single node: do not wait for peers to form a cluster.
+      - discovery.type=single-node
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:-StrongPassword123!}
+      # Avoid unstable performance from page swaps.
+      - bootstrap.memory_lock=true
+      # Heap should be ~50% of the container memory limit, Xms == Xmx.
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
+    ports:
+      - "9200:9200"
+    volumes:
+      - onirix_opensearch_data:/usr/share/opensearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      # Self-signed cert in the default security config, hence -k.
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sk -u admin:${OPENSEARCH_ADMIN_PASSWORD:-StrongPassword123!} https://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: onirix-redis
+    command: redis-server --save "" --appendonly no
+    ports:
+      # Host 6379 is commonly taken by a local redis-server; see the note on
+      # the postgres port above.
+      - "${REDIS_HOST_PORT:-6380}:6379"
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio:
+    # Docker Hub dropped minio/minio when MinIO archived its community edition.
+    # RELEASE.2025-09-07 is the last multi-arch build; -cpuv1 also runs on
+    # x86-64-v1 CPUs. Same pin Onyx uses.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    container_name: onirix-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - onirix_minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   onirix_postgres_data:
+  onirix_opensearch_data:
+  onirix_minio_data:
 
 # BuildKit makes these available only while install/build commands run.
 secrets:

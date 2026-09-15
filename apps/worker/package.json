@@ -1,0 +1,29 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_OPTIONS='--import varlock/auto-load' tsx watch src/index.ts",
+    "start": "NODE_OPTIONS='--import varlock/auto-load' tsx src/index.ts",
+    "check-types": "tsc --noEmit",
+    "env:generate": "varlock codegen"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.982.0",
+    "@onirix/db": "workspace:*",
+    "@onirix/ingestion": "workspace:*",
+    "@onirix/jobs": "workspace:*",
+    "@onirix/llm": "workspace:*",
+    "@onirix/search": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "ioredis": "catalog:",
+    "varlock": "catalog:"
+  },
+  "devDependencies": {
+    "@onirix/config": "workspace:*",
+    "@types/node": "catalog:",
+    "tsx": "^4.21.1",
+    "typescript": "^6.0.3"
+  }
+}

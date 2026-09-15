@@ -1,0 +1,178 @@
+/**
+ * Background indexing worker.
+ *
+ * Pulls documents off the Redis queue, extracts and embeds them, and writes the
+ * chunks to OpenSearch. This is the TypeScript counterpart to Onyx's Celery
+ * background workers.
+ */
+import { eq, sql } from "drizzle-orm";
+
+import { createDb } from "@onirix/db";
+import { runMigrations } from "@onirix/db/migrate";
+import { document, llmConfig, source } from "@onirix/db/schema";
+import {
+  createStorageClient,
+  ensureBucket,
+  getFile,
+  indexDocument,
+} from "@onirix/ingestion";
+import {
+  acknowledge,
+  createQueueClient,
+  recoverAbandoned,
+  reserve,
+  type Job,
+} from "@onirix/jobs";
+import { resolveCredentials, type ProviderCredentials } from "@onirix/llm";
+import { DocumentIndex, createSearchClient, getIndexName } from "@onirix/search";
+
+import { ENV as env } from "./env";
+
+const db = createDb(env);
+const queue = createQueueClient(env.REDIS_URL);
+const storage = createStorageClient(env);
+const searchClient = createSearchClient(env);
+
+let shuttingDown = false;
+
+async function main() {
+  console.log("[worker] starting");
+
+  // The worker owns schema migration: it is the one service guaranteed to run
+  // exactly once per deployment, so a fresh stack provisions itself.
+  await runMigrations(env);
+  console.log("[worker] schema up to date");
+
+  await ensureBucket(storage, env.S3_BUCKET);
+
+  // A worker that died mid-job left it on the processing list; put it back.
+  const recovered = await recoverAbandoned(queue);
+  if (recovered > 0) {
+    console.log(`[worker] recovered ${recovered} abandoned job(s)`);
+  }
+
+  console.log("[worker] ready, waiting for jobs");
+
+  while (!shuttingDown) {
+    const job = await reserve(queue, 5);
+    if (!job) continue;
+
+    try {
+      await handle(job);
+    } catch (error) {
+      console.error(`[worker] job failed`, job, error);
+      await markFailed(job, error);
+    } finally {
+      await acknowledge(queue, job);
+    }
+  }
+
+  console.log("[worker] shut down cleanly");
+}
+
+async function handle(job: Job): Promise<void> {
+  const started = Date.now();
+
+  const doc = await db.query.document.findFirst({
+    where: eq(document.id, job.documentId),
+  });
+  if (!doc) {
+    console.warn(`[worker] document ${job.documentId} no longer exists, skipping`);
+    return;
+  }
+  if (!doc.fileKey) {
+    throw new Error("Document has no stored file to index.");
+  }
+
+  const config = await db.query.llmConfig.findFirst({
+    where: eq(llmConfig.organizationId, job.organizationId),
+  });
+  if (!config) {
+    throw new Error("Organization has no model configuration.");
+  }
+
+  await db
+    .update(document)
+    .set({ status: "processing", indexError: null })
+    .where(eq(document.id, doc.id));
+
+  const dimension = Number(config.embeddingDimension);
+  const index = new DocumentIndex(
+    searchClient,
+    getIndexName(config.embeddingModel),
+    dimension,
+  );
+  await index.ensureReady();
+
+  const buffer = await getFile(storage, env.S3_BUCKET, doc.fileKey);
+
+  // A workspace using a deployment-provided key stores null; fill it in from
+  // the environment so the secret lives in one place.
+  const embeddingCredentials: ProviderCredentials = resolveCredentials(
+    {
+      provider: config.embeddingProvider as ProviderCredentials["provider"],
+      apiKey: config.embeddingApiKey,
+      baseUrl: config.embeddingBaseUrl,
+    },
+    env as unknown as Record<string, string | undefined>,
+  );
+
+  const { chunkCount } = await indexDocument(
+    {
+      organizationId: job.organizationId,
+      documentId: doc.id,
+      title: doc.title,
+      sourceType: "file_upload",
+      sourceUrl: doc.sourceUrl,
+      mimeType: doc.mimeType ?? "text/plain",
+      fileName: doc.title,
+      buffer,
+      isPublic: doc.isPublic === "true",
+      accessControlList: doc.accessControlList,
+      collectionIds: doc.collectionId ? [doc.collectionId] : undefined,
+      sourceUpdatedAt: doc.sourceUpdatedAt,
+    },
+    { index, embeddingCredentials, embeddingModelId: config.embeddingModel },
+  );
+
+  await db
+    .update(document)
+    .set({ status: "indexed", chunkCount, indexError: null })
+    .where(eq(document.id, doc.id));
+
+  // Keep the source's document count in step for the Sources page.
+  await db
+    .update(source)
+    .set({ documentCount: sql`${source.documentCount} + 1`, lastSyncedAt: new Date() })
+    .where(eq(source.id, doc.sourceId));
+
+  console.log(
+    `[worker] indexed "${doc.title}" -> ${chunkCount} chunk(s) in ${Date.now() - started}ms`,
+  );
+}
+
+async function markFailed(job: Job, error: unknown): Promise<void> {
+  const reason = error instanceof Error ? error.message : String(error);
+  try {
+    await db
+      .update(document)
+      .set({ status: "failed", indexError: reason })
+      .where(eq(document.id, job.documentId));
+  } catch (dbError) {
+    console.error("[worker] could not record failure", dbError);
+  }
+}
+
+// Finish the in-flight job before exiting so it is not replayed.
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    if (shuttingDown) process.exit(1);
+    console.log(`[worker] ${signal} received, finishing current job`);
+    shuttingDown = true;
+  });
+}
+
+main().catch((error) => {
+  console.error("[worker] fatal", error);
+  process.exit(1);
+});

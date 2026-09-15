@@ -15,10 +15,15 @@
   "dependencies": {
     "@onirix/auth": "workspace:*",
     "@onirix/db": "workspace:*",
+    "@onirix/ingestion": "workspace:*",
+    "@onirix/jobs": "workspace:*",
+    "@onirix/llm": "workspace:*",
+    "@onirix/search": "workspace:*",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@types/pg": "catalog:",
     "drizzle-orm": "catalog:",
+    "ioredis": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

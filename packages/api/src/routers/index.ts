@@ -1,16 +1,15 @@
-import { protectedProcedure, publicProcedure, router } from "../index";
-import { todoRouter } from "./todo";
+import { publicProcedure, router } from "../index";
+import { chatRouter } from "./chat";
+import { knowledgeRouter } from "./knowledge";
+import { onboardingRouter } from "./onboarding";
+import { searchRouter } from "./search";
 
 export const appRouter = router({
-  healthCheck: publicProcedure.query(() => {
-    return "OK";
-  }),
-  privateData: protectedProcedure.query(({ ctx }) => {
-    return {
-      message: "This is private",
-      user: ctx.session.user,
-    };
-  }),
-  todo: todoRouter,
+  healthCheck: publicProcedure.query(() => "OK"),
+  onboarding: onboardingRouter,
+  knowledge: knowledgeRouter,
+  chat: chatRouter,
+  search: searchRouter,
 });
+
 export type AppRouter = typeof appRouter;
