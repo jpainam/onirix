@@ -6,6 +6,11 @@ allowBuilds:
   sharp: true
 overrides:
   "@next/env": npm:@varlock/nextjs-integration@1.2.2
+  # react-jsx-parser declares an optional peer on the React 18 types. A second
+  # copy of ReactNode in the graph makes every node type mutually incompatible,
+  # which broke components that have nothing to do with it.
+  "react-jsx-parser>@types/react": ^19.2.18
+  "react-jsx-parser>@types/react-dom": ^19.2.7
 catalog:
   zod: ^4.5.4
   "@types/node": ^26.4.1

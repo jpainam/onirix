@@ -5,7 +5,14 @@
  * and persists the answer together with the sources it actually cited.
  */
 import { randomUUID } from "node:crypto";
-import { convertToModelMessages, generateText, streamText, type UIMessage } from "ai";
+import {
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  generateText,
+  streamText,
+  type UIMessage,
+} from "ai";
 import { and, asc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
@@ -24,10 +31,12 @@ import {
   resolveCredentials,
   type ProviderCredentials,
 } from "@onirix/llm";
+import type { SearchHit } from "@onirix/search";
 
 import { env } from "@/env.server";
-import { auth, getDb, getDocumentIndex } from "@/services";
+import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
 import { loadWorkspace } from "@/lib/workspace";
+import { auth, getDb, getDocumentIndex } from "@/services";
 
 export const maxDuration = 60;
 
@@ -120,32 +129,87 @@ export async function POST(request: Request) {
   const modelMessages = await convertToModelMessages(body.messages);
 
   const chatId = body.chatId ?? null;
+  const sources = toCitedSources(hits);
 
-  const result = streamText({
-    model,
-    system: systemPrompt,
-    messages: modelMessages,
-    onFinish: async ({ text }) => {
-      if (!chatId) return;
-      try {
-        await persistTurn({
-          db,
-          chatId,
-          organizationId: workspace.organizationId,
-          userId: session.user.id,
-          question,
-          answer: text,
-          hits,
-        });
-      } catch (error) {
-        // A persistence failure must not break the user's stream; the answer
-        // has already been delivered.
-        console.error("Failed to persist chat turn", error);
+  const stream = createUIMessageStream<OnirixUIMessage>({
+    execute: ({ writer }) => {
+      // Sent before the first token so a `[1]` is resolvable the moment it is
+      // rendered. All retrieved chunks go over, not just the cited ones: which
+      // ones the model cites is only known once the text exists.
+      if (sources.length > 0) {
+        writer.write({ type: "data-sources", id: "sources", data: sources });
       }
+
+      writer.merge(
+        streamText({
+          model,
+          system: systemPrompt,
+          messages: modelMessages,
+          onFinish: async ({ text }) => {
+            if (!chatId) return;
+            try {
+              await persistTurn({
+                db,
+                chatId,
+                organizationId: workspace.organizationId,
+                userId: session.user.id,
+                question,
+                answer: text,
+                sources,
+              });
+            } catch (error) {
+              // A persistence failure must not break the user's stream; the
+              // answer has already been delivered.
+              console.error("Failed to persist chat turn", error);
+            }
+          },
+        }).toUIMessageStream<OnirixUIMessage>(),
+      );
     },
   });
 
-  return result.toUIMessageStreamResponse();
+  return createUIMessageStreamResponse({ stream });
+}
+
+/**
+ * Shapes retrieved chunks into the citation records the client renders.
+ *
+ * The index matches the `document` field the prompt exposes to the model, so
+ * `[1]` in the answer resolves to the first entry here.
+ */
+function toCitedSources(hits: SearchHit[]): CitedSource[] {
+  return hits.map((hit, i) => ({
+    index: i + 1,
+    documentId: hit.document_id,
+    title: hit.title ?? hit.semantic_identifier,
+    sourceType: hit.source_type,
+    updatedAt: hit.last_updated
+      ? new Date(hit.last_updated * 1000).toISOString().slice(0, 10)
+      : null,
+    passage: hit.content,
+    url: firstSourceLink(hit.source_links),
+  }));
+}
+
+/**
+ * `source_links` maps a character offset inside the chunk to the link covering
+ * it. The lowest offset is the closest thing to a link for the chunk as a
+ * whole, so that is what a citation points at.
+ */
+function firstSourceLink(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const links = JSON.parse(raw) as Record<string, string>;
+    const offsets = Object.keys(links)
+      .map(Number)
+      .filter((offset) => Number.isFinite(offset))
+      .sort((a, b) => a - b);
+    const first = offsets[0];
+    return first === undefined ? null : (links[String(first)] ?? null);
+  } catch {
+    // A malformed link map must not cost the user their citation.
+    return null;
+  }
 }
 
 function extractText(uiMessage: UIMessage | undefined): string {
@@ -182,9 +246,9 @@ async function persistTurn(args: {
   userId: string;
   question: string;
   answer: string;
-  hits: Awaited<ReturnType<typeof retrieveContext>>["hits"];
+  sources: CitedSource[];
 }) {
-  const { db, chatId, answer, hits } = args;
+  const { db, chatId, answer, sources } = args;
 
   const owned = await db.query.chat.findFirst({
     where: and(
@@ -217,16 +281,16 @@ async function persistTurn(args: {
   if (cited.length > 0) {
     const rows = cited
       .map((citationIndex) => {
-        const hit = hits[citationIndex - 1];
-        if (!hit) return null;
+        const source = sources[citationIndex - 1];
+        if (!source) return null;
         return {
           id: randomUUID(),
           messageId: assistantMessageId,
           index: citationIndex,
-          documentId: hit.document_id,
-          passage: hit.blurb || hit.content.slice(0, 500),
-          documentTitle: hit.title ?? hit.semantic_identifier,
-          sourceUrl: null,
+          documentId: source.documentId,
+          passage: source.passage.slice(0, 2000),
+          documentTitle: source.title,
+          sourceUrl: source.url,
         };
       })
       .filter((row): row is NonNullable<typeof row> => row !== null);

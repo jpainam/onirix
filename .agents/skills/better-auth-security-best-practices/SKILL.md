@@ -16,7 +16,6 @@ export const auth = betterAuth({
 ```
 
 Better Auth looks for secrets in this order:
-
 1. `options.secret` in your config
 2. `BETTER_AUTH_SECRET` environment variable
 3. `AUTH_SECRET` environment variable
@@ -116,7 +115,10 @@ import { betterAuth } from "better-auth";
 
 export const auth = betterAuth({
   baseURL: "https://api.example.com",
-  trustedOrigins: ["https://app.example.com", "https://admin.example.com"],
+  trustedOrigins: [
+    "https://app.example.com",
+    "https://admin.example.com",
+  ],
 });
 ```
 
@@ -129,7 +131,7 @@ trustedOrigins: [
   "*.example.com", // Matches any subdomain
   "https://*.example.com", // Protocol-specific wildcard
   "exp://192.168.*.*:*/*", // Custom schemes (e.g., Expo)
-];
+]
 ```
 
 ### Dynamic Trusted Origins
@@ -141,7 +143,7 @@ trustedOrigins: async (request) => {
   // Validate against database, header, etc.
   const tenant = getTenantFromRequest(request);
   return [`https://${tenant}.myapp.com`];
-};
+}
 ```
 
 Validates `callbackURL`, `redirectTo`, `errorCallbackURL`, `newUserCallbackURL`, and `origin` against trusted origins. Invalid URLs receive 403.
@@ -342,8 +344,11 @@ import { betterAuth } from "better-auth";
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: "https://api.example.com",
-  trustedOrigins: ["https://app.example.com", "https://*.preview.example.com"],
-
+  trustedOrigins: [
+    "https://app.example.com",
+    "https://*.preview.example.com",
+  ],
+  
   // Rate limiting
   rateLimit: {
     enabled: true,
@@ -353,7 +358,7 @@ export const auth = betterAuth({
       "/api/auth/sign-up/email": { window: 60, max: 3 },
     },
   },
-
+  
   // Session security
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
@@ -365,13 +370,14 @@ export const auth = betterAuth({
       strategy: "jwe", // Encrypted session data
     },
   },
-
+  
   // OAuth security
   account: {
     encryptOAuthTokens: true,
     storeStateStrategy: "cookie",
   },
-
+  
+  
   // Advanced settings
   advanced: {
     useSecureCookies: true,
@@ -387,7 +393,7 @@ export const auth = betterAuth({
       handler: (promise) => waitUntil(promise),
     },
   },
-
+  
   // Security auditing
   databaseHooks: {
     session: {
