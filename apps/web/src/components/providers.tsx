@@ -6,13 +6,19 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import { queryClient } from "@/utils/trpc";
 
+import { TooltipProvider } from "@onirix/ui/components/tooltip";
 import { ThemeProvider } from "./theme-provider";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
       <QueryClientProvider client={queryClient}>
-        {children}
+        <TooltipProvider>{children}</TooltipProvider>
         <ReactQueryDevtools />
       </QueryClientProvider>
       <Toaster richColors />
