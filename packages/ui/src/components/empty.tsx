@@ -1,14 +1,32 @@
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
-function Empty({ className, ...props }: React.ComponentProps<"div">) {
+const emptyVariants = cva(
+  "flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl p-6 text-center text-balance",
+  {
+    variants: {
+      variant: {
+        default: "border-dashed",
+        // A closed card, for empty states that stand in for real content
+        // rather than sitting inside an already-bordered container.
+        outline: "border bg-card",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Empty({
+  className,
+  variant = "default",
+  ...props
+}: React.ComponentProps<"div"> & VariantProps<typeof emptyVariants>) {
   return (
     <div
       data-slot="empty"
-      className={cn(
-        "flex w-full min-w-0 flex-1 flex-col items-center justify-center gap-4 rounded-xl border-dashed p-6 text-center text-balance",
-        className
-      )}
+      className={cn(emptyVariants({ variant, className }))}
       {...props}
     />
   )

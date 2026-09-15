@@ -2,12 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { PropsWithChildren } from "react";
 
-import { Separator } from "@onirix/ui/components/separator";
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@onirix/ui/components/sidebar";
+import { SidebarInset, SidebarProvider } from "@onirix/ui/components/sidebar";
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { loadWorkspace } from "@/lib/workspace";
@@ -22,7 +17,7 @@ export default async function Layout(props: PropsWithChildren) {
   if (!workspace?.llmConfig) redirect("/onboarding");
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh min-h-0 overflow-hidden">
       <AppSidebar
         organizationName={workspace.organizationName}
         user={{
@@ -31,13 +26,10 @@ export default async function Layout(props: PropsWithChildren) {
           avatar: session.user.image,
         }}
       />
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 data-vertical:h-4 data-vertical:self-auto" />
-          <span className="text-sm font-medium">{workspace.organizationName}</span>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 overflow-hidden p-4">{props.children}</div>
+      {/* No top chrome: the sidebar carries navigation, so the content column
+          runs the full height of the frame and owns its own scrolling. */}
+      <SidebarInset className="min-h-0 overflow-hidden">
+        {props.children}
       </SidebarInset>
     </SidebarProvider>
   );

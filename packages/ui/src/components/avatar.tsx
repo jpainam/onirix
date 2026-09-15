@@ -7,16 +7,20 @@ import { cn } from "cn"
 function Avatar({
   className,
   size = "default",
+  shape = "circle",
   ...props
 }: AvatarPrimitive.Root.Props & {
   size?: "default" | "sm" | "lg"
+  /** `square` gives the rounded-tile treatment the app chrome uses. */
+  shape?: "circle" | "square"
 }) {
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"
       data-size={size}
+      data-shape={shape}
       className={cn(
-        "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 dark:after:mix-blend-lighten",
+        "group/avatar relative flex size-8 shrink-0 rounded-full select-none after:absolute after:inset-0 after:rounded-full after:border after:border-border after:mix-blend-darken data-[size=lg]:size-10 data-[size=sm]:size-6 data-[shape=square]:rounded-lg data-[shape=square]:after:rounded-lg data-[shape=square]:data-[size=sm]:rounded-md data-[shape=square]:data-[size=sm]:after:rounded-md dark:after:mix-blend-lighten",
         className
       )}
       {...props}
@@ -29,7 +33,7 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
     <AvatarPrimitive.Image
       data-slot="avatar-image"
       className={cn(
-        "aspect-square size-full rounded-full object-cover",
+        "aspect-square size-full rounded-full object-cover group-data-[shape=square]/avatar:rounded-lg group-data-[shape=square]/avatar:group-data-[size=sm]/avatar:rounded-md",
         className
       )}
       {...props}
@@ -39,13 +43,18 @@ function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
 
 function AvatarFallback({
   className,
+  tone = "muted",
   ...props
-}: AvatarPrimitive.Fallback.Props) {
+}: AvatarPrimitive.Fallback.Props & {
+  /** `solid` inverts the tile, for initials that stand in for a photo. */
+  tone?: "muted" | "solid"
+}) {
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
+      data-tone={tone}
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
+        "flex size-full items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground group-data-[size=sm]/avatar:text-xs group-data-[shape=square]/avatar:rounded-lg group-data-[shape=square]/avatar:group-data-[size=sm]/avatar:rounded-md data-[tone=solid]:bg-primary data-[tone=solid]:font-semibold data-[tone=solid]:text-primary-foreground",
         className
       )}
       {...props}

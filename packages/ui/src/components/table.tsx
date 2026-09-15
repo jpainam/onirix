@@ -56,7 +56,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "border-b transition-colors [tbody_&]:hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
         className
       )}
       {...props}
@@ -69,7 +69,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-11 px-4 text-left align-middle text-xs font-medium whitespace-nowrap text-ink-03 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -77,12 +77,23 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<"td">) {
+function TableCell({
+  className,
+  variant = "default",
+  ...props
+}: React.ComponentProps<"td"> & {
+  /**
+   * `strong` is the row's identifying column, `muted` is supporting detail,
+   * and `figure` is a number — set in the mono face with tabular figures.
+   */
+  variant?: "default" | "strong" | "muted" | "figure"
+}) {
   return (
     <td
       data-slot="table-cell"
+      data-variant={variant}
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "px-4 py-3 align-middle whitespace-nowrap data-[variant=strong]:font-medium data-[variant=muted]:text-ink-03 data-[variant=figure]:font-mono data-[variant=figure]:text-xs data-[variant=figure]:tabular-nums data-[variant=figure]:text-ink-03 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

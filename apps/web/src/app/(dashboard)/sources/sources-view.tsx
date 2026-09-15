@@ -1,19 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileTextIcon, UploadIcon } from "lucide-react";
+import { DatabaseIcon, FileTextIcon, UploadIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@onirix/ui/components/card";
 import {
   Empty,
   EmptyDescription,
@@ -31,12 +24,14 @@ import {
   TableRow,
 } from "@onirix/ui/components/table";
 
+import { Page, PageHeader, Row, Section } from "@/components/page";
 import { trpc } from "@/utils/trpc";
 
+/** Indexing state reads as a tinted pill, one colour per outcome. */
 const STATUS_VARIANT = {
-  indexed: "default",
-  processing: "secondary",
-  pending: "secondary",
+  indexed: "success",
+  processing: "info",
+  pending: "muted",
   failed: "destructive",
 } as const;
 
@@ -105,48 +100,57 @@ export function SourcesView() {
     }
   }
 
+  const summary = progress.data;
+
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload files</CardTitle>
-          <CardDescription>
-            PDF, Word, Excel, CSV, Markdown, HTML, and plain text. Uploaded files become
-            part of your organization&apos;s knowledge.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center gap-3">
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            hidden
-            onChange={(event) => void upload(event.target.files)}
-          />
+    <Page width="wide">
+      <PageHeader
+        icon={DatabaseIcon}
+        title="Sources"
+        description="Everything Onirix indexes, and where it came from."
+        action={
           <Button onClick={() => fileInput.current?.click()} disabled={uploading}>
             {uploading ? <Spinner /> : <UploadIcon />}
-            Choose files
+            Add files
           </Button>
+        }
+      />
 
-          {progress.data && progress.data.total > 0 ? (
-            <p className="text-muted-foreground text-sm">
-              {progress.data.indexed} of {progress.data.total} documents processed
-              {progress.data.failed > 0 ? ` · ${progress.data.failed} failed` : ""}
-            </p>
-          ) : null}
-        </CardContent>
-      </Card>
+      <input
+        ref={fileInput}
+        type="file"
+        multiple
+        hidden
+        onChange={(event) => void upload(event.target.files)}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Documents</CardTitle>
-          <CardDescription>Everything Onirix currently knows about.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="flex flex-col gap-10">
+        <Section>
+          <Row
+            icon={<UploadIcon />}
+            title="Upload files"
+            description="PDF, Word, Excel, CSV, Markdown, HTML, and plain text."
+            action={
+              summary && summary.total > 0 ? (
+                <span className="font-figure text-ink-03">
+                  {summary.indexed}/{summary.total} processed
+                  {summary.failed > 0 ? ` · ${summary.failed} failed` : ""}
+                </span>
+              ) : null
+            }
+          />
+        </Section>
+
+        <Section
+          title="Documents"
+          description="Everything Onirix currently knows about."
+        >
           {documents.isPending ? (
-            <Spinner />
+            <div className="flex justify-center py-12">
+              <Spinner />
+            </div>
           ) : documents.data?.length === 0 ? (
-            <Empty>
+            <Empty variant="outline">
               <EmptyHeader>
                 <EmptyMedia variant="icon">
                   <FileTextIcon />
@@ -158,48 +162,57 @@ export function SourcesView() {
               </EmptyHeader>
             </Empty>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Chunks</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {documents.data?.map((doc) => (
-                  <TableRow key={doc.id}>
-                    <TableCell>
-                      <span className="font-medium">{doc.title}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={STATUS_VARIANT[doc.status] ?? "secondary"}>
-                        {doc.status}
-                      </Badge>
-                      {doc.indexError ? (
-                        <p className="text-destructive mt-1 text-xs">{doc.indexError}</p>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{doc.chunkCount}</TableCell>
-                    <TableCell>
-                      {doc.status === "failed" ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => retry.mutate({ documentId: doc.id })}
-                        >
-                          Retry
-                        </Button>
-                      ) : null}
-                    </TableCell>
+            <div className="bg-card overflow-hidden rounded-xl border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead className="w-40">Status</TableHead>
+                    <TableHead className="w-24 text-right">Chunks</TableHead>
+                    <TableHead className="w-24" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {documents.data?.map((doc) => (
+                    <TableRow key={doc.id}>
+                      <TableCell variant="strong">{doc.title}</TableCell>
+                      <TableCell>
+                        <Badge variant={STATUS_VARIANT[doc.status] ?? "muted"}>
+                          {doc.status}
+                        </Badge>
+                        {doc.indexError ? (
+                          <p className="text-destructive mt-1 text-xs">
+                            {doc.indexError}
+                          </p>
+                        ) : null}
+                      </TableCell>
+                      <TableCell variant="figure" className="text-right">
+                        {doc.chunkCount}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {doc.status === "failed" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => retry.mutate({ documentId: doc.id })}
+                          >
+                            Retry
+                          </Button>
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
-        </CardContent>
-      </Card>
-    </div>
+          {documents.data && documents.data.length > 0 ? (
+            <p className="font-figure text-ink-02">
+              Showing 1~{documents.data.length} of {documents.data.length} documents
+            </p>
+          ) : null}
+        </Section>
+      </div>
+    </Page>
   );
 }

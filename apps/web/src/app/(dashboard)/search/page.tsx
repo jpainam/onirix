@@ -1,11 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { SearchIcon } from "lucide-react";
+import { FileTextIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";
-import { Card, CardContent } from "@onirix/ui/components/card";
 import {
   Empty,
   EmptyDescription,
@@ -13,9 +12,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@onirix/ui/components/empty";
-import { Input } from "@onirix/ui/components/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@onirix/ui/components/input-group";
 import { Spinner } from "@onirix/ui/components/spinner";
 
+import { Page, PageHeader } from "@/components/page";
 import { trpc } from "@/utils/trpc";
 
 export default function SearchPage() {
@@ -29,50 +33,74 @@ export default function SearchPage() {
   });
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <Input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search documents, policies, projects..."
-        autoFocus
+    <Page>
+      <PageHeader
+        icon={SearchIcon}
+        title="Search"
+        description="Find documents directly. For an answer instead of a list, use a chat session."
       />
 
+      <InputGroup size="lg" className="mb-6">
+        <InputGroupAddon>
+          <SearchIcon />
+        </InputGroupAddon>
+        <InputGroupInput
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search documents, policies, projects…"
+          autoFocus
+        />
+      </InputGroup>
+
       {trimmed.length <= 1 ? (
-        <Empty>
+        <Empty variant="outline">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <SearchIcon />
             </EmptyMedia>
             <EmptyTitle>Search your organization</EmptyTitle>
             <EmptyDescription>
-              Find documents directly. For an answer instead of a list, use Chat.
+              Every document your workspace has indexed is searchable here, ranked by
+              how well it matches.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : results.isPending ? (
-        <Spinner />
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
       ) : results.data?.length === 0 ? (
-        <Empty>
+        <Empty variant="outline">
           <EmptyHeader>
             <EmptyTitle>No matches</EmptyTitle>
-            <EmptyDescription>Nothing in your knowledge matches “{trimmed}”.</EmptyDescription>
+            <EmptyDescription>
+              Nothing in your knowledge matches “{trimmed}”.
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
         <div className="flex flex-col gap-2">
           {results.data?.map((hit) => (
-            <Card key={`${hit.documentId}-${hit.score}`}>
-              <CardContent className="flex flex-col gap-1">
+            <article
+              key={`${hit.documentId}-${hit.score}`}
+              className="bg-card hover:bg-tint-01 flex gap-3 rounded-xl border px-4 py-3.5 transition-colors"
+            >
+              <FileTextIcon className="text-ink-02 mt-0.5 size-5 shrink-0" />
+              <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">{hit.title}</span>
-                  <Badge variant="outline">{hit.sourceType}</Badge>
+                  <h2 className="truncate text-sm font-semibold">{hit.title}</h2>
+                  <Badge variant="outline" className="shrink-0">
+                    {hit.sourceType}
+                  </Badge>
                 </div>
-                <p className="text-muted-foreground text-sm">{hit.blurb}</p>
-              </CardContent>
-            </Card>
+                <p className="text-ink-03 line-clamp-2 text-sm leading-5">
+                  {hit.blurb}
+                </p>
+              </div>
+            </article>
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
