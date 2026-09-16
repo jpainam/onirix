@@ -29,6 +29,13 @@
       "when": 1789514747875,
       "tag": "0003_drop_legacy_visibility_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789517450559,
+      "tag": "0004_chat_title_nullable",
+      "breakpoints": true
     }
   ]
 }

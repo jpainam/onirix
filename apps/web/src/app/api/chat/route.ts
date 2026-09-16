@@ -13,7 +13,7 @@ import {
   streamText,
   type UIMessage,
 } from "ai";
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
 import { chat, citation, message } from "@onirix/db/schema";
@@ -23,6 +23,7 @@ import {
   retrieveContext,
 } from "@onirix/ingestion";
 import {
+  CHAT_TITLE_PROMPT,
   QUERY_REWRITE_PROMPT,
   buildContextBlock,
   buildSystemPrompt,
@@ -34,6 +35,7 @@ import type { SearchHit } from "@onirix/search";
 
 import { env } from "@/env.server";
 import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
+import { fallbackTitle, sanitizeTitle } from "@/lib/chat-title";
 import { loadWorkspace } from "@/lib/workspace";
 import { auth, getDb, getDocumentIndex } from "@/services";
 
@@ -92,6 +94,26 @@ export async function POST(request: Request) {
     return Response.json({ error: "Empty message." }, { status: 400 });
   }
 
+  const chatId = body.chatId ?? null;
+  // Ownership is settled before anything is generated: a turn that cannot be
+  // persisted has no business naming a conversation either.
+  const conversation = chatId
+    ? await db.query.chat.findFirst({
+        where: and(
+          eq(chat.id, chatId),
+          eq(chat.organizationId, workspace.organizationId),
+          eq(chat.userId, session.user.id),
+        ),
+      })
+    : null;
+
+  // Naming runs alongside retrieval and generation rather than after them. The
+  // name is not needed until the answer is persisted, by which point this has
+  // long since settled — so a second model call costs the reader nothing. Only
+  // an unnamed conversation gets one; a name the user typed is never replaced.
+  const titlePromise =
+    conversation && conversation.title === null ? generateTitle(model, question) : null;
+
   // A follow-up like "what about contractors?" carries its subject in the
   // history, so search the rewritten query rather than the raw text.
   const searchQuery =
@@ -133,7 +155,6 @@ export async function POST(request: Request) {
 
   const modelMessages = await convertToModelMessages(body.messages);
 
-  const chatId = body.chatId ?? null;
   const sources = toCitedSources(hits);
 
   const stream = createUIMessageStream<OnirixUIMessage>({
@@ -151,16 +172,15 @@ export async function POST(request: Request) {
           system: systemPrompt,
           messages: modelMessages,
           onFinish: async ({ text }) => {
-            if (!chatId) return;
+            if (!chatId || !conversation) return;
             try {
               await persistTurn({
                 db,
                 chatId,
-                organizationId: workspace.organizationId,
-                userId: session.user.id,
                 question,
                 answer: text,
                 sources,
+                title: titlePromise ? await titlePromise : null,
               });
             } catch (error) {
               // A persistence failure must not break the user's stream; the
@@ -244,25 +264,44 @@ async function rewriteQuery(
   }
 }
 
+/**
+ * Names a conversation from its opening question.
+ *
+ * The answer is deliberately not part of the input. A grounded workspace
+ * question carries its own topic, and waiting for the answer would put this
+ * call in series with generation rather than alongside it.
+ */
+async function generateTitle(
+  model: Parameters<typeof generateText>[0]["model"],
+  question: string,
+): Promise<string> {
+  try {
+    const { text } = await generateText({
+      model,
+      system: CHAT_TITLE_PROMPT,
+      prompt: question,
+      // Five words and a little slack. A model that needs more than this is
+      // writing a sentence, which `sanitizeTitle` rejects anyway.
+      maxOutputTokens: 32,
+    });
+    return sanitizeTitle(text) ?? fallbackTitle(question);
+  } catch {
+    // Naming is cosmetic, and this runs concurrently with the answer: a
+    // rejection here must never reach the stream.
+    return fallbackTitle(question);
+  }
+}
+
 async function persistTurn(args: {
   db: ReturnType<typeof getDb>;
   chatId: string;
-  organizationId: string;
-  userId: string;
   question: string;
   answer: string;
   sources: CitedSource[];
+  /** Null once the conversation has a name, generated or typed. */
+  title: string | null;
 }) {
   const { db, chatId, answer, sources } = args;
-
-  const owned = await db.query.chat.findFirst({
-    where: and(
-      eq(chat.id, chatId),
-      eq(chat.organizationId, args.organizationId),
-      eq(chat.userId, args.userId),
-    ),
-  });
-  if (!owned) return;
 
   await db.insert(message).values({
     id: randomUUID(),
@@ -305,18 +344,9 @@ async function persistTurn(args: {
     }
   }
 
-  // First exchange names the conversation.
-  if (owned.title === "New conversation") {
-    const existing = await db.query.message.findMany({
-      where: eq(message.chatId, chatId),
-      orderBy: asc(message.createdAt),
-      limit: 3,
-    });
-    if (existing.length <= 2) {
-      await db
-        .update(chat)
-        .set({ title: args.question.slice(0, 80) })
-        .where(eq(chat.id, chatId));
-    }
+  // Written here rather than the moment it was generated so the name and the
+  // exchange it describes land together.
+  if (args.title) {
+    await db.update(chat).set({ title: args.title }).where(eq(chat.id, chatId));
   }
 }

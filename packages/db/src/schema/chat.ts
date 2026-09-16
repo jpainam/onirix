@@ -32,8 +32,12 @@ export const chat = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    /** Generated from the first exchange; editable by the user. */
-    title: text("title").notNull().default("New conversation"),
+    /**
+     * Null until the opening exchange names the conversation. Nullable rather
+     * than a placeholder string so nothing has to compare against a magic
+     * title — a user who renames a chat "New conversation" keeps that name.
+     */
+    title: text("title"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

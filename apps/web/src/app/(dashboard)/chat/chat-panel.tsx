@@ -21,6 +21,7 @@ import {
   type CitedSource,
   type OnirixUIMessage,
 } from "@/lib/chat-message";
+import { seedRecentConversation } from "@/lib/recents";
 import { trpc } from "@/utils/trpc";
 
 import { AnswerWithCitations, UserMessage } from "./answer";
@@ -111,6 +112,9 @@ export function ChatPanel({
       const created = await createChat.mutateAsync();
       id = created.id;
       setChatId(id);
+      // The row exists now but is nameless until the answer is persisted, so
+      // the sidebar is shown the question in the meantime.
+      seedRecentConversation(id, trimmed);
       // Reopening the conversation needs its id in the URL, but a router
       // navigation here would remount this panel and abort the stream that is
       // about to start — so the address bar is corrected in place instead.

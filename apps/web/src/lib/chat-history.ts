@@ -15,7 +15,8 @@ import { getDb } from "@/services";
 
 export type StoredConversation = {
   id: string;
-  title: string;
+  /** Null while the conversation is still unnamed. */
+  title: string | null;
   messages: OnirixUIMessage[];
 };
 

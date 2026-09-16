@@ -118,3 +118,17 @@ chunk. Answer with the context only and nothing else.`;
 
 export const DOCUMENT_SUMMARY_PROMPT = `Give a short, succinct summary of the \
 entire document. Answer with the summary only and nothing else.`;
+
+/**
+ * Names a conversation from its opening question.
+ *
+ * Sidebar width is the real constraint: a truncated question reads as a wall of
+ * clipped text, so the model is pushed hard toward a few keywords. The language
+ * instruction matters for a workspace whose documents are not in English — the
+ * name should match the person who asked, not the documents that answered.
+ */
+export const CHAT_TITLE_PROMPT = `Give a SHORT name for a conversation that \
+opens with the user's message. Focus on the keywords that convey the topic. \
+Write the name in the same language as the user's message. Never use more than \
+5 words — fewer is better. Reply with the name only: no quotes, no colons, no \
+trailing punctuation, no preamble.`;

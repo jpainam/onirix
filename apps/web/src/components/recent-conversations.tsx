@@ -43,9 +43,12 @@ import {
 } from "@onirix/ui/components/sidebar";
 import { Spinner } from "@onirix/ui/components/spinner";
 
+import { displayTitle } from "@/lib/chat-title";
+import { RECENT_CONVERSATIONS_LIMIT } from "@/lib/recents";
 import { trpc } from "@/utils/trpc";
 
-type Conversation = { id: string; title: string };
+/** Unnamed until the opening exchange names it, so the title may be null. */
+type Conversation = { id: string; title: string | null };
 
 const SKELETON_WIDTHS = ["84%", "62%", "73%"];
 
@@ -68,7 +71,7 @@ export function RecentConversations({ enabled }: { enabled: boolean }) {
   const [draftTitle, setDraftTitle] = useState("");
 
   const recents = useQuery({
-    ...trpc.chat.list.queryOptions({ limit: 30 }),
+    ...trpc.chat.list.queryOptions({ limit: RECENT_CONVERSATIONS_LIMIT }),
     enabled,
   });
   const conversations = recents.data ?? [];
@@ -100,7 +103,9 @@ export function RecentConversations({ enabled }: { enabled: boolean }) {
   );
 
   function openRename(conversation: Conversation) {
-    setDraftTitle(conversation.title);
+    // The placeholder is never seeded into the field: renaming an unnamed
+    // conversation should start from empty, not from the word "New".
+    setDraftTitle(conversation.title ?? "");
     setRenaming(conversation);
   }
 
@@ -139,16 +144,20 @@ export function RecentConversations({ enabled }: { enabled: boolean }) {
   return (
     <>
       <SidebarMenu>
-        {conversations.map((conversation) => (
+        {conversations.map((conversation) => {
+          const label = displayTitle(conversation.title);
+
+          return (
           <SidebarMenuItem key={conversation.id}>
             <SidebarMenuButton
               isActive={pathname === `/chat/${conversation.id}`}
-              tooltip={conversation.title}
+              tooltip={label}
               render={
                 <Link href={`/chat/${conversation.id}`}>
-                  {/* Titles are whole first questions, so they are clipped
-                      rather than allowed to wrap the rail. */}
-                  <span className="truncate">{conversation.title}</span>
+                  {/* A generated name is a few words, but a conversation still
+                      waiting on one shows its question — so rows clip rather
+                      than wrap the rail. */}
+                  <span className="truncate">{label}</span>
                 </Link>
               }
             />
@@ -156,10 +165,7 @@ export function RecentConversations({ enabled }: { enabled: boolean }) {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <SidebarMenuAction
-                    showOnHover
-                    aria-label={`Actions for ${conversation.title}`}
-                  />
+                  <SidebarMenuAction showOnHover aria-label={`Actions for ${label}`} />
                 }
               >
                 <MoreHorizontalIcon />
@@ -185,7 +191,8 @@ export function RecentConversations({ enabled }: { enabled: boolean }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
-        ))}
+          );
+        })}
       </SidebarMenu>
 
       <Dialog
@@ -238,7 +245,7 @@ export function RecentConversations({ enabled }: { enabled: boolean }) {
             <AlertDialogDescription>
               {/* Documents are the expensive thing in the workspace, so the
                   dialog says plainly that they are not what is going away. */}
-              “{deleting?.title}” and its answers will be removed. The documents
+              “{displayTitle(deleting?.title)}” and its answers will be removed. The documents
               they cited are not affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
