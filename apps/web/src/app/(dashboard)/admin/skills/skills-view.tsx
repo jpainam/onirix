@@ -84,6 +84,16 @@ const LOADING_LABEL: Record<Skill["loading"], string> = {
 };
 
 /**
+ * The dropdown's own wording, kept in one place because Base UI resolves the
+ * trigger's label from `items` rather than from the rendered `SelectItem`, and
+ * shows the bare value when the two drift apart.
+ */
+const LOADING_OPTIONS: { value: Skill["loading"]; label: string }[] = [
+  { value: "on_demand", label: "When relevant" },
+  { value: "always", label: "Always" },
+];
+
+/**
  * Skills: the instructions the assistant follows when it answers.
  *
  * This is where the product's behaviour stopped being code. A skill pairs a
@@ -463,15 +473,19 @@ function SkillDialog({
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="skill-loading">When to apply it</Label>
                   <Select
+                    items={LOADING_OPTIONS}
                     value={loading}
                     onValueChange={(value) => setLoading(value as Skill["loading"])}
                   >
-                    <SelectTrigger id="skill-loading">
+                    <SelectTrigger id="skill-loading" className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="on_demand">When relevant</SelectItem>
-                      <SelectItem value="always">Always</SelectItem>
+                      {LOADING_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <p className="text-ink-03 text-xs">
