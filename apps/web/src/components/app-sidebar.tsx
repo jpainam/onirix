@@ -33,6 +33,7 @@ import { AdminNav } from "@/components/admin-nav";
 import { CommandPalette, useCommandPalette } from "@/components/command-palette";
 import { NavUser } from "@/components/nav-user";
 import { OnirixMark, OnirixWordmark } from "@/components/onirix-mark";
+import { RecentConversations } from "@/components/recent-conversations";
 
 /** The entry point that starts work, pinned above the sections. */
 const PRIMARY_ITEMS = [
@@ -181,12 +182,9 @@ export function AppSidebar({
 
             <SidebarGroup className="group-data-[collapsible=icon]:hidden">
               <SidebarGroupLabel>Recents</SidebarGroupLabel>
-              {/* `chat.list` already returns past conversations, but reopening one
-                  needs the chat page to rehydrate its messages from `chat.get` —
-                  until that exists, listing them here would be a dead link. */}
-              <p className="text-ink-02 px-2 py-1.5 text-sm leading-snug">
-                Try sending a message! Your chat history will appear here.
-              </p>
+              {/* Nothing can have been said yet without a model, so an
+                  unconfigured workspace does not pay for the request. */}
+              <RecentConversations enabled={setupComplete} />
             </SidebarGroup>
           </SidebarContent>
 

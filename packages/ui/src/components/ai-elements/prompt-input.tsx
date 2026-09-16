@@ -1142,23 +1142,21 @@ export const PromptInputButton = ({
   className,
   size,
   tooltip,
+  children,
   ...props
 }: PromptInputButtonProps) => {
-  const newSize =
-    size ?? (Children.count(props.children) > 1 ? "sm" : "icon-sm");
+  const newSize = size ?? (Children.count(children) > 1 ? "sm" : "icon-sm");
 
-  const button = (
-    <InputGroupButton
-      className={cn(className)}
-      size={newSize}
-      type="button"
-      variant={variant}
-      {...props}
-    />
-  );
+  const buttonProps = {
+    className: cn(className),
+    size: newSize,
+    type: "button" as const,
+    variant,
+    ...props,
+  };
 
   if (!tooltip) {
-    return button;
+    return <InputGroupButton {...buttonProps}>{children}</InputGroupButton>;
   }
 
   const tooltipContent =
@@ -1168,7 +1166,9 @@ export const PromptInputButton = ({
 
   return (
     <Tooltip>
-      <TooltipTrigger>{button}</TooltipTrigger>
+      <TooltipTrigger render={<InputGroupButton {...buttonProps} />}>
+        {children}
+      </TooltipTrigger>
       <TooltipContent side={side}>
         {tooltipContent}
         {shortcut && (

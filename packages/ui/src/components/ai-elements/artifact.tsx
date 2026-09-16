@@ -106,24 +106,28 @@ export const ArtifactAction = ({
   variant = "muted",
   ...props
 }: ArtifactActionProps) => {
-  const button = (
-    <Button
-      className={cn(className)}
-      size={size}
-      type="button"
-      variant={variant}
-      {...props}
-    >
+  const buttonProps = {
+    className: cn(className),
+    size,
+    type: "button" as const,
+    variant,
+    ...props,
+  };
+
+  const content = (
+    <>
       {Icon ? <Icon className="size-4" /> : children}
       <span className="sr-only">{label || tooltip}</span>
-    </Button>
+    </>
   );
 
   if (tooltip) {
     return (
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger>{button}</TooltipTrigger>
+          <TooltipTrigger render={<Button {...buttonProps} />}>
+            {content}
+          </TooltipTrigger>
           <TooltipContent>
             <p>{tooltip}</p>
           </TooltipContent>
@@ -132,7 +136,7 @@ export const ArtifactAction = ({
     );
   }
 
-  return button;
+  return <Button {...buttonProps}>{content}</Button>;
 };
 
 export type ArtifactContentProps = HTMLAttributes<HTMLDivElement>;

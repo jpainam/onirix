@@ -600,15 +600,19 @@ function SidebarMenuBadge({
 function SidebarMenuSkeleton({
   className,
   showIcon = false,
+  width = "75%",
   ...props
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
+  /**
+   * Bar width, as a CSS length.
+   *
+   * Fixed rather than random: this renders during SSR, and a width drawn per
+   * render makes the server and client markup disagree. Callers that want the
+   * ragged look of real titles vary it across rows themselves.
+   */
+  width?: string
 }) {
-  // Random width between 50 to 90%.
-  const [width] = React.useState(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  })
-
   return (
     <div
       data-slot="sidebar-menu-skeleton"

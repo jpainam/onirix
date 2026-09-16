@@ -67,7 +67,21 @@ export const chatRouter = router({
       const messages = await ctx.db.query.message.findMany({
         where: eq(message.chatId, input.chatId),
         orderBy: asc(message.createdAt),
-        with: { citations: { orderBy: asc(citation.index) } },
+        with: {
+          citations: {
+            orderBy: asc(citation.index),
+            // A citation row snapshots the passage but not where it came from,
+            // so the provenance line is recovered through the document it
+            // points at. Columns are listed explicitly rather than pulled
+            // wholesale: `source.config` holds connector credentials.
+            with: {
+              document: {
+                columns: { sourceUpdatedAt: true },
+                with: { source: { columns: { type: true } } },
+              },
+            },
+          },
+        },
       });
 
       return { ...found, messages };

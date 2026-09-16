@@ -38,12 +38,17 @@ type OpenCitation = { messageId: string; index: number };
 export function ChatPanel({
   organizationName,
   modelLabel,
+  conversationId = null,
+  initialMessages,
 }: {
   organizationName: string;
   modelLabel: string;
+  /** Set when reopening stored history; null for a fresh session. */
+  conversationId?: string | null;
+  initialMessages?: OnirixUIMessage[];
 }) {
   const queryClient = useQueryClient();
-  const [chatId, setChatId] = useState<string | null>(null);
+  const [chatId, setChatId] = useState<string | null>(conversationId);
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [open, setOpen] = useState<OpenCitation | null>(null);
@@ -55,10 +60,16 @@ export function ChatPanel({
   const createChat = useMutation(trpc.chat.create.mutationOptions());
 
   const { messages, sendMessage, status, error } = useChat<OnirixUIMessage>({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-      body: () => ({ chatId }),
-    }),
+    messages: initialMessages,
+    // The conversation id travels per call rather than on the transport; see
+    // `submit` for why reading it from state here would drop the first turn.
+    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    onFinish: () => {
+      // The opening exchange is what names the conversation, and that happens
+      // server-side as the answer is persisted — so Recents is only worth
+      // refetching once the turn has landed.
+      void queryClient.invalidateQueries(trpc.chat.list.queryFilter());
+    },
   });
 
   useEffect(() => {
@@ -100,12 +111,17 @@ export function ChatPanel({
       const created = await createChat.mutateAsync();
       id = created.id;
       setChatId(id);
-      // The sidebar's Recents list is now stale.
-      void queryClient.invalidateQueries();
+      // Reopening the conversation needs its id in the URL, but a router
+      // navigation here would remount this panel and abort the stream that is
+      // about to start — so the address bar is corrected in place instead.
+      window.history.replaceState(null, "", `/chat/${id}`);
     }
 
     setInput("");
-    sendMessage({ text: trimmed });
+    // The id is passed per call because `setChatId` above has not re-rendered
+    // yet: anything reading `chatId` at this point still sees null, and the
+    // server drops a turn that arrives without one.
+    sendMessage({ text: trimmed }, { body: { chatId: id } });
   }
 
   async function attach(files: FileList | null) {
