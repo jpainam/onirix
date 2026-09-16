@@ -144,7 +144,7 @@ export function ConnectorForm({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldBlock label="Name" htmlFor="connector-name" hint="How it appears in citations and on this page.">
+        <FieldBlock label="Name" htmlFor="connector-name">
           <Input
             id="connector-name"
             value={name}
@@ -153,7 +153,7 @@ export function ConnectorForm({
           />
         </FieldBlock>
 
-        <FieldBlock label="Keep up to date" hint="The worker re-reads the source on this schedule.">
+        <FieldBlock label="Keep up to date">
           <Select
             value={interval === null ? "manual" : String(interval)}
             onValueChange={(value) => setInterval(value === "manual" ? null : Number(value))}
@@ -174,10 +174,7 @@ export function ConnectorForm({
         </FieldBlock>
       </div>
 
-      <FieldBlock
-        label="Who can find what it brings in"
-        hint="Every document from this source takes this audience. Existing documents keep theirs."
-      >
+      <FieldBlock label="Who can find what it brings in">
         <div className="flex flex-wrap items-center gap-3">
           <Select
             value={visibility}
@@ -213,10 +210,12 @@ export function ConnectorForm({
             />
           ) : null}
         </div>
-        <p className="text-ink-03 flex items-start gap-2 text-xs leading-4">
-          <ShieldIcon className="mt-0.5 size-3.5 shrink-0" />
-          Admins do not see past a team restriction. Only members of the chosen teams will find these documents.
-        </p>
+        {visibility === "teams" ? (
+          <p className="text-ink-03 flex items-start gap-2 text-xs leading-4">
+            <ShieldIcon className="mt-0.5 size-3.5 shrink-0" />
+            Admins outside these teams will not see the documents either.
+          </p>
+        ) : null}
       </FieldBlock>
 
       <div className="flex justify-end gap-2">
@@ -263,17 +262,17 @@ const WEBSITE_MODE_OPTIONS: { value: WebsiteMode; label: string; description: st
   {
     value: "single",
     label: "One page",
-    description: "Just the address you enter. For a policy page or a long article.",
+    description: "Just this address.",
   },
   {
     value: "sitemap",
     label: "Pages in the sitemap",
-    description: "Everything the site's sitemap lists. Predictable, and the site decides what is in.",
+    description: "Every page the sitemap lists.",
   },
   {
     value: "recursive",
     label: "Whole site",
-    description: "Start at the address and follow every link under it, up to a page limit.",
+    description: "Follow every link under the address, up to a limit.",
   },
 ];
 
@@ -296,10 +295,10 @@ function WebsiteFields({
         htmlFor="website-url"
         hint={
           mode === "sitemap"
-            ? "The site, or the sitemap's own address. Both work."
+            ? "The site or its sitemap."
             : mode === "recursive"
-              ? "Start here. Only pages under this address are followed, so /docs stays inside the docs."
-              : "The page to read."
+              ? "Only pages under this address are followed."
+              : undefined
         }
       >
         <Input
@@ -339,7 +338,7 @@ function WebsiteFields({
             <FieldBlock
               label="Page limit"
               htmlFor="website-max-pages"
-              hint={`The crawl stops here. Up to ${WEBSITE_MAX_PAGES_LIMIT.toLocaleString()}.`}
+              hint={`Up to ${WEBSITE_MAX_PAGES_LIMIT.toLocaleString()}.`}
             >
               <Input
                 id="website-max-pages"
@@ -359,7 +358,7 @@ function WebsiteFields({
           <FieldBlock
             label="Leave out paths"
             htmlFor="website-exclude"
-            hint="One per line. Pages whose path starts with any of these are never read."
+            hint="Path prefixes, one per line."
           >
             <Textarea
               id="website-exclude"
@@ -380,8 +379,8 @@ function WebsiteFields({
         label="Render pages in a browser first"
         hint={
           canRender
-            ? "For sites that draw their content with JavaScript. Slower, and each page spends a Firecrawl credit. Most documentation, help centres and marketing sites read fine without it."
-            : "Needs FIRECRAWL_API_KEY on this deployment. Without it, pages are read as the server sends them, which suits most documentation, help centres and marketing sites."
+            ? "For sites that draw content with JavaScript. Slower, one Firecrawl credit per page."
+            : "Needs FIRECRAWL_API_KEY on this deployment."
         }
         checked={value.render === "browser"}
         disabled={!canRender}
@@ -478,7 +477,7 @@ function GoogleDriveFields({
         </Tabs>
         {!oauthAvailable && !google.isPending ? (
           <p className="text-ink-03 text-xs leading-4">
-            Reading through your own Google account needs Google sign-in configured on this deployment.
+            Needs Google sign-in configured on this deployment.
           </p>
         ) : null}
       </FieldBlock>
@@ -490,8 +489,8 @@ function GoogleDriveFields({
             htmlFor="drive-key"
             hint={
               mode === "edit" && !keyText
-                ? "Leave blank to keep the stored key. Paste a new JSON key file to replace it."
-                : "Paste the JSON key file. Share the folders with the account's email, or set a user to act as below."
+                ? "Leave blank to keep the stored key."
+                : "Share the folders with the account's email."
             }
             error={keyError}
           >
@@ -513,7 +512,7 @@ function GoogleDriveFields({
           <FieldBlock
             label="Act as (optional)"
             htmlFor="drive-impersonate"
-            hint="With domain-wide delegation, the account reads what this person can see."
+            hint="Needs domain-wide delegation."
           >
             <Input
               id="drive-impersonate"
@@ -534,8 +533,8 @@ function GoogleDriveFields({
             </span>
             <span className="text-ink-03 text-xs leading-4">
               {google.data?.hasDriveAccess
-                ? "The source reads what you can see, and keeps working if you later unlink Google from your account."
-                : "Onirix asks Google for read-only access to your Drive. Folders you cannot open stay out."}
+                ? "The source reads what you can see."
+                : "Read-only access to your Drive."}
             </span>
           </div>
           {google.data?.hasDriveAccess ? (
@@ -552,7 +551,7 @@ function GoogleDriveFields({
       <FieldBlock
         label="Folders and shared drives"
         htmlFor="drive-folders"
-        hint="One link per line, as copied from the browser. Subfolders are included."
+        hint="One link per line. Subfolders included."
       >
         <Textarea
           id="drive-folders"
@@ -570,14 +569,12 @@ function GoogleDriveFields({
         <CheckRow
           id="drive-my-drive"
           label="Everything in My Drive"
-          hint="The account's own drive, top to bottom."
           checked={value.includeMyDrive ?? false}
           onChange={(checked) => onChange({ ...value, includeMyDrive: checked })}
         />
         <CheckRow
           id="drive-shared"
           label="Every shared drive the account can see"
-          hint="For a workspace that wants all of its shared drives without listing them."
           checked={value.includeSharedDrives ?? false}
           onChange={(checked) => onChange({ ...value, includeSharedDrives: checked })}
         />
@@ -607,12 +604,6 @@ function OneDriveFields({
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="text-ink-03 text-xs leading-4">
-        Register an app in Microsoft Entra ID, give it the <span className="font-mono">Files.Read.All</span>{" "}
-        application permission with admin consent, and create a client secret. Onirix reads the drives of the
-        people listed below with it.
-      </p>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldBlock label="Tenant ID" htmlFor="od-tenant">
           <Input
@@ -638,7 +629,11 @@ function OneDriveFields({
       <FieldBlock
         label="Client secret"
         htmlFor="od-secret"
-        hint={mode === "edit" ? "Leave blank to keep the stored secret." : undefined}
+        hint={
+          mode === "edit"
+            ? "Leave blank to keep the stored secret."
+            : "From an Entra app with the Files.Read.All application permission."
+        }
       >
         <Input
           id="od-secret"
@@ -651,7 +646,7 @@ function OneDriveFields({
       </FieldBlock>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldBlock label="Whose OneDrive" htmlFor="od-users" hint="Sign-in addresses, one per line.">
+        <FieldBlock label="Whose OneDrive" htmlFor="od-users" hint="One per line.">
           <Textarea
             id="od-users"
             rows={3}
@@ -664,7 +659,7 @@ function OneDriveFields({
             }}
           />
         </FieldBlock>
-        <FieldBlock label="Folder (optional)" htmlFor="od-folder" hint="Inside each drive. Empty reads the whole drive.">
+        <FieldBlock label="Folder (optional)" htmlFor="od-folder">
           <Input
             id="od-folder"
             placeholder="Policies/2026"
@@ -703,7 +698,7 @@ function S3Fields({
             onChange={(event) => onChange({ ...value, bucket: event.target.value.trim() })}
           />
         </FieldBlock>
-        <FieldBlock label="Prefix (optional)" htmlFor="s3-prefix" hint="Only keys under it are read.">
+        <FieldBlock label="Prefix (optional)" htmlFor="s3-prefix">
           <Input
             id="s3-prefix"
             spellCheck={false}
@@ -715,7 +710,7 @@ function S3Fields({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldBlock label="Access key ID" htmlFor="s3-key">
+        <FieldBlock label="Access key ID" htmlFor="s3-key" hint="Needs s3:ListBucket and s3:GetObject.">
           <Input
             id="s3-key"
             required
@@ -755,7 +750,7 @@ function S3Fields({
         <FieldBlock
           label="Endpoint (optional)"
           htmlFor="s3-endpoint"
-          hint="For MinIO, Cloudflare R2 and other S3-compatible stores. Leave blank for AWS."
+          hint="Leave blank for AWS."
         >
           <Input
             id="s3-endpoint"
@@ -767,12 +762,6 @@ function S3Fields({
           />
         </FieldBlock>
       </div>
-
-      <p className="text-ink-03 text-xs leading-4">
-        The key needs <span className="font-mono">s3:ListBucket</span> and{" "}
-        <span className="font-mono">s3:GetObject</span> on the bucket. Files are read by extension: PDF, Word,
-        Excel, CSV, Markdown, HTML, JSON and plain text.
-      </p>
     </div>
   );
 }
@@ -814,7 +803,7 @@ function CheckRow({
 }: {
   id: string;
   label: string;
-  hint: string;
+  hint?: string;
   checked: boolean;
   disabled?: boolean;
   onChange: (checked: boolean) => void;
@@ -833,7 +822,7 @@ function CheckRow({
       />
       <span className="flex min-w-0 flex-col">
         <span className="text-sm font-semibold">{label}</span>
-        <span className="text-ink-03 text-xs leading-4">{hint}</span>
+        {hint ? <span className="text-ink-03 text-xs leading-4">{hint}</span> : null}
       </span>
     </label>
   );
