@@ -5,6 +5,7 @@ import { knowledgeRouter } from "./knowledge";
 import { modelsRouter } from "./models";
 import { onboardingRouter } from "./onboarding";
 import { searchRouter } from "./search";
+import { securityRouter } from "./security";
 import { skillRouter } from "./skill";
 import { teamRouter } from "./team";
 import { usageRouter } from "./usage";
@@ -17,6 +18,7 @@ export const appRouter = router({
   chat: chatRouter,
   history: historyRouter,
   search: searchRouter,
+  security: securityRouter,
   skill: skillRouter,
   team: teamRouter,
   usage: usageRouter,

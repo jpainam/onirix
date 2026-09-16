@@ -14,6 +14,8 @@ import {
   ShieldIcon,
   UsersIcon,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 
 import {
@@ -29,9 +31,13 @@ import {
  *
  * Sections are filled in progressively: an item without a `url` is a surface
  * the spec calls for but nothing implements yet, so it renders dimmed rather
- * than as a link into an empty page.
+ * than as a link into an empty page. The type is written out rather than
+ * inferred from `as const` so that stays true when every current item happens
+ * to have one.
  */
-const ADMIN_SECTIONS = [
+type AdminItem = { title: string; url?: Route; icon: LucideIcon };
+
+const ADMIN_SECTIONS: { label: string | null; items: AdminItem[] }[] = [
   {
     label: null,
     items: [{ title: "Language Models", url: "/admin/language-models", icon: CpuIcon }],
@@ -57,7 +63,7 @@ const ADMIN_SECTIONS = [
     items: [
       { title: "General", url: "/admin/organization", icon: BuildingIcon },
       { title: "Appearance", url: "/admin/appearance", icon: PaletteIcon },
-      { title: "Security", icon: LockIcon },
+      { title: "Security", url: "/admin/security", icon: LockIcon },
     ],
   },
   {
@@ -67,7 +73,7 @@ const ADMIN_SECTIONS = [
       { title: "Query History", url: "/admin/query-history", icon: HistoryIcon },
     ],
   },
-] as const;
+];
 
 export function AdminNav({ pathname }: { pathname: string }) {
   return (
@@ -76,9 +82,9 @@ export function AdminNav({ pathname }: { pathname: string }) {
         <SidebarGroup key={section.label ?? `section-${index}`}>
           {section.label ? <SidebarGroupLabel>{section.label}</SidebarGroupLabel> : null}
           <SidebarMenu>
-            {section.items.map((item) =>
-              "url" in item ? (
-                <SidebarMenuItem key={item.title}>
+            {section.items.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                {item.url ? (
                   <SidebarMenuButton
                     isActive={pathname.startsWith(item.url)}
                     tooltip={item.title}
@@ -89,9 +95,7 @@ export function AdminNav({ pathname }: { pathname: string }) {
                       </Link>
                     }
                   />
-                </SidebarMenuItem>
-              ) : (
-                <SidebarMenuItem key={item.title}>
+                ) : (
                   <SidebarMenuButton
                     aria-disabled
                     tooltip={`${item.title}: coming soon`}
@@ -100,9 +104,9 @@ export function AdminNav({ pathname }: { pathname: string }) {
                     <item.icon />
                     <span>{item.title}</span>
                   </SidebarMenuButton>
-                </SidebarMenuItem>
-              )
-            )}
+                )}
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
       ))}
