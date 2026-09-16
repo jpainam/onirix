@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   BookOpenIcon,
-  BotIcon,
+  BrainIcon,
   BuildingIcon,
   CpuIcon,
   DatabaseIcon,
@@ -37,7 +37,7 @@ const DESTINATIONS = [
   { title: "New session", url: "/chat", icon: SquarePenIcon },
   { title: "Knowledge", url: "/admin/knowledge", icon: BookOpenIcon },
   { title: "Sources", url: "/admin/sources", icon: DatabaseIcon },
-  { title: "Explore agents", url: "/agents", icon: BotIcon },
+  { title: "Explore agents", url: "/agents", icon: BrainIcon },
   { title: "Users", url: "/admin/users", icon: UsersIcon },
   { title: "Teams", url: "/admin/teams", icon: NetworkIcon },
   { title: "Roles", url: "/admin/roles", icon: ShieldIcon },
@@ -123,9 +123,13 @@ export function CommandPalette({
                     <FileTextIcon />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate">{hit.title}</span>
-                      <span className="text-ink-03 truncate text-xs">{hit.blurb}</span>
+                      <span className="text-ink-03 truncate text-xs">
+                        {hit.blurb}
+                      </span>
                     </span>
-                    <span className="text-ink-02 shrink-0 text-xs">{hit.sourceType}</span>
+                    <span className="text-ink-02 shrink-0 text-xs">
+                      {hit.sourceType}
+                    </span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -150,7 +154,7 @@ export function CommandPalette({
               </CommandItem>
             ))}
           </CommandGroup>
-      </CommandList>
+        </CommandList>
       </Command>
     </CommandDialog>
   );

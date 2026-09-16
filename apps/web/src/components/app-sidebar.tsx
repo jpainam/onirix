@@ -2,7 +2,7 @@
 
 import {
   ArrowLeftIcon,
-  BotIcon,
+  BrainIcon,
   PanelLeftIcon,
   RocketIcon,
   SearchIcon,
@@ -48,7 +48,7 @@ const PRIMARY_ITEMS = [
 ] as const;
 
 const AGENT_ITEMS = [
-  { title: "Explore Agents", url: "/agents", icon: BotIcon },
+  { title: "Explore Agents", url: "/agents", icon: BrainIcon },
 ] as const;
 
 /** Where the Setting panel entry lands; `/admin` also decides which menu shows. */

@@ -1,4 +1,4 @@
-import { BotIcon, PlusIcon } from "lucide-react";
+import { BrainIcon, PlusIcon } from "lucide-react";
 
 import { Button } from "@onirix/ui/components/button";
 import {
@@ -18,7 +18,7 @@ export default async function AgentsPage() {
   return (
     <Page>
       <PageHeader
-        icon={BotIcon}
+        icon={BrainIcon}
         title="Explore Agents"
         description="Assistants focused on selected knowledge."
         action={
@@ -31,7 +31,7 @@ export default async function AgentsPage() {
       <Empty variant="outline">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <BotIcon />
+            <BrainIcon />
           </EmptyMedia>
           <EmptyTitle>No agents yet</EmptyTitle>
           <EmptyDescription>Agent setup is coming soon.</EmptyDescription>
