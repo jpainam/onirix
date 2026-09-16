@@ -23,6 +23,8 @@ import { Spinner } from "@onirix/ui/components/spinner";
 import { OnirixMark } from "@/components/onirix-mark";
 import {
   getCitedSources,
+  getMessageText,
+  getRetrievedSources,
   type CitedSource,
   type OnirixUIMessage,
 } from "@/lib/chat-message";
@@ -40,6 +42,37 @@ const SUGGESTIONS = [
 
 /** Which citation the reader has open, scoped to the answer that cited it. */
 type OpenCitation = { messageId: string; index: number };
+
+/**
+ * What the reader is told while they wait, or null once there is nothing left
+ * to say.
+ *
+ * A single label held for the whole turn was the problem this replaces: it
+ * claimed to be searching long after search had finished, through the seconds
+ * the model spends composing and then through the answer itself. The server
+ * sends the retrieved sources before the first token precisely so this can
+ * move on, and once prose is arriving the answer is its own progress report.
+ */
+function retrievalProgress(
+  messages: OnirixUIMessage[],
+  busy: boolean,
+): string | null {
+  if (!busy) return null;
+
+  const latest = messages.at(-1);
+  if (!latest || latest.role !== "assistant") return "Searching your knowledge…";
+
+  // Anything the reader can already see says more than a label would.
+  if (getMessageText(latest).trim().length > 0) return null;
+  if (latest.parts.some((part) => part.type.startsWith("tool-"))) return null;
+
+  const sources = getRetrievedSources(latest);
+  if (sources.length === 0) return "Searching your knowledge…";
+
+  return sources.length === 1
+    ? "Reading 1 source…"
+    : `Reading ${sources.length} sources…`;
+}
 
 export function ChatPanel({
   organizationName,
@@ -104,6 +137,7 @@ export function ChatPanel({
 
   const busy = status === "streaming" || status === "submitted";
   const started = messages.length > 0;
+  const progress = retrievalProgress(messages, busy);
 
   // The open citation is stored by id rather than by value so it stays correct
   // as the message it belongs to keeps streaming.
@@ -261,10 +295,10 @@ export function ChatPanel({
                     </div>
                   ),
                 )}
-                {busy ? (
+                {progress ? (
                   <div className="flex gap-3">
                     <OnirixMark className="text-ink-02 mt-0.5 size-5 shrink-0 animate-pulse" />
-                    <span className="text-ink-03 text-sm">Searching your knowledge…</span>
+                    <span className="text-ink-03 text-sm">{progress}</span>
                   </div>
                 ) : null}
               </ConversationContent>

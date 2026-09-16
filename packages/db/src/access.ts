@@ -22,6 +22,7 @@
 import { and, eq, sql, type SQL } from "drizzle-orm";
 
 import type { Database } from "./index";
+import type { Permissions } from "./permissions";
 import { document } from "./schema/knowledge";
 import type { MemberRole } from "./schema/organization";
 
@@ -44,6 +45,15 @@ export type Principal = {
   userId: string;
   organizationId: string;
   role: MemberRole;
+  /**
+   * What `role` resolves to, built-in roles and custom ones alike.
+   *
+   * Carried on the principal because every gate consults it: a page decides
+   * which controls to draw, and the procedure behind each control re-checks the
+   * same grants. Documents are not gated by this. They are gated by the tokens
+   * below, which is a separate question.
+   */
+  permissions: Permissions;
   /** Teams within this organization the user belongs to. */
   teamIds: string[];
   /** Tokens the user holds; matched against each document's list. */

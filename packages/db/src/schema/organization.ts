@@ -1,16 +1,17 @@
 /**
  * Organizations, teams, membership, and per-workspace AI configuration.
  *
- * The organization, member, invitation, team and team_member tables are owned by
- * Better Auth's organization plugin — column names and types match the shapes it
+ * The organization, member, invitation, team, team_member and organization_role
+ * tables are owned by Better Auth's organization plugin: column names and types match the shapes it
  * declares in `better-auth/plugins/organization`, because its Drizzle adapter
  * reads and writes these rows directly. Adding a column is safe; renaming or
  * retyping one it knows about is not.
  *
  * Every other Onirix table hangs off an organization: PRODUCT.md requires
  * customer organizations to stay isolated from one another, so tenancy is a
- * column on the data, not a convention. Teams are the second axis — a department
- * inside one organization, which is what document visibility is granted to.
+ * column on the data, not a convention. Teams are the second axis: a group
+ * inside one organization, usually a department, and what document visibility
+ * is granted to.
  */
 import { relations } from "drizzle-orm";
 import {
@@ -29,9 +30,15 @@ import { user } from "./auth";
 /**
  * Roles are plain text rather than an enum: Better Auth writes this column, and
  * both its dynamic access control add-on and multi-role members store values an
- * enum would reject (`"admin,moderator"`). The union is enforced in TypeScript.
+ * enum would reject (`"admin,moderator"`).
+ *
+ * Custom roles created from the Roles page are stored in `organization_role` and
+ * land in this column by name, so the built-in three are a hint for editors
+ * rather than a closed set. `permissionsForRole` in `src/permissions.ts` is what
+ * turns whatever is here into grants.
  */
-export type MemberRole = "owner" | "admin" | "member";
+export type BuiltInMemberRole = "owner" | "admin" | "member";
+export type MemberRole = BuiltInMemberRole | (string & {});
 
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
@@ -98,10 +105,11 @@ export const invitation = pgTable(
 );
 
 /**
- * A department: Engineering, Sales, HR, Finance, Leadership.
+ * A team: Engineering, Sales, HR, Finance, Leadership.
  *
- * PRODUCT.md calls these groups. They are the unit knowledge access is granted
- * to, so that "HR Knowledge" reaches the HR and Executive teams and no further.
+ * PRODUCT.md calls these groups, the UI calls them teams. They are the unit
+ * knowledge access is granted to, so that "HR Knowledge" reaches the HR and
+ * Executive teams and no further.
  */
 export const team = pgTable(
   "team",
@@ -144,6 +152,39 @@ export const teamMember = pgTable(
   (table) => [
     uniqueIndex("team_member_team_user_uidx").on(table.teamId, table.userId),
     index("team_member_user_idx").on(table.userId),
+  ],
+);
+
+/**
+ * A custom role, created by an admin on the Roles page.
+ *
+ * Owned by Better Auth's dynamic access control: it writes `permission` as a
+ * JSON string of resource to actions, validated against the statement map the
+ * plugin was built with. Onirix reads the same rows in `permissionsForRole` to
+ * gate tRPC procedures and to decide which controls a page renders, so a role
+ * means the same thing on both sides of a request.
+ *
+ * A row whose `role` matches a built-in name widens that role rather than
+ * replacing it, which is the plugin's merge behaviour and not something to
+ * "fix" here.
+ */
+export const organizationRole = pgTable(
+  "organization_role",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    /** Lower cased by Better Auth before it is stored. */
+    role: text("role").notNull(),
+    /** JSON: `{"source":["create","update"],"team":["create"]}`. */
+    permission: text("permission").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("organization_role_org_role_uidx").on(table.organizationId, table.role),
+    index("organization_role_org_idx").on(table.organizationId),
   ],
 );
 
@@ -235,6 +276,7 @@ export const organizationRelations = relations(organization, ({ many, one }) => 
   members: many(member),
   invitations: many(invitation),
   teams: many(team),
+  roles: many(organizationRole),
   llmConfig: one(llmConfig),
   llmProviders: many(llmProvider),
 }));
@@ -267,6 +309,13 @@ export const teamRelations = relations(team, ({ one, many }) => ({
 export const teamMemberRelations = relations(teamMember, ({ one }) => ({
   team: one(team, { fields: [teamMember.teamId], references: [team.id] }),
   user: one(user, { fields: [teamMember.userId], references: [user.id] }),
+}));
+
+export const organizationRoleRelations = relations(organizationRole, ({ one }) => ({
+  organization: one(organization, {
+    fields: [organizationRole.organizationId],
+    references: [organization.id],
+  }),
 }));
 
 export const llmConfigRelations = relations(llmConfig, ({ one }) => ({

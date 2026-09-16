@@ -29,6 +29,7 @@ type ServiceCache = {
   streamSubscriber?: Redis;
   resumableStreams?: ResumableStreamContext;
   storage?: S3Client;
+  search?: ReturnType<typeof createSearchClient>;
   bucketReady?: Promise<void>;
 };
 
@@ -114,6 +115,11 @@ export const auth = createAuth(env, getDb());
  * workspace that changes models reads and writes a different index.
  */
 export function getDocumentIndex(embeddingModel: string, dimension: number): DocumentIndex {
-  const client = createSearchClient(env);
+  // The client is cached but the handle is not: the client holds the connection
+  // pool and the TLS session, which a per-request instance would throw away and
+  // renegotiate on every question asked. `DocumentIndex` itself is just a name
+  // and a dimension over that client, so building one per call costs nothing
+  // and keeps workspaces on different embedding models from sharing a handle.
+  const client = (cache.search ??= createSearchClient(env));
   return new DocumentIndex(client, getIndexName(embeddingModel), dimension);
 }

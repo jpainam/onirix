@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   // New documents inherit the source's audience rather than defaulting to
   // workspace-wide, so pointing a connector at a department's drive is enough
-  // to keep its files inside that department.
+  // to keep its files inside that team.
   const defaultTeamIds = (
     await db
       .select({ teamId: sourceDefaultTeam.teamId })

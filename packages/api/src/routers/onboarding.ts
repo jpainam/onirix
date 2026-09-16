@@ -185,7 +185,7 @@ export const onboardingRouter = router({
         // The session predates the membership — it was minted at signup, when
         // there was nothing to point it at — so Better Auth's session hook
         // could not stamp it. Without this the owner can use the workspace but
-        // every organization endpoint (create a department, invite a member)
+        // every organization endpoint (create a team, invite a member)
         // fails with "No active organization" until they sign in again.
         //
         // Only sessions with nothing set, so a second device already acting as

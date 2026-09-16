@@ -39,7 +39,10 @@ import {
   buildSystemPrompt,
   chartTool,
   createChatModel,
+  modelReasons,
+  reasoningEffortOptions,
   type ProviderCredentials,
+  type ReasoningProviderOptions,
 } from "@onirix/llm";
 import type { SearchHit } from "@onirix/search";
 
@@ -93,6 +96,26 @@ export async function POST(request: Request) {
   };
 
   const model = createChatModel(chatCredentials, config.chatModel);
+
+  // Reasoning is what a reader experiences as the wait before an answer starts,
+  // and neither of the two things Onirix asks a model to do here needs much of
+  // it. The secondary flows get none: rewriting a query and naming a
+  // conversation are one-line transformations of text already in hand. The
+  // answer gets a little: retrieval has already found the passages, so the
+  // model is summarizing and citing rather than working the answer out.
+  const noReasoning = reasoningEffortOptions(chatCredentials, config.chatModel, "off");
+  const answerReasoning = reasoningEffortOptions(chatCredentials, config.chatModel, "low");
+
+  // Turned down is not turned off, and on most providers the tokens a model
+  // spends thinking come out of the same budget as the ones it writes. Both
+  // secondary flows cap that budget tightly and treat an empty result as a
+  // failure they fall back from without saying so — so a model that thought
+  // through its whole allowance would quietly stop rewriting queries and
+  // naming conversations at all. This is the room it needs to do both.
+  const thinkingHeadroom = modelReasons(chatCredentials.provider, config.chatModel)
+    ? 256
+    : 0;
+
   const latest = body.messages.at(-1);
   const question = extractText(latest);
 
@@ -118,27 +141,42 @@ export async function POST(request: Request) {
   // conversation from the database, and a turn that only appeared once it had
   // finished would leave them looking at an answer to a question that is not
   // there.
-  if (conversation) {
-    await db.insert(message).values({
-      id: randomUUID(),
-      chatId: conversation.id,
-      role: "user",
-      content: question,
-    });
-  }
+  //
+  // It is not awaited here, though. Nothing between this point and the answer
+  // reads the row, so holding up retrieval for a local write only adds to the
+  // wait; it is settled before the turn is persisted instead. `execute` is what
+  // starts it — a Drizzle query builder is lazy, and one that were only awaited
+  // later would not have run in the meantime, which is the whole point.
+  const questionStored = conversation
+    ? db
+        .insert(message)
+        .values({
+          id: randomUUID(),
+          chatId: conversation.id,
+          role: "user",
+          content: question,
+        })
+        .execute()
+    : null;
+  // The failure is reported where the promise is awaited, at the end of the
+  // turn. This only marks it handled in the meantime, so a write that fails
+  // early does not take the process down as an unhandled rejection.
+  void questionStored?.catch(() => {});
 
   // Naming runs alongside retrieval and generation rather than after them. The
   // name is not needed until the answer is persisted, by which point this has
   // long since settled — so a second model call costs the reader nothing. Only
   // an unnamed conversation gets one; a name the user typed is never replaced.
   const titlePromise =
-    conversation && conversation.title === null ? generateTitle(model, question) : null;
+    conversation && conversation.title === null
+      ? generateTitle(model, question, noReasoning, thinkingHeadroom)
+      : null;
 
   // A follow-up like "what about contractors?" carries its subject in the
   // history, so search the rewritten query rather than the raw text.
   const searchQuery =
     body.messages.length > 1
-      ? await rewriteQuery(model, body.messages, question)
+      ? await rewriteQuery(model, body.messages, question, noReasoning, thinkingHeadroom)
       : question;
 
   const index = getDocumentIndex(config.embeddingModel, Number(config.embeddingDimension));
@@ -199,6 +237,7 @@ export async function POST(request: Request) {
           system: systemPrompt,
           messages: modelMessages,
           tools: { [CHART_TOOL_NAME]: chartTool },
+          providerOptions: answerReasoning,
           // A chart is drawn from the tool call's input, so the call itself
           // produces no prose. Without a second step the turn would end on the
           // chart and the reader would get a picture with nothing said about
@@ -213,6 +252,9 @@ export async function POST(request: Request) {
     onFinish: async ({ responseMessage }) => {
       if (!conversation) return;
       try {
+        // The question's own write, started before generation, has to have
+        // landed before the answer is stored beside it.
+        await questionStored;
         await persistTurn({
           db,
           chatId: conversation.id,
@@ -316,6 +358,8 @@ async function rewriteQuery(
   model: Parameters<typeof generateText>[0]["model"],
   messages: OnirixUIMessage[],
   fallback: string,
+  providerOptions: ReasoningProviderOptions,
+  thinkingHeadroom: number,
 ): Promise<string> {
   try {
     const { text } = await generateText({
@@ -323,6 +367,11 @@ async function rewriteQuery(
       system: QUERY_REWRITE_PROMPT,
       // Recent turns only; the whole history is unnecessary and costly.
       messages: await convertToModelMessages(messages.slice(-6)),
+      // This call sits directly in front of retrieval, so every token it is
+      // allowed costs the reader wait. A search query is a phrase; a model that
+      // wants more than this is writing prose the embedder does not need.
+      maxOutputTokens: 64 + thinkingHeadroom,
+      providerOptions,
     });
     return text.trim() || fallback;
   } catch {
@@ -341,6 +390,8 @@ async function rewriteQuery(
 async function generateTitle(
   model: Parameters<typeof generateText>[0]["model"],
   question: string,
+  providerOptions: ReasoningProviderOptions,
+  thinkingHeadroom: number,
 ): Promise<string> {
   try {
     const { text } = await generateText({
@@ -349,7 +400,8 @@ async function generateTitle(
       prompt: question,
       // Five words and a little slack. A model that needs more than this is
       // writing a sentence, which `sanitizeTitle` rejects anyway.
-      maxOutputTokens: 32,
+      maxOutputTokens: 32 + thinkingHeadroom,
+      providerOptions,
     });
     return sanitizeTitle(text) ?? fallbackTitle(question);
   } catch {

@@ -1,16 +1,9 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Building2Icon,
-  MailIcon,
-  ShieldIcon,
-  Trash2Icon,
-  UserPlusIcon,
-  UsersIcon,
-} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { MailIcon, ShieldIcon, UserPlusIcon, UsersIcon } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
@@ -22,13 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@onirix/ui/components/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@onirix/ui/components/empty";
 import { Input } from "@onirix/ui/components/input";
 import { Label } from "@onirix/ui/components/label";
 import {
@@ -50,59 +36,65 @@ import {
 
 import { Page, PageHeader, Row, Section } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
+import type { AuthAction } from "@/lib/auth-action";
+import { useAuthAction } from "@/lib/auth-action";
 import { trpc } from "@/utils/trpc";
 
-const ROLE_LABELS = {
-  member: "Member",
-  admin: "Admin",
-} as const;
-
-const ROLE_VARIANT = {
+const ROLE_VARIANT: Record<string, "info" | "warning" | "muted"> = {
   owner: "info",
   admin: "warning",
   member: "muted",
-} as const;
+};
 
-export function TeamView({ canManage }: { canManage: boolean }) {
-  const queryClient = useQueryClient();
+/**
+ * Roles a member can be moved to.
+ *
+ * Owner is left out on purpose: Better Auth treats it as the workspace's
+ * creator and has its own transfer path, so offering it here would be a second
+ * way to do something that needs to stay deliberate.
+ */
+function assignableRoles(roles: { name: string; builtIn: boolean }[]) {
+  return roles.filter((role) => role.name !== "owner");
+}
+
+/**
+ * The people in the workspace: who they are, what they may administer, and which
+ * teams they belong to.
+ *
+ * Teams themselves (creating them, and who is in one) live on the Teams page.
+ * What stays here is the per-person view of the same membership, because the
+ * question an admin arrives with while looking at a roster is "what should this
+ * person be able to see?".
+ */
+export function UsersView({
+  canManage,
+  canInvite,
+}: {
+  canManage: boolean;
+  canInvite: boolean;
+}) {
+  const run = useAuthAction();
   const [inviting, setInviting] = useState(false);
-  const [creatingTeam, setCreatingTeam] = useState(false);
 
   const members = useQuery(trpc.team.listMembers.queryOptions());
   const teams = useQuery(trpc.team.listTeams.queryOptions());
+  const roles = useQuery(trpc.team.listRoles.queryOptions());
   const invitations = useQuery({
     ...trpc.team.listInvitations.queryOptions(),
-    // Members are not allowed to see who is being invited.
-    enabled: canManage,
+    // Only someone who may invite is allowed to see who is being invited.
+    enabled: canInvite,
   });
 
-  /** Mutations go through Better Auth, so its own checks run before ours. */
-  function refresh() {
-    void queryClient.invalidateQueries();
-  }
-
-  async function run(
-    action: () => Promise<{ error?: { message?: string } | null }>,
-    ok: string,
-  ) {
-    const result = await action();
-    if (result.error) {
-      toast.error(result.error.message ?? "Something went wrong.");
-      return false;
-    }
-    toast.success(ok);
-    refresh();
-    return true;
-  }
+  const roleOptions = assignableRoles(roles.data ?? []);
 
   return (
     <Page>
       <PageHeader
         icon={UsersIcon}
-        title="Users & Teams"
-        description="Manage members and department access."
+        title="Users"
+        description="Everyone in this workspace, their access level, and their teams."
         action={
-          canManage ? (
+          canInvite ? (
             <Button onClick={() => setInviting(true)}>
               <UserPlusIcon />
               Invite users
@@ -113,72 +105,9 @@ export function TeamView({ canManage }: { canManage: boolean }) {
 
       <div className="flex flex-col gap-10">
         <Section
-          title="Departments"
-          description="Only department members can access its documents."
-          action={
-            canManage ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCreatingTeam(true)}
-              >
-                <Building2Icon />
-                New department
-              </Button>
-            ) : null
-          }
+          title="Members"
+          description="A role says what someone may administer. Teams decide what they can reach."
         >
-          {teams.isPending ? (
-            <div className="flex justify-center py-8">
-              <Spinner />
-            </div>
-          ) : teams.data?.length === 0 ? (
-            <Empty variant="outline">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Building2Icon />
-                </EmptyMedia>
-                <EmptyTitle>No departments yet</EmptyTitle>
-                <EmptyDescription>
-                  Documents are shared with everyone until you create one.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {teams.data?.map((group) => (
-                <Row
-                  key={group.id}
-                  icon={<Building2Icon />}
-                  title={group.name}
-                  description={`${group.memberCount} ${group.memberCount === 1 ? "member" : "members"}${group.joined ? " · you are a member" : ""}`}
-                  action={
-                    canManage ? (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          void run(
-                            () =>
-                              authClient.organization.removeTeam({
-                                teamId: group.id,
-                              }),
-                            `Removed ${group.name}.`,
-                          )
-                        }
-                      >
-                        <Trash2Icon className="text-destructive" />
-                        Remove
-                      </Button>
-                    ) : null
-                  }
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-
-        <Section title="Members">
           {members.isPending ? (
             <div className="flex justify-center py-8">
               <Spinner />
@@ -190,7 +119,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead className="w-32">Role</TableHead>
-                    <TableHead>Departments</TableHead>
+                    <TableHead>Teams</TableHead>
                     <TableHead className="w-56" />
                   </TableRow>
                 </TableHeader>
@@ -212,7 +141,10 @@ export function TeamView({ canManage }: { canManage: boolean }) {
                                 () =>
                                   authClient.organization.updateMemberRole({
                                     memberId: row.memberId,
-                                    role: String(value) as "admin" | "member",
+                                    // Custom roles are names, not a closed
+                                    // union; the endpoint takes any string and
+                                    // rejects one the workspace has not defined.
+                                    role: String(value) as never,
                                   }),
                                 `${row.name} is now ${String(value)}.`,
                               )
@@ -222,8 +154,11 @@ export function TeamView({ canManage }: { canManage: boolean }) {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="admin">admin</SelectItem>
-                              <SelectItem value="member">member</SelectItem>
+                              {roleOptions.map((role) => (
+                                <SelectItem key={role.name} value={role.name}>
+                                  {role.name}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         ) : (
@@ -238,7 +173,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
                           memberTeams={row.teams}
                           allTeams={teams.data ?? []}
                           canManage={canManage}
-                          onChanged={refresh}
+                          run={run}
                         />
                       </TableCell>
                       <TableCell className="text-right">
@@ -303,62 +238,39 @@ export function TeamView({ canManage }: { canManage: boolean }) {
 
       {inviting ? (
         <InviteDialog
+          roles={roleOptions}
           teams={teams.data ?? []}
           onClose={() => setInviting(false)}
           onInvite={run}
-        />
-      ) : null}
-
-      {creatingTeam ? (
-        <CreateTeamDialog
-          onClose={() => setCreatingTeam(false)}
-          onCreate={run}
         />
       ) : null}
     </Page>
   );
 }
 
-type RunAction = (
-  action: () => Promise<{ error?: { message?: string } | null }>,
-  ok: string,
-) => Promise<boolean>;
+type RunAction = (action: AuthAction, ok: string) => Promise<boolean>;
 
 /**
- * The departments one member belongs to, each removable, with a picker for the
- * rest.
+ * The teams one member belongs to, each removable, with a picker for the rest.
  *
- * Membership is edited here rather than on the department, because the question
- * an admin actually arrives with is "what should this person be able to see?".
+ * The same membership is editable from the other side on the Teams page; both
+ * call the same Better Auth endpoints, so neither is the source of truth.
  */
 function MemberTeams({
   userId,
   memberTeams,
   allTeams,
   canManage,
-  onChanged,
+  run,
 }: {
   userId: string;
   memberTeams: { id: string; name: string }[];
   allTeams: { id: string; name: string }[];
   canManage: boolean;
-  onChanged: () => void;
+  run: RunAction;
 }) {
   const joined = new Set(memberTeams.map((group) => group.id));
   const available = allTeams.filter((group) => !joined.has(group.id));
-
-  async function change(
-    action: () => Promise<{ error?: { message?: string } | null }>,
-    ok: string,
-  ) {
-    const result = await action();
-    if (result.error) {
-      toast.error(result.error.message ?? "Something went wrong.");
-      return;
-    }
-    toast.success(ok);
-    onChanged();
-  }
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -374,7 +286,7 @@ function MemberTeams({
                 aria-label={`Remove from ${group.name}`}
                 className="text-ink-03 hover:text-foreground ml-1"
                 onClick={() =>
-                  void change(
+                  void run(
                     () =>
                       authClient.organization.removeTeamMember({
                         teamId: group.id,
@@ -397,13 +309,13 @@ function MemberTeams({
             const teamId = String(value);
             const name =
               available.find((group) => group.id === teamId)?.name ?? "team";
-            void change(
+            void run(
               () => authClient.organization.addTeamMember({ teamId, userId }),
               `Added to ${name}.`,
             );
           }}
         >
-          <SelectTrigger data-size="sm" aria-label="Add to a department">
+          <SelectTrigger data-size="sm" aria-label="Add to a team">
             <SelectValue placeholder="Add…" />
           </SelectTrigger>
           <SelectContent>
@@ -420,16 +332,18 @@ function MemberTeams({
 }
 
 function InviteDialog({
+  roles,
   teams,
   onClose,
   onInvite,
 }: {
+  roles: { name: string }[];
   teams: { id: string; name: string }[];
   onClose: () => void;
   onInvite: RunAction;
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "member">("member");
+  const [role, setRole] = useState("member");
   const [teamId, setTeamId] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -440,7 +354,7 @@ function InviteDialog({
         () =>
           authClient.organization.inviteMember({
             email: email.trim(),
-            role,
+            role: role as never,
             ...(teamId ? { teamId } : {}),
           }),
         `Invitation sent to ${email.trim()}.`,
@@ -477,19 +391,20 @@ function InviteDialog({
             <div className="flex flex-col gap-1.5">
               <Label>Role</Label>
               <Select
-                items={ROLE_LABELS}
+                items={roles.map((option) => ({
+                  value: option.name,
+                  label: option.name,
+                }))}
                 value={role}
-                onValueChange={(value) =>
-                  setRole(String(value) as "admin" | "member")
-                }
+                onValueChange={(value) => setRole(String(value))}
               >
                 <SelectTrigger className={"w-full"}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
+                  {roles.map((option) => (
+                    <SelectItem key={option.name} value={option.name}>
+                      {option.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -497,32 +412,42 @@ function InviteDialog({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label>Department</Label>
-              <Select
-                items={teams.map((group) => ({
-                  value: group.id,
-                  label: group.name,
-                }))}
-                value={teamId}
-                onValueChange={(value) => setTeamId(String(value))}
-              >
-                <SelectTrigger className={"w-full"}>
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((group) => (
-                    <SelectItem key={group.id} value={group.id}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Team</Label>
+              {teams.length === 0 ? (
+                <p className="text-ink-03 text-xs leading-8">
+                  No teams yet.{" "}
+                  <Link href="/admin/teams" className="underline">
+                    create one
+                  </Link>
+                  .
+                </p>
+              ) : (
+                <Select
+                  items={teams.map((group) => ({
+                    value: group.id,
+                    label: group.name,
+                  }))}
+                  value={teamId}
+                  onValueChange={(value) => setTeamId(String(value))}
+                >
+                  <SelectTrigger className={"w-full"}>
+                    <SelectValue placeholder="None" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
           <p className="text-ink-03 flex items-start gap-2 text-xs leading-4">
             <ShieldIcon className="mt-0.5 size-3.5 shrink-0" />
-            Admin access does not override department membership.
+            No role overrides team membership.
           </p>
         </div>
 
@@ -536,66 +461,6 @@ function InviteDialog({
           >
             {sending ? <Spinner /> : null}
             Send invitation
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CreateTeamDialog({
-  onClose,
-  onCreate,
-}: {
-  onClose: () => void;
-  onCreate: RunAction;
-}) {
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function submit() {
-    setSaving(true);
-    try {
-      const ok = await onCreate(
-        () => authClient.organization.createTeam({ name: name.trim() }),
-        `Created ${name.trim()}.`,
-      );
-      if (ok) onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New department</DialogTitle>
-          <DialogDescription>
-            Group document access by department.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="team-name">Name</Label>
-          <Input
-            id="team-name"
-            value={name}
-            placeholder="Human Resources"
-            onChange={(event) => setName(event.target.value)}
-          />
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => void submit()}
-            disabled={!name.trim() || saving}
-          >
-            {saving ? <Spinner /> : null}
-            Create
           </Button>
         </DialogFooter>
       </DialogContent>

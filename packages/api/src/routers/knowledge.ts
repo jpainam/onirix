@@ -22,7 +22,7 @@ import {
 } from "@onirix/db/schema";
 import { enqueue } from "@onirix/jobs";
 
-import { adminProcedure, orgProcedure, router } from "../index";
+import { orgProcedure, permissionProcedure, router } from "../index";
 
 const visibilityInput = z.object({
   documentId: z.string(),
@@ -58,7 +58,7 @@ export const knowledgeRouter = router({
       .orderBy(collection.name);
   }),
 
-  createCollection: adminProcedure
+  createCollection: permissionProcedure("knowledge", "create")
     .input(z.object({ name: z.string().min(1).max(80), description: z.string().max(400).nullable() }))
     .mutation(async ({ ctx, input }) => {
       const [created] = await ctx.db
@@ -115,7 +115,7 @@ export const knowledgeRouter = router({
           eq(document.id, input.documentId),
           // Scope by organization: an ID from another tenant must not resolve.
           eq(document.organizationId, ctx.organizationId),
-          // And by visibility: an ID guessed from another department must not
+          // And by visibility: an ID guessed from another team must not
           // resolve either. A 404 rather than a 403, so the response does not
           // confirm that the document exists.
           visibleToPrincipal(ctx.principal.accessControlList),
@@ -156,10 +156,10 @@ export const knowledgeRouter = router({
    * Retargets a document at a different audience.
    *
    * Admin-only and deliberately so: with admins unable to read another
-   * department's documents, widening one is the supported way in, and it should
+   * team's documents, widening one is the supported way in, and it should
    * be a considered act rather than a side effect of browsing.
    */
-  setDocumentVisibility: adminProcedure
+  setDocumentVisibility: permissionProcedure("source", "update")
     .input(visibilityInput)
     .mutation(async ({ ctx, input }) => {
       const owned = await ctx.db.query.document.findFirst({
@@ -226,7 +226,7 @@ export const knowledgeRouter = router({
     }),
 
   /** Sets the visibility newly ingested documents from a source inherit. */
-  setSourceDefaultVisibility: adminProcedure
+  setSourceDefaultVisibility: permissionProcedure("source", "update")
     .input(
       z.object({
         sourceId: z.string(),
@@ -286,7 +286,7 @@ export const knowledgeRouter = router({
     }),
 
   /** Re-queues a document whose indexing failed. */
-  retryDocument: adminProcedure
+  retryDocument: permissionProcedure("source", "update")
     .input(z.object({ documentId: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const updated = await ctx.db

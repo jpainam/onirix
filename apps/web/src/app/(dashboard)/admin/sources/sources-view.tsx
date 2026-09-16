@@ -2,11 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Building2Icon,
   DatabaseIcon,
   FileTextIcon,
   GlobeIcon,
   LockIcon,
+  NetworkIcon,
   UploadIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -57,7 +57,7 @@ const STATUS_VARIANT = {
  */
 const VISIBILITY = {
   organization: { label: "Everyone", icon: GlobeIcon },
-  teams: { label: "Departments", icon: Building2Icon },
+  teams: { label: "Teams", icon: NetworkIcon },
   private: { label: "Only me", icon: LockIcon },
 } as const;
 
@@ -277,8 +277,8 @@ type Visibility = "organization" | "teams" | "private";
 /**
  * The audience control on a document row.
  *
- * Choosing "Departments" needs a department to be named, so the picker stays
- * on screen until one is — a document restricted to no department at all would
+ * Choosing "Teams" needs a team to be named, so the picker stays on screen
+ * until one is. A document restricted to no team at all would
  * silently collapse to "only its uploader", which is not what the person
  * clicking meant.
  */
@@ -317,8 +317,8 @@ function DocumentVisibility({
           onChange("teams", [String(value)]);
         }}
       >
-        <SelectTrigger data-size="sm" aria-label="Choose a department">
-          <SelectValue placeholder="Department…" />
+        <SelectTrigger data-size="sm" aria-label="Choose a team">
+          <SelectValue placeholder="Team…" />
         </SelectTrigger>
         <SelectContent>
           {teams.map((group) => (
@@ -338,7 +338,7 @@ function DocumentVisibility({
         const next = String(value) as Visibility;
         if (next === "teams") {
           if (teams.length === 0) {
-            toast.error("Create a department on the Users & Teams page first.");
+            toast.error("Create a team on the Teams page first.");
             return;
           }
           setPendingTeams(true);

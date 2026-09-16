@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { can, type Action, type Permissions, type Resource } from "@onirix/db/permissions";
 import type { Principal } from "@onirix/db/principal";
 import { resolvePrincipal } from "@onirix/db/principal";
 import { organization } from "@onirix/db/schema";
@@ -20,6 +21,8 @@ export type Workspace = {
   organizationId: string;
   organizationName: string;
   role: Principal["role"];
+  /** What the caller's role grants, resolved once per request. */
+  permissions: Permissions;
   /** Teams the caller belongs to inside this organization. */
   teamIds: string[];
   /** Tokens the caller holds, for filtering documents and chunks. */
@@ -57,6 +60,21 @@ export function providerCredentials(
   return { apiKey: row?.apiKey ?? null, baseUrl: row?.baseUrl ?? null };
 }
 
+/**
+ * Whether the caller may do one thing, for deciding what a page renders.
+ *
+ * Only a rendering decision. The procedure behind every control checks the same
+ * grant with `permissionProcedure`, so forcing a hidden control open achieves
+ * nothing.
+ */
+export function workspaceCan<R extends Resource>(
+  workspace: Pick<Workspace, "permissions">,
+  resource: R,
+  action: Action<R>,
+): boolean {
+  return can(workspace.permissions, resource, action);
+}
+
 export async function loadWorkspace(
   userId: string,
   activeOrganizationId?: string | null,
@@ -75,6 +93,7 @@ export async function loadWorkspace(
     organizationId: principal.organizationId,
     organizationName: org.name,
     role: principal.role,
+    permissions: principal.permissions,
     teamIds: principal.teamIds,
     accessControlList: principal.accessControlList,
     llmConfig: org.llmConfig ?? null,

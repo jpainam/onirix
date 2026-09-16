@@ -1,5 +1,5 @@
 /**
- * Members, departments, and pending invitations.
+ * Members, teams, and pending invitations.
  *
  * Reads only. Every mutation — invite, remove, change role, create a team, move
  * someone between teams — goes through Better Auth's organization endpoints
@@ -8,19 +8,25 @@
  * enforcement paths that have to agree forever.
  *
  * What Better Auth does not offer is one call that returns members *with* the
- * teams each belongs to, which is exactly the view the Team page renders.
+ * teams each belongs to, which is exactly the view the Users page renders.
  */
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
+  BUILT_IN_ROLE_PERMISSIONS,
+  BUILT_IN_ROLES,
+  type Permissions,
+} from "@onirix/db/permissions";
+import {
   invitation,
   member,
+  organizationRole,
   team,
   teamMember,
   user,
 } from "@onirix/db/schema";
 
-import { adminProcedure, orgProcedure, router } from "../index";
+import { orgProcedure, permissionProcedure, router } from "../index";
 
 export const teamRouter = router({
   /**
@@ -57,7 +63,7 @@ export const teamRouter = router({
     }));
   }),
 
-  /** Departments in this organization, with their member counts. */
+  /** Teams in this organization, with their member counts. */
   listTeams: orgProcedure.query(async ({ ctx }) => {
     const rows = await ctx.db
       .select({
@@ -72,7 +78,7 @@ export const teamRouter = router({
 
     return rows.map((row) => ({
       ...row,
-      /** Whether the caller is in it — the UI marks their own departments. */
+      /** Whether the caller is in it, which the UI marks on the caller's teams. */
       joined: ctx.principal.teamIds.includes(row.id),
     }));
   }),
@@ -132,13 +138,70 @@ export const teamRouter = router({
   }),
 
   /**
+   * Every role a member of this organization can hold, built-in and custom.
+   *
+   * Built-in roles are not rows, they are declared in `@onirix/db/permissions`,
+   * so this is the one place that puts both kinds in a single list. The counts
+   * come from the member table, which is what makes "who is actually a
+   * Librarian?" answerable before an admin deletes the role.
+   *
+   * Readable by any member: a member who is told "you cannot do that" is owed
+   * the ability to see which role would have let them.
+   */
+  listRoles: orgProcedure.query(async ({ ctx }) => {
+    const custom = await ctx.db
+      .select({
+        id: organizationRole.id,
+        role: organizationRole.role,
+        permission: organizationRole.permission,
+        createdAt: organizationRole.createdAt,
+      })
+      .from(organizationRole)
+      .where(eq(organizationRole.organizationId, ctx.organizationId))
+      .orderBy(asc(organizationRole.role));
+
+    const members = await ctx.db
+      .select({ role: member.role })
+      .from(member)
+      .where(eq(member.organizationId, ctx.organizationId));
+
+    // A member may hold several roles in one comma separated column, so each
+    // name is counted separately rather than the column being counted whole.
+    const counts = new Map<string, number>();
+    for (const row of members) {
+      for (const name of row.role.split(",").map((part) => part.trim())) {
+        if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+
+    const builtIn = BUILT_IN_ROLES.map((name) => ({
+      id: name,
+      name,
+      builtIn: true as const,
+      permissions: BUILT_IN_ROLE_PERMISSIONS[name] as Permissions,
+      memberCount: counts.get(name) ?? 0,
+    }));
+
+    return [
+      ...builtIn,
+      ...custom.map((row) => ({
+        id: row.id,
+        name: row.role,
+        builtIn: false as const,
+        permissions: parsePermissions(row.permission),
+        memberCount: counts.get(row.role) ?? 0,
+      })),
+    ];
+  }),
+
+  /**
    * Outstanding invitations.
    *
    * Admin-only: a pending invitation reveals that a named person is being
    * brought in, which can be a hiring or reorganization signal before it is
    * public.
    */
-  listInvitations: adminProcedure.query(async ({ ctx }) => {
+  listInvitations: permissionProcedure("invitation", "create").query(async ({ ctx }) => {
     const rows = await ctx.db
       .select({
         id: invitation.id,
@@ -168,3 +231,13 @@ export const teamRouter = router({
     }));
   }),
 });
+
+/** Better Auth stores a role's grants as JSON text; a broken row grants nothing. */
+function parsePermissions(value: string): Permissions {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? (parsed as Permissions) : {};
+  } catch {
+    return {};
+  }
+}

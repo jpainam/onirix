@@ -2,11 +2,24 @@ import type { Route } from "next";
 import { magicLinkClient, organizationClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
+import { ac, roles } from "@onirix/auth/permissions";
+
 export const authClient = createAuthClient({
-  // The organization plugin backs every membership, team and invitation
+  // The organization plugin backs every membership, team, invitation and role
   // mutation. Onirix reads this data over tRPC but writes it through here, so
   // Better Auth's own permission checks and owner protections always apply.
-  plugins: [magicLinkClient(), organizationClient({ teams: { enabled: true } })],
+  //
+  // `ac`, `roles` and the dynamic flag repeat what the server was built with,
+  // which is what types `createRole` and friends on this client.
+  plugins: [
+    magicLinkClient(),
+    organizationClient({
+      teams: { enabled: true },
+      ac,
+      roles,
+      dynamicAccessControl: { enabled: true },
+    }),
+  ],
 });
 
 /** Where a user lands once any of the sign-in paths succeeds. */

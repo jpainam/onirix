@@ -148,7 +148,7 @@ export function AcceptInvitationView({ invitationId }: { invitationId: string })
   return (
     <AuthCard
       title={`Join ${state.organizationName}`}
-      subtitle={`You will see what ${state.organizationName} and your departments have shared with you.`}
+      subtitle={`You will see what ${state.organizationName} and your teams have shared with you.`}
     >
       <Button className="w-full" disabled={accepting} onClick={() => void accept()}>
         {accepting ? <Spinner /> : null}

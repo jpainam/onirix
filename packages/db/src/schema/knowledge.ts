@@ -24,7 +24,7 @@ import { organization, team } from "./organization";
 /**
  * Who inside an organization may read a document.
  *
- * `organization` is workspace-wide. `teams` restricts to the departments listed
+ * `organization` is workspace-wide. `teams` restricts to the teams listed
  * in `document_team` — this is what keeps HR's files out of Sales' answers.
  * `private` restricts to the uploader alone.
  *
@@ -73,7 +73,7 @@ export const source = pgTable(
      * Visibility stamped onto documents this source produces.
      *
      * Pointing a connector at a department's drive is the practical way to keep
-     * that department's knowledge contained — tagging each synced file by hand
+     * that team's knowledge contained, since tagging each synced file by hand
      * does not scale, and a connector that syncs nightly would need re-tagging
      * forever. Documents take a copy at ingest time, so changing this affects
      * new documents only; existing ones are retargeted explicitly.

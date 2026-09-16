@@ -1,12 +1,17 @@
-import { requireConfiguredWorkspace } from "@/lib/workspace";
+import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
 
-import { TeamView } from "./team-view";
+import { UsersView } from "./users-view";
 
 export default async function UsersPage() {
   const { workspace } = await requireConfiguredWorkspace();
 
-  // Rendering decision only. Every mutation the page offers is re-authorized on
-  // the server by Better Auth, so a member who forces the controls open still
-  // gets refused.
-  return <TeamView canManage={workspace.role !== "member"} />;
+  // Two separate grants, because they are two separate jobs: someone who runs
+  // onboarding may invite people without being able to change anyone's role.
+  // Both are re-authorized on the server by Better Auth.
+  return (
+    <UsersView
+      canManage={workspaceCan(workspace, "member", "update")}
+      canInvite={workspaceCan(workspace, "invitation", "create")}
+    />
+  );
 }

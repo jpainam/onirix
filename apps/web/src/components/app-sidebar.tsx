@@ -6,7 +6,7 @@ import {
   PanelLeftIcon,
   RocketIcon,
   SearchIcon,
-  Settings2Icon,
+  SettingsIcon,
   SquarePenIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,11 +26,18 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@onirix/ui/components/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@onirix/ui/components/tooltip";
 import { cn } from "@onirix/ui/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@onirix/ui/components/tooltip";
 
 import { AdminNav } from "@/components/admin-nav";
-import { CommandPalette, useCommandPalette } from "@/components/command-palette";
+import {
+  CommandPalette,
+  useCommandPalette,
+} from "@/components/command-palette";
 import { NavUser } from "@/components/nav-user";
 import { OnirixMark, OnirixWordmark } from "@/components/onirix-mark";
 import { RecentConversations } from "@/components/recent-conversations";
@@ -40,9 +47,11 @@ const PRIMARY_ITEMS = [
   { title: "New Session", url: "/chat", icon: SquarePenIcon },
 ] as const;
 
-const AGENT_ITEMS = [{ title: "Explore Agents", url: "/agents", icon: BotIcon }] as const;
+const AGENT_ITEMS = [
+  { title: "Explore Agents", url: "/agents", icon: BotIcon },
+] as const;
 
-/** Where the Admin Panel entry lands; `/admin` also decides which menu shows. */
+/** Where the Setting panel entry lands; `/admin` also decides which menu shows. */
 const ADMIN_HOME = "/admin/language-models";
 
 export function AppSidebar({
@@ -114,7 +123,7 @@ export function AppSidebar({
       </SidebarHeader>
 
       {/* The two menus are stacked in one clipping frame and slide as a pair, so
-          the admin panel reads as stepping sideways rather than as a new screen. */}
+          the settings panel reads as stepping sideways rather than as a new screen. */}
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <Pane hidden={inAdmin} offset={inAdmin ? "left" : "none"}>
           <SidebarContent>
@@ -188,16 +197,16 @@ export function AppSidebar({
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter>
+          <SidebarFooter className="pb-0">
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={inAdmin}
-                  tooltip="Admin Panel"
+                  tooltip="Settings"
                   render={
                     <Link href={ADMIN_HOME}>
-                      <Settings2Icon />
-                      <span>Admin Panel</span>
+                      <SettingsIcon />
+                      <span>Settings</span>
                     </Link>
                   }
                 />
@@ -224,16 +233,16 @@ export function AppSidebar({
             <AdminNav pathname={pathname} />
           </SidebarContent>
 
-          <SidebarFooter>
+          <SidebarFooter className="pb-0">
             <SidebarSeparator />
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Exit admin panel"
+                  tooltip="Exit settings"
                   render={
                     <Link href="/chat">
                       <ArrowLeftIcon />
-                      <span>Exit Admin Panel</span>
+                      <span>Exit Settings</span>
                     </Link>
                   }
                 />
@@ -274,7 +283,7 @@ function Pane({
       className={cn(
         "absolute inset-0 flex flex-col transition-transform duration-300 ease-out motion-reduce:transition-none",
         offset === "left" && "-translate-x-full",
-        offset === "right" && "translate-x-full"
+        offset === "right" && "translate-x-full",
       )}
       aria-hidden={hidden}
       inert={hidden}

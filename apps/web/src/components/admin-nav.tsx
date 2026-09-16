@@ -6,6 +6,8 @@ import {
   CpuIcon,
   DatabaseIcon,
   HistoryIcon,
+  LockIcon,
+  NetworkIcon,
   PaletteIcon,
   PieChartIcon,
   ShieldIcon,
@@ -42,14 +44,18 @@ const ADMIN_SECTIONS = [
   },
   {
     label: "Permissions",
-    items: [{ title: "Users & Teams", url: "/admin/users", icon: UsersIcon }],
+    items: [
+      { title: "Users", url: "/admin/users", icon: UsersIcon },
+      { title: "Teams", url: "/admin/teams", icon: NetworkIcon },
+      { title: "Roles", url: "/admin/roles", icon: ShieldIcon },
+    ],
   },
   {
     label: "Organization",
     items: [
       { title: "General", url: "/admin/organization", icon: BuildingIcon },
       { title: "Appearance & Theming", url: "/admin/appearance", icon: PaletteIcon },
-      { title: "Security", icon: ShieldIcon },
+      { title: "Security", icon: LockIcon },
     ],
   },
   {

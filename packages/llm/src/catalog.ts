@@ -15,6 +15,16 @@ export type ProviderId = z.infer<typeof providerIdSchema>;
 export type ChatModelSpec = {
   id: string;
   label: string;
+  /**
+   * Set on models that reason before they answer.
+   *
+   * This is a capability flag, not a setting: providers reject the reasoning
+   * parameter outright on models that have no reasoning stage, so nothing may
+   * send it without checking here first. How far down each provider turns it —
+   * a named effort, a token budget — is their own dialect, and translating it
+   * is `reasoningEffortOptions`'s job in `factory.ts`.
+   */
+  reasons?: boolean;
 };
 
 export type EmbeddingModelSpec = {
@@ -59,8 +69,8 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     requiresApiKey: true,
     selfHosted: false,
     chatModels: [
-      { id: "gpt-5", label: "GPT-5" },
-      { id: "gpt-5-mini", label: "GPT-5 mini" },
+      { id: "gpt-5", label: "GPT-5", reasons: true },
+      { id: "gpt-5-mini", label: "GPT-5 mini", reasons: true },
       { id: "gpt-4.1", label: "GPT-4.1" },
     ],
     embeddingModels: [
@@ -75,9 +85,9 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     requiresApiKey: true,
     selfHosted: false,
     chatModels: [
-      { id: "claude-opus-5", label: "Claude Opus 5" },
-      { id: "claude-sonnet-5", label: "Claude Sonnet 5" },
-      { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+      { id: "claude-opus-5", label: "Claude Opus 5", reasons: true },
+      { id: "claude-sonnet-5", label: "Claude Sonnet 5", reasons: true },
+      { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", reasons: true },
     ],
     // Anthropic serves no embedding model; pair it with another provider.
     embeddingModels: [],
@@ -89,8 +99,8 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     requiresApiKey: true,
     selfHosted: false,
     chatModels: [
-      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
-      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", reasons: true },
+      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", reasons: true },
     ],
     embeddingModels: [
       { id: "text-embedding-004", label: "Text Embedding 004", dimension: 768 },
@@ -103,9 +113,9 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     requiresApiKey: true,
     selfHosted: false,
     chatModels: [
-      { id: "grok-4", label: "Grok 4" },
+      { id: "grok-4", label: "Grok 4", reasons: true },
       { id: "grok-3", label: "Grok 3" },
-      { id: "grok-3-mini", label: "Grok 3 mini" },
+      { id: "grok-3-mini", label: "Grok 3 mini", reasons: true },
     ],
     // xAI serves no embedding model; pair it with another provider.
     embeddingModels: [],
@@ -143,6 +153,19 @@ export function getProvider(id: ProviderId): ProviderSpec {
 /** Providers that can serve embeddings, for the onboarding picker. */
 export function embeddingCapableProviders(): ProviderSpec[] {
   return Object.values(PROVIDERS).filter((p) => p.embeddingModels.length > 0);
+}
+
+/**
+ * Whether a chat model reasons before answering.
+ *
+ * Unknown ids answer `false`: a workspace may point at a model the catalog has
+ * never heard of, and sending a reasoning parameter to one that cannot take it
+ * fails the whole call, where omitting it only leaves latency on the table.
+ */
+export function modelReasons(provider: ProviderId, modelId: string): boolean {
+  return PROVIDERS[provider].chatModels.some(
+    (model) => model.id === modelId && model.reasons === true,
+  );
 }
 
 export function findEmbeddingModel(

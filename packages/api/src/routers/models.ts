@@ -25,7 +25,7 @@ import {
 } from "@onirix/llm";
 import { getIndexName } from "@onirix/search";
 
-import { adminProcedure, orgProcedure, router } from "../index";
+import { orgProcedure, permissionProcedure, router } from "../index";
 import type { Context } from "../context";
 
 export const connectInput = z.object({
@@ -281,12 +281,12 @@ export const modelsRouter = router({
   }),
 
   /** Connect a new provider, or re-save the settings of a connected one. */
-  connect: adminProcedure
+  connect: permissionProcedure("model", "update")
     .input(connectInput)
     .mutation(({ ctx, input }) => connectProvider(ctx, input)),
 
   /** Point the workspace at a different default chat model. */
-  setDefault: adminProcedure
+  setDefault: permissionProcedure("model", "update")
     .input(z.object({ provider: providerIdSchema, model: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const row = await ctx.db.query.llmProvider.findFirst({
@@ -317,7 +317,7 @@ export const modelsRouter = router({
    * The last one cannot go this way: a workspace with no provider cannot
    * answer anything, and "Reset all settings" is the honest way to say that.
    */
-  disconnect: adminProcedure
+  disconnect: permissionProcedure("model", "update")
     .input(z.object({ provider: providerIdSchema }))
     .mutation(async ({ ctx, input }) => {
       const rows = await ctx.db.query.llmProvider.findMany({

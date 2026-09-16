@@ -50,6 +50,13 @@
       "when": 1789517450561,
       "tag": "0006_llm_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789526309180,
+      "tag": "0007_organization_role",
+      "breakpoints": true
     }
   ]
 }

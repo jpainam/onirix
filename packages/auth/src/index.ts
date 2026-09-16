@@ -5,6 +5,7 @@ import {
   invitation,
   member,
   organization as organizationTable,
+  organizationRole,
   team,
   teamMember,
 } from "@onirix/db/schema/organization";
@@ -15,13 +16,15 @@ import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
 import { magicLink } from "better-auth/plugins/magic-link";
 
+import { ac, MAXIMUM_ROLES_PER_ORGANIZATION, roles } from "./permissions";
+
 /**
  * Tables the adapter may read and write.
  *
- * The organization plugin owns `organization`, `member`, `invitation`, `team`
- * and `teamMember`; the keys here have to match the model names it asks for,
- * which is why `teamMember` is spelled in camel case while its table is
- * `team_member`.
+ * The organization plugin owns `organization`, `member`, `invitation`, `team`,
+ * `teamMember` and `organizationRole`; the keys here have to match the model
+ * names it asks for, which is why `teamMember` is spelled in camel case while
+ * its table is `team_member`.
  */
 const schema = {
   user,
@@ -33,6 +36,7 @@ const schema = {
   invitation,
   team,
   teamMember,
+  organizationRole,
 };
 
 export type AuthConfig = EmailConfig & {
@@ -99,8 +103,8 @@ export function createAuth(env: AuthConfig, database: Database) {
           /**
            * Stamp the session with the organization it is acting as.
            *
-           * Better Auth's own organization endpoints — creating a department,
-           * inviting a member, changing a role — read `activeOrganizationId`
+           * Better Auth's own organization endpoints (creating a team,
+           * inviting a member, changing a role) read `activeOrganizationId`
            * off the session and reject the call with "No active organization"
            * when it is null. Nothing else sets it: workspaces are created
            * directly in onboarding rather than through `organization.create`,
@@ -132,8 +136,17 @@ export function createAuth(env: AuthConfig, database: Database) {
     // set cookies the framework cookie store never receives.
     plugins: [
       organization({
-        // Teams are departments — Engineering, Sales, HR — and the unit that
-        // document visibility is granted to. Onirix's whole privacy model rests
+        // Roles are data, not code: `ac` and `roles` declare what a role *can*
+        // be granted, and dynamic access control lets an admin compose new ones
+        // from those statements at runtime. Without both, `createRole` refuses.
+        ac,
+        roles,
+        dynamicAccessControl: {
+          enabled: true,
+          maximumRolesPerOrganization: MAXIMUM_ROLES_PER_ORGANIZATION,
+        },
+        // Teams are the workspace's groups (Engineering, Sales, HR) and the unit
+        // that document visibility is granted to. Onirix's whole privacy model rests
         // on them, so they are on unconditionally rather than by configuration.
         teams: { enabled: true },
         // A workspace is created during onboarding and is the customer's
