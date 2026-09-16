@@ -1,2 +1,3 @@
 @import "@onirix/ui/globals.css";
 @source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";

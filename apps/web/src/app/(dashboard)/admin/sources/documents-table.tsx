@@ -57,7 +57,7 @@ import {
 } from "@onirix/ui/components/table";
 
 import { sourceKindLabel } from "@/components/source-icon";
-import { SearchField, TablePager } from "@/components/table-pager";
+import { PAGE_SIZES, SearchField, TablePager } from "@/components/table-pager";
 import { useDebounced } from "@/hooks/use-debounced";
 import { formatBytes, formatRelative } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
@@ -86,7 +86,7 @@ const VISIBILITY = {
 
 type Visibility = keyof typeof VISIBILITY;
 
-const PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE: (typeof PAGE_SIZES)[number] = 25;
 
 export function DocumentsTable({
   sourceId,
@@ -105,6 +105,7 @@ export function DocumentsTable({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status | "all">("all");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [deleting, setDeleting] = useState<{ id: string; title: string; connected: boolean } | null>(null);
 
   const search = useDebounced(query, 250);
@@ -115,7 +116,7 @@ export function DocumentsTable({
       status: status === "all" ? null : status,
       query: search,
       page,
-      pageSize: PAGE_SIZE,
+      pageSize,
     }),
     // Each filter change is a new query key; without this the table would
     // blink out to a spinner between one view and the next.
@@ -355,9 +356,10 @@ export function DocumentsTable({
 
       <TablePager
         page={page}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         total={total}
         onPageChange={setPage}
+        onPageSizeChange={(size) => refine(() => setPageSize(size))}
         isFetching={documents.isFetching && !documents.isPending}
         noun="documents"
       />

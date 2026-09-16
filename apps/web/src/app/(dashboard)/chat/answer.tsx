@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, type ComponentProps } from "react";
+import { code } from "@streamdown/code";
 import { defaultRemarkPlugins, Streamdown, type Components } from "streamdown";
 
 import { cn } from "@onirix/ui/lib/utils";
@@ -26,6 +27,11 @@ import {
 import { ChartMessagePart } from "./chart";
 import { DatabaseQueryMessagePart } from "./database-query";
 import { CITATION_ATTRIBUTE, remarkCitations } from "./citations";
+
+// Streamdown 2 ships syntax highlighting as a separate plugin; without it a
+// fenced block renders as plain text. Held at module scope so the reference is
+// stable and the memoised markdown is not invalidated every render.
+const streamdownPlugins = { code };
 
 /**
  * Renders an answer, turning inline `[1]` markers into citation chips and
@@ -185,7 +191,6 @@ function Prose({
           [&_li]:my-1
           [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5
           [&_p]:my-3 first:[&_p]:mt-0 last:[&_p]:mb-0
-          [&_pre]:bg-tint-01 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:p-3
           [&_pre_code]:bg-transparent [&_pre_code]:p-0
           [&_table]:my-3 [&_table]:w-full [&_table]:text-left
           [&_td]:border-t [&_td]:py-1.5 [&_th]:py-1.5 [&_th]:font-semibold
@@ -193,6 +198,7 @@ function Prose({
           [&_blockquote]:border-l-2 [&_blockquote]:pl-3 [&_blockquote]:text-ink-03
         "
         components={components}
+        plugins={streamdownPlugins}
         remarkPlugins={remarkPlugins}
       >
         {text}

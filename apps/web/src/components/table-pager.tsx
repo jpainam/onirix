@@ -9,20 +9,32 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@onirix/ui/components/input-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@onirix/ui/components/select";
 import { Spinner } from "@onirix/ui/components/spinner";
+
+/** The page sizes a pager offers when the table lets the reader pick one. */
+export const PAGE_SIZES = [10, 25, 50, 100] as const;
 
 /**
  * The footer of a server-paged table: where you are, and the two ways to move.
  *
  * Previous and next only, no page numbers. A table with ten thousand rows has
  * two hundred pages, and nobody jumps to page 137; they search. The count is
- * what tells an admin the search worked.
+ * what tells an admin the search worked. The controls stay on screen even on
+ * a single page, so a table that will grow looks paged from the first row.
  */
 export function TablePager({
   page,
   pageSize,
   total,
   onPageChange,
+  onPageSizeChange,
   isFetching = false,
   noun = "rows",
 }: {
@@ -30,6 +42,8 @@ export function TablePager({
   pageSize: number;
   total: number;
   onPageChange: (page: number) => void;
+  /** Given, a rows-per-page picker joins the footer. The table resets to page 0 itself. */
+  onPageSizeChange?: (pageSize: number) => void;
   isFetching?: boolean;
   /** What the rows are, for "of 1,240 documents". */
   noun?: string;
@@ -37,15 +51,36 @@ export function TablePager({
   if (total === 0) return null;
   const first = page * pageSize + 1;
   const last = Math.min(total, (page + 1) * pageSize);
-  const lastPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const lastPage = pageCount - 1;
 
   return (
-    <div className="flex items-center justify-between gap-4 px-1">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1">
       <p className="font-figure text-ink-02 flex items-center gap-2">
         {first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()} {noun}
         {isFetching ? <Spinner className="size-3" /> : null}
       </p>
-      {lastPage > 0 ? (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {onPageSizeChange ? (
+          <label className="text-ink-02 flex items-center gap-2 text-sm">
+            Rows per page
+            <Select
+              value={String(pageSize)}
+              onValueChange={(value) => onPageSizeChange(Number(value))}
+            >
+              <SelectTrigger size="sm" aria-label="Rows per page" className="w-18">
+                <SelectValue>{pageSize}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZES.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        ) : null}
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -57,6 +92,9 @@ export function TablePager({
             <ChevronLeftIcon />
             Previous
           </Button>
+          <span className="font-figure text-ink-02 px-1 text-sm">
+            Page {(page + 1).toLocaleString()} of {pageCount.toLocaleString()}
+          </span>
           <Button
             variant="ghost"
             size="sm"
@@ -68,7 +106,7 @@ export function TablePager({
             <ChevronRightIcon />
           </Button>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

@@ -9,7 +9,7 @@
  * rule that a secret left blank on edit keeps the stored one.
  */
 import { useQuery } from "@tanstack/react-query";
-import { CheckIcon, ExternalLinkIcon, ShieldIcon } from "lucide-react";
+import { CheckIcon, ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -210,12 +210,6 @@ export function ConnectorForm({
             />
           ) : null}
         </div>
-        {visibility === "teams" ? (
-          <p className="text-ink-03 flex items-start gap-2 text-xs leading-4">
-            <ShieldIcon className="mt-0.5 size-3.5 shrink-0" />
-            Admins outside these teams will not see the documents either.
-          </p>
-        ) : null}
       </FieldBlock>
 
       <div className="flex justify-end gap-2">
@@ -293,13 +287,6 @@ function WebsiteFields({
       <FieldBlock
         label="Web address"
         htmlFor="website-url"
-        hint={
-          mode === "sitemap"
-            ? "The site or its sitemap."
-            : mode === "recursive"
-              ? "Only pages under this address are followed."
-              : undefined
-        }
       >
         <Input
           id="website-url"
@@ -338,7 +325,6 @@ function WebsiteFields({
             <FieldBlock
               label="Page limit"
               htmlFor="website-max-pages"
-              hint={`Up to ${WEBSITE_MAX_PAGES_LIMIT.toLocaleString()}.`}
             >
               <Input
                 id="website-max-pages"
@@ -358,7 +344,6 @@ function WebsiteFields({
           <FieldBlock
             label="Leave out paths"
             htmlFor="website-exclude"
-            hint="Path prefixes, one per line."
           >
             <Textarea
               id="website-exclude"
@@ -377,11 +362,6 @@ function WebsiteFields({
       <CheckRow
         id="website-render"
         label="Render pages in a browser first"
-        hint={
-          canRender
-            ? "For sites that draw content with JavaScript. Slower, one Firecrawl credit per page."
-            : "Needs FIRECRAWL_API_KEY on this deployment."
-        }
         checked={value.render === "browser"}
         disabled={!canRender}
         onChange={(checked) => onChange({ ...value, render: checked ? "browser" : "server" })}
@@ -487,11 +467,6 @@ function GoogleDriveFields({
           <FieldBlock
             label="Service account key"
             htmlFor="drive-key"
-            hint={
-              mode === "edit" && !keyText
-                ? "Leave blank to keep the stored key."
-                : "Share the folders with the account's email."
-            }
             error={keyError}
           >
             <Textarea
@@ -512,7 +487,6 @@ function GoogleDriveFields({
           <FieldBlock
             label="Act as (optional)"
             htmlFor="drive-impersonate"
-            hint="Needs domain-wide delegation."
           >
             <Input
               id="drive-impersonate"
@@ -551,7 +525,6 @@ function GoogleDriveFields({
       <FieldBlock
         label="Folders and shared drives"
         htmlFor="drive-folders"
-        hint="One link per line. Subfolders included."
       >
         <Textarea
           id="drive-folders"
@@ -629,11 +602,6 @@ function OneDriveFields({
       <FieldBlock
         label="Client secret"
         htmlFor="od-secret"
-        hint={
-          mode === "edit"
-            ? "Leave blank to keep the stored secret."
-            : "From an Entra app with the Files.Read.All application permission."
-        }
       >
         <Input
           id="od-secret"
@@ -646,7 +614,7 @@ function OneDriveFields({
       </FieldBlock>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldBlock label="Whose OneDrive" htmlFor="od-users" hint="One per line.">
+        <FieldBlock label="Whose OneDrive" htmlFor="od-users">
           <Textarea
             id="od-users"
             rows={3}
@@ -710,7 +678,7 @@ function S3Fields({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldBlock label="Access key ID" htmlFor="s3-key" hint="Needs s3:ListBucket and s3:GetObject.">
+        <FieldBlock label="Access key ID" htmlFor="s3-key">
           <Input
             id="s3-key"
             required
@@ -723,7 +691,6 @@ function S3Fields({
         <FieldBlock
           label="Secret access key"
           htmlFor="s3-secret"
-          hint={mode === "edit" ? "Leave blank to keep the stored key." : undefined}
         >
           <Input
             id="s3-secret"
@@ -750,7 +717,6 @@ function S3Fields({
         <FieldBlock
           label="Endpoint (optional)"
           htmlFor="s3-endpoint"
-          hint="Leave blank for AWS."
         >
           <Input
             id="s3-endpoint"
@@ -773,13 +739,11 @@ function S3Fields({
 function FieldBlock({
   label,
   htmlFor,
-  hint,
   error,
   children,
 }: {
   label: string;
   htmlFor?: string;
-  hint?: string;
   error?: string | null;
   children: React.ReactNode;
 }) {
@@ -788,7 +752,6 @@ function FieldBlock({
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
       {error ? <p className="text-destructive text-xs leading-4">{error}</p> : null}
-      {hint && !error ? <p className="text-ink-03 text-xs leading-4">{hint}</p> : null}
     </div>
   );
 }
@@ -796,14 +759,12 @@ function FieldBlock({
 function CheckRow({
   id,
   label,
-  hint,
   checked,
   disabled = false,
   onChange,
 }: {
   id: string;
   label: string;
-  hint?: string;
   checked: boolean;
   disabled?: boolean;
   onChange: (checked: boolean) => void;
@@ -820,10 +781,7 @@ function CheckRow({
         onCheckedChange={(next) => onChange(Boolean(next))}
         className="mt-0.5"
       />
-      <span className="flex min-w-0 flex-col">
-        <span className="text-sm font-semibold">{label}</span>
-        {hint ? <span className="text-ink-03 text-xs leading-4">{hint}</span> : null}
-      </span>
+      <span className="text-sm font-semibold">{label}</span>
     </label>
   );
 }
