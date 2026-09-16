@@ -8,6 +8,7 @@
 import type { InferUITools, UIMessage } from "ai";
 
 import type { chartTool } from "@onirix/llm/chart";
+import type { createLoadSkillTool } from "@onirix/llm/skills";
 
 export type CitedSource = {
   /** 1-based number the model writes inline, e.g. 1 for `[1]`. */
@@ -33,7 +34,25 @@ export type ChatDataParts = {
  * dropping it. The import is type-only: none of `@onirix/llm` reaches the
  * client bundle.
  */
-export type ChatTools = InferUITools<{ render_chart: typeof chartTool }>;
+export type ChatTools = InferUITools<{
+  render_chart: typeof chartTool;
+  // A factory rather than a constant, because the skills belong to a workspace.
+  // The return type does not depend on the argument's value, so the inferred
+  // part type is the same on every request — which is what the client needs.
+  load_skill: ReturnType<typeof createLoadSkillTool>;
+}>;
+
+/** The streamed part a `load_skill` call arrives as. */
+export type SkillPart = Extract<
+  OnirixUIMessage["parts"][number],
+  { type: "tool-load_skill" }
+>;
+
+export function isSkillPart(
+  part: OnirixUIMessage["parts"][number],
+): part is SkillPart {
+  return part.type === "tool-load_skill";
+}
 
 export type OnirixUIMessage = UIMessage<unknown, ChatDataParts, ChatTools>;
 

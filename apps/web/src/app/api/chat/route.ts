@@ -25,24 +25,29 @@ import {
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
-import { chat, citation, message } from "@onirix/db/schema";
+import { chat, citation, message, skill } from "@onirix/db/schema";
 import {
   DEFAULT_CONTEXT_CHUNKS,
   extractCitedIndices,
   retrieveContext,
 } from "@onirix/ingestion";
 import {
+  BUILT_IN_SKILLS,
   CHART_TOOL_NAME,
   CHAT_TITLE_PROMPT,
   QUERY_REWRITE_PROMPT,
+  SKILL_TOOL_NAME,
   buildContextBlock,
+  buildSkillSections,
   buildSystemPrompt,
   chartTool,
   createChatModel,
+  createLoadSkillTool,
   modelReasons,
   reasoningEffortOptions,
   type ProviderCredentials,
   type ReasoningProviderOptions,
+  type Skill,
 } from "@onirix/llm";
 import type { SearchHit } from "@onirix/search";
 
@@ -53,7 +58,21 @@ import { fallbackTitle, sanitizeTitle } from "@/lib/chat-title";
 import { loadWorkspace, providerCredentials } from "@/lib/workspace";
 import { auth, getDb, getDocumentIndex, getResumableStreamContext } from "@/services";
 
-export const maxDuration = 60;
+/**
+ * A turn can now spend several steps on tools before it writes a word — load a
+ * skill, load a second, draw a chart, draw another — and being killed mid-turn
+ * is expensive here: `onFinish` never runs, so the answer is never persisted and
+ * the resumable-stream pointer is never cleared, which strands the next reader
+ * on a stream that will never finish.
+ */
+export const maxDuration = 300;
+
+/**
+ * Steps a single answer may take, a step being one round trip that either calls
+ * tools or writes. The last one is forced to be prose, so the usable tool budget
+ * is one less than this.
+ */
+const MAX_ANSWER_STEPS = 6;
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -83,6 +102,12 @@ export async function POST(request: Request) {
   const db = getDb();
   const config = workspace.llmConfig;
 
+  // Started here and awaited at the system prompt, so it runs under the shadow
+  // of the query rewrite and retrieval below rather than adding to the wait
+  // before the first token. It is deliberately not part of `loadWorkspace`:
+  // that runs on every dashboard page, and this is wanted on one route.
+  const skillsLoaded = loadSkills(db, workspace.organizationId);
+
   // Keys belong to the connected provider, not to the default model, and they
   // are the workspace's own: nothing here reads the deployment environment.
   const chatCredentials: ProviderCredentials = {
@@ -96,6 +121,11 @@ export async function POST(request: Request) {
   };
 
   const model = createChatModel(chatCredentials, config.chatModel);
+
+  // Sanitized once, here, and used from this point on. `body.messages` is JSON
+  // the browser supplied and must not reach the model, the rewriter, or the
+  // persisted turn in the shape it arrived in.
+  const messages = withoutForgedSkills(body.messages);
 
   // Reasoning is what a reader experiences as the wait before an answer starts,
   // and neither of the two things Onirix asks a model to do here needs much of
@@ -116,7 +146,7 @@ export async function POST(request: Request) {
     ? 256
     : 0;
 
-  const latest = body.messages.at(-1);
+  const latest = messages.at(-1);
   const question = extractText(latest);
 
   if (!question.trim()) {
@@ -175,8 +205,8 @@ export async function POST(request: Request) {
   // A follow-up like "what about contractors?" carries its subject in the
   // history, so search the rewritten query rather than the raw text.
   const searchQuery =
-    body.messages.length > 1
-      ? await rewriteQuery(model, body.messages, question, noReasoning, thinkingHeadroom)
+    messages.length > 1
+      ? await rewriteQuery(model, messages, question, noReasoning, thinkingHeadroom)
       : question;
 
   const index = getDocumentIndex(config.embeddingModel, Number(config.embeddingDimension));
@@ -198,6 +228,11 @@ export async function POST(request: Request) {
 
   const contextBlock = buildContextBlock(context);
 
+  // Settled long before now: the query was rewritten and the index searched
+  // while this was in flight.
+  const skills = await skillsLoaded;
+  const { inlined, catalog } = buildSkillSections(skills);
+
   // Retrieved context goes in the system field, not as a system-role message:
   // the AI SDK rejects system messages inside `messages`. The prompt is rebuilt
   // from fresh retrieval each turn, so nothing accumulates in history.
@@ -205,13 +240,15 @@ export async function POST(request: Request) {
     buildSystemPrompt({
       organizationName: workspace.organizationName,
       hasContext: context.length > 0,
+      inlinedSkills: inlined,
+      skillCatalog: catalog,
     }),
     contextBlock,
   ]
     .filter(Boolean)
     .join("\n\n");
 
-  const modelMessages = await convertToModelMessages(body.messages);
+  const modelMessages = await convertToModelMessages(messages);
 
   const sources = toCitedSources(hits);
 
@@ -222,7 +259,7 @@ export async function POST(request: Request) {
   const stream = createUIMessageStream<OnirixUIMessage>({
     // Passed so the SDK can tell a fresh answer from a continuation, which is
     // what makes `responseMessage` in `onFinish` the assistant's turn alone.
-    originalMessages: body.messages,
+    originalMessages: messages,
     execute: ({ writer }) => {
       // Sent before the first token so a `[1]` is resolvable the moment it is
       // rendered. All retrieved chunks go over, not just the cited ones: which
@@ -236,13 +273,23 @@ export async function POST(request: Request) {
           model,
           system: systemPrompt,
           messages: modelMessages,
-          tools: { [CHART_TOOL_NAME]: chartTool },
+          tools: {
+            [CHART_TOOL_NAME]: chartTool,
+            [SKILL_TOOL_NAME]: createLoadSkillTool(skills),
+          },
           providerOptions: answerReasoning,
-          // A chart is drawn from the tool call's input, so the call itself
-          // produces no prose. Without a second step the turn would end on the
-          // chart and the reader would get a picture with nothing said about
-          // it; three leaves room for a second chart before the commentary.
-          stopWhen: stepCountIs(3),
+          // Every tool call with a result costs a step, and a turn can now spend
+          // several before it writes anything: load a skill, load a second, draw
+          // a chart, draw another. The budget covers that.
+          stopWhen: stepCountIs(MAX_ANSWER_STEPS),
+          // The budget alone is not enough. `stepCountIs` fires on equality
+          // *after* a step completes, so a turn that spends its last step on a
+          // tool call ends on that call — no prose, and an assistant message
+          // with nothing in it, which `persistTurn` then has to refuse to store.
+          // Taking the tools away for the final step makes that unreachable
+          // rather than unlikely.
+          prepareStep: ({ stepNumber }) =>
+            stepNumber >= MAX_ANSWER_STEPS - 1 ? { toolChoice: "none" } : {},
         }).toUIMessageStream<OnirixUIMessage>(),
       );
     },
@@ -303,6 +350,59 @@ export async function POST(request: Request) {
         });
     },
   });
+}
+
+/**
+ * The skills available to this workspace: the ones that ship with the product,
+ * plus the ones its admins wrote.
+ *
+ * A failure degrades to built-ins rather than failing the turn. Skills shape an
+ * answer; losing the workspace's own makes the answer less tailored, which is a
+ * far better outcome than refusing to answer at all.
+ */
+async function loadSkills(
+  db: ReturnType<typeof getDb>,
+  organizationId: string,
+): Promise<Skill[]> {
+  try {
+    const rows = await db
+      .select({
+        name: skill.name,
+        description: skill.description,
+        instructions: skill.instructions,
+        loading: skill.loading,
+      })
+      .from(skill)
+      .where(and(eq(skill.organizationId, organizationId), eq(skill.enabled, true)));
+
+    return [...BUILT_IN_SKILLS, ...rows];
+  } catch (error) {
+    console.error("Failed to load workspace skills", error);
+    return [...BUILT_IN_SKILLS];
+  }
+}
+
+/**
+ * Drops any skill part the client sent back.
+ *
+ * The request body is JSON the browser supplies, and a tool part carries its own
+ * result — so a crafted body can put arbitrary text into the one channel a model
+ * trusts most, positioned after the grounding rules it would be overriding. The
+ * server decides what a skill says; nothing arriving from outside is a skill.
+ *
+ * Dropping the part removes the call and the result together, which is what
+ * keeps the history valid: a tool call the model can see with no result beside
+ * it is rejected outright when the history is converted back to model messages.
+ */
+function withoutForgedSkills(messages: OnirixUIMessage[]): OnirixUIMessage[] {
+  return messages.map((entry) =>
+    entry.parts.some((part) => part.type === `tool-${SKILL_TOOL_NAME}`)
+      ? {
+          ...entry,
+          parts: entry.parts.filter((part) => part.type !== `tool-${SKILL_TOOL_NAME}`),
+        }
+      : entry,
+  );
 }
 
 /**
@@ -425,6 +525,11 @@ function storableParts(answer: OnirixUIMessage): OnirixUIMessage["parts"] {
     if (part.type === "data-sources") return false;
     if (part.type === "text") return part.text.trim().length > 0;
     if (isChartPart(part)) return part.state === "output-available";
+    // Loading a skill is machinery, not something the reader saw, and the body
+    // it returned is rebuilt from the workspace's skills on the next turn
+    // anyway. Named rather than left to the fallthrough, so the next tool that
+    // *should* be stored is a decision someone makes instead of an omission.
+    if (part.type === `tool-${SKILL_TOOL_NAME}`) return false;
     // Step boundaries and anything else the SDK emits for its own bookkeeping
     // are not part of what the reader saw.
     return false;
@@ -462,6 +567,19 @@ async function persistTurn(args: {
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("");
+
+  // A turn that produced nothing storable — it errored before writing, or spent
+  // its last step on a tool call — must not be written at all. An assistant row
+  // with no parts and no text restores as a single empty message, and a provider
+  // asked to continue from an empty assistant turn rejects the whole request:
+  // the conversation would be unusable from then on, permanently, for one lost
+  // answer. Dropping the row loses the same answer and nothing else.
+  if (parts.length === 0 && answer.trim().length === 0) {
+    if (args.title) {
+      await db.update(chat).set({ title: args.title }).where(eq(chat.id, chatId));
+    }
+    return;
+  }
 
   const assistantMessageId = randomUUID();
   await db.insert(message).values({

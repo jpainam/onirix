@@ -64,7 +64,24 @@ export async function loadConversation(args: {
     },
   });
 
-  return { id: found.id, title: found.title, messages: rows.map(toUIMessage) };
+  return {
+    id: found.id,
+    title: found.title,
+    // A message that restores to nothing is dropped rather than shown empty.
+    // `persistTurn` refuses to write one, so this only catches rows from before
+    // that guard existed — but the cost of letting one through is high: an empty
+    // assistant turn is sent to the provider verbatim on the next question, and
+    // a provider asked to continue from empty assistant content rejects the
+    // request, which would make the conversation permanently unusable.
+    messages: rows.map(toUIMessage).filter(hasContent),
+  };
+}
+
+/** Whether a restored message has anything in it beyond its citation list. */
+function hasContent(message: OnirixUIMessage): boolean {
+  return message.parts.some((part) =>
+    part.type === "text" ? part.text.trim().length > 0 : part.type !== "data-sources",
+  );
 }
 
 /**

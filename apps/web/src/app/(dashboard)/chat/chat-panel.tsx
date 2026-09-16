@@ -25,6 +25,8 @@ import {
   getCitedSources,
   getMessageText,
   getRetrievedSources,
+  isChartPart,
+  isSkillPart,
   type CitedSource,
   type OnirixUIMessage,
 } from "@/lib/chat-message";
@@ -64,7 +66,13 @@ function retrievalProgress(
 
   // Anything the reader can already see says more than a label would.
   if (getMessageText(latest).trim().length > 0) return null;
-  if (latest.parts.some((part) => part.type.startsWith("tool-"))) return null;
+  // A chart draws its own skeleton while it streams, so a label beside it would
+  // be saying twice what the page already shows once.
+  if (latest.parts.some(isChartPart)) return null;
+
+  // Loading a skill is a whole round trip with nothing to render, so it is the
+  // one step that would otherwise leave the reader watching an empty screen.
+  if (latest.parts.some(isSkillPart)) return "Consulting guidance…";
 
   const sources = getRetrievedSources(latest);
   if (sources.length === 0) return "Searching your knowledge…";

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BlocksIcon,
   BookOpenIcon,
   BuildingIcon,
   CpuIcon,
@@ -40,6 +41,7 @@ const ADMIN_SECTIONS = [
     items: [
       { title: "Sources", url: "/admin/sources", icon: DatabaseIcon },
       { title: "Knowledge", url: "/admin/knowledge", icon: BookOpenIcon },
+      { title: "Skills", url: "/admin/skills", icon: BlocksIcon },
     ],
   },
   {

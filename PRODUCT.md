@@ -1,818 +1,290 @@
 # Onirix
 
-## Product Overview
+## Product definition
 
-Onirix is a private AI workspace that gives organizations a secure AI assistant capable of understanding and working with their internal knowledge.
+**Onirix is a private AI workspace that turns company documents into answers, analysis, and interactive charts that people can verify at the source.**
 
-Organizations connect their existing sources of information—documents, cloud storage, collaboration tools, internal systems, and other business applications—and Onirix turns that information into a searchable, conversational knowledge layer.
+The product is built for organizations that want the usefulness of generative AI without giving up control of their knowledge, model provider, deployment, or internal access rules.
 
-Employees can then ask questions naturally, find information across the organization, analyze documents, conduct research, and use AI agents that understand the context of their company.
+> **Ask your company. See the evidence.**
 
-Onirix is designed around a simple principle:
-
-> **Your company's knowledge should power your AI without becoming someone else's data.**
-
-The product is designed to be self-hostable, allowing organizations to maintain control over their data and AI environment.
+Onirix is not a generic chatbot and not a low-level AI development platform. It is the trusted interface between a team and the knowledge the team already owns.
 
 ---
 
-# Product Vision
+## The distinctive capability
 
-Most organizations already have enormous amounts of useful knowledge.
+Most enterprise AI tools make one of two compromises: they are easy to use but opaque, or private but difficult to operate. Onirix is designed around a different combination:
 
-The problem is that it is fragmented across:
+1. **An answer is never a dead end.** Company-specific claims carry inline citations. A reader can open the exact supporting passage beside the answer and, when available, return to the original document.
+2. **Analysis stays connected to evidence.** Onirix can turn numbers found in company files into interactive charts. Each plotted series can cite the document it came from, and the reader can inspect or copy the underlying data instead of trusting a static image.
+3. **The organization chooses the intelligence.** A workspace can connect OpenAI, Anthropic, Google, xAI, and self-hosted Ollama models, enable more than one provider, and choose its default. Onirix uses credentials supplied by that workspace.
+4. **Permissions are part of retrieval.** Organization, team, and private visibility are applied before content reaches the model. An administrator does not silently become a universal reader of restricted team knowledge.
+5. **Private can mean local.** The full application stack is self-hostable, and Ollama allows a deployment to answer and embed without sending document content to an external model API.
 
-* documents
-* shared drives
-* internal wikis
-* collaboration tools
-* project management systems
-* source-code repositories
-* business applications
-* databases
-* employee knowledge
+That combination is the center of the product:
 
-Finding an answer often requires knowing where the information lives before searching for it.
-
-Onirix creates a single intelligent interface over this fragmented knowledge.
-
-Instead of asking:
-
-> "Where was that document?"
-
-employees should be able to ask:
-
-> "What is our policy for employees working internationally?"
-
-Instead of manually searching several systems:
-
-> "What did we decide about the Acme renewal?"
-
-Instead of reading multiple documents:
-
-> "Compare the requirements in these three contracts and identify the major differences."
-
-Onirix finds the relevant company information, reasons over it, and provides an answer grounded in the organization's actual sources.
+> **Private company intelligence with evidence built into every answer and every visual.**
 
 ---
 
-# Positioning
+## The problem
 
-Onirix is not simply a chatbot.
+Useful company knowledge is scattered across policies, reports, spreadsheets, technical documents, and individual teams. Finding an answer usually means knowing where to look, opening several files, and deciding which version to trust.
 
-It is:
+Generic AI can summarize text, but it often cannot show which internal evidence supports an answer. It may also force an organization into one model vendor or flatten access controls once content is indexed.
 
-> **A private AI workspace for organizational knowledge.**
-
-The product combines company knowledge, AI search, conversational assistance, agents, and connected business systems into one environment.
-
-The user should not need to understand concepts such as embeddings, vector databases, retrieval pipelines, model inference, or RAG.
-
-From the user's perspective, the experience is simply:
-
-**Connect your company → Onirix understands your knowledge → Ask anything.**
+Onirix gives the organization one place to ask, search, analyze, and verify—without separating convenience from control.
 
 ---
 
-# Core Product Principles
+## The product experience
 
-## 1. Private by Design
+### 1. Bring your own AI
 
-Organizations should remain in control of their information.
+During setup, the workspace owner connects a model provider and selects the models the organization wants to use. Additional providers can be connected later, and the default chat model can be changed without rebuilding the application.
 
-Onirix is designed so that companies can operate their own AI environment without requiring their internal documents to become part of a third-party AI provider's knowledge.
+For maximum control, an organization can point Onirix at a self-hosted Ollama endpoint. Chat and embedding providers can also be selected separately when needed.
 
-Privacy should be a core product characteristic rather than an enterprise add-on.
+### 2. Add company knowledge
 
----
+Users can upload common business documents. Onirix stores the original, extracts its text, preserves useful page or sheet anchors, divides it into meaningful sections, creates embeddings, and indexes it in the background.
 
-## 2. Company Knowledge First
+Supported uploaded content currently includes:
 
-When answering company-specific questions, Onirix should prioritize the organization's connected information over generic AI knowledge.
+- PDF
+- Word (`.docx`)
+- Excel (`.xlsx` and `.xls`)
+- CSV
+- Markdown
+- HTML
+- plain text and other `text/*` formats
+- JSON
 
-Answers should clearly distinguish between:
+Uploads are limited to 50 MB per file. PowerPoint, images, and third-party source connectors are not part of the current upload pipeline.
 
-* information found in company sources
-* information inferred by the AI
-* general knowledge
+### 3. Ask in natural language
 
-Whenever possible, company-specific answers should include citations that allow users to inspect the original source.
+Onirix searches with both semantic similarity and exact keywords, reranks results for relevance and freshness, and gives the model a bounded set of the strongest passages. Follow-up questions are rewritten into standalone search queries so a phrase such as “what about contractors?” keeps the context of the conversation.
 
----
+The answer streams into the conversation as it is generated. If the browser refreshes or the network drops, a saved conversation can reconnect to the active stream and continue from the same answer.
 
-## 3. Search Should Feel Like Conversation
+### 4. Inspect the evidence
 
-Users should not have to construct perfect search queries.
+Inline citation markers open a side-by-side source panel containing the cited passage, document title, source type, update date, and original link when one exists. Only sources actually cited in the answer are saved as citations.
 
-They should be able to ask:
+Cited passages are snapshotted with the conversation, keeping a historical answer auditable even after its source is reindexed or changed.
 
-> "What is our parental leave policy?"
+### 5. Turn internal data into a visual answer
 
-> "Find the presentation where we discussed expansion into Europe."
+When company knowledge contains comparable values, trends, or parts of a whole, Onirix can render a bar, line, area, pie, or scatter chart directly inside the answer.
 
-> "What were the major concerns raised about Project Atlas?"
+The chart is generated as validated data rather than executable code or an image. This makes it possible to:
 
-> "Summarize everything we know about this customer."
+- trace chart series back to cited documents;
+- reveal the same values as a table;
+- copy the underlying data;
+- show targets or thresholds as reference lines; and
+- keep visuals consistent without executing model-written code against private data.
 
-Onirix determines how to search the organization's knowledge and can perform additional searches when the first results are insufficient.
-
----
-
-## 4. Permissions Must Follow the User
-
-Connecting organizational knowledge must not make all organizational knowledge available to everyone.
-
-If a user cannot access information in its original source, Onirix should not expose that information through AI.
-
-The product must treat permissions as part of knowledge, not as an afterthought.
-
----
-
-## 5. Simple Before Powerful
-
-Onirix should avoid becoming an overwhelming AI administration platform.
-
-The primary experience should remain understandable to someone who has never built an AI application.
-
-Advanced functionality can exist without dominating the interface.
+Spreadsheet headers are preserved across indexed chunks, helping the model retain the meaning of rows and columns when it analyzes larger sheets.
 
 ---
 
-# Core Navigation
+## Trust and control
 
-The initial Onirix product should revolve around five primary areas:
+### Evidence-native answers
 
-1. Chat
-2. Knowledge
-3. Sources
-4. Agents
-5. Team
+Onirix instructs the model to prefer company sources for company questions, distinguish sourced facts from inference or general knowledge, acknowledge missing evidence, and surface disagreements between documents rather than quietly selecting one.
 
-Administrative configuration is available through Settings.
+### Permission-aware knowledge
 
----
+Every document belongs to an organization and has one of three audiences:
 
-# Chat
+- **Organization:** available to everyone in the workspace.
+- **Teams:** available only to selected teams and the uploader.
+- **Private:** available only to the uploader.
 
-Chat is the primary Onirix experience.
+The same rule is enforced in document metadata queries and in the OpenSearch retrieval filter. Content that a principal cannot retrieve is not provided to the model.
 
-Users interact with their organization's AI through a familiar conversational interface.
+### Roles for administration, teams for knowledge access
 
-The default assistant can answer questions using organizational knowledge while also performing general reasoning when appropriate.
+Owner, admin, and member roles control administrative actions. Custom roles can grant specific abilities such as managing members, teams, sources, knowledge, roles, or models. Document access is separate: it follows the user’s team and document visibility rather than assuming that every administrator may read everything.
 
-Users can:
+### Tenant isolation
 
-* ask questions
-* search company knowledge
-* analyze information
-* summarize documents
-* compare documents
-* upload files during conversations
-* reference existing company knowledge
-* continue previous conversations
-* inspect citations
-* open original sources
-* interact with configured agents
+Organizations are explicit tenant boundaries across documents, search, chats, and membership. Conversations are private to their author in the current product.
 
-A conversation may involve multiple searches and sources before Onirix produces an answer.
+### Deployment and model control
 
-The complexity of that process should remain invisible to the user.
+Onirix ships as a self-hostable Docker stack using PostgreSQL, OpenSearch, Redis, and S3-compatible object storage. Organizations control the infrastructure and provider credentials used by their workspace. A fully local model path is available through Ollama.
 
 ---
 
-# Sources
+## Available product capabilities
 
-Sources represent the systems from which Onirix learns organizational knowledge.
+### Chat and analysis
 
-Organizations can connect supported services and choose what information Onirix should index.
+- source-grounded conversational answers;
+- inline, inspectable citations;
+- interactive, cited charts inside answers;
+- automatic conversation titles;
+- saved conversation history with rename and delete;
+- resumable answer streams after refresh or connection loss;
+- file upload from chat;
+- explicit handling of absent or conflicting evidence.
 
-Example sources may include:
+### Search and knowledge
 
-* Google Drive
-* Microsoft SharePoint
-* OneDrive
-* Notion
-* Slack
-* Confluence
-* GitHub
-* websites
-* local file uploads
-* internal documentation systems
-* business applications
+- hybrid vector and keyword retrieval for answers;
+- fast keyword search for finding documents directly;
+- recency-aware reranking;
+- one best passage per document in the final context, increasing source diversity;
+- background extraction, chunking, embedding, and indexing;
+- document indexing status, progress, failures, and manual retry;
+- page-level PDF anchors and sheet-level spreadsheet anchors;
+- logical knowledge collections that group documents by subject without changing their access rules.
 
-Additional integrations can be introduced over time.
+### Administration
 
-Each source should display useful operational information such as:
+- organization onboarding;
+- email/password, magic-link, and optional Google sign-in;
+- email verification and password reset;
+- member invitations;
+- teams;
+- built-in and custom roles;
+- organization, team, or private document visibility;
+- multiple model-provider connections and a selectable default model;
+- light and dark appearance settings.
 
-* connection status
-* last synchronization
-* synchronization progress
-* number of indexed items
-* errors requiring attention
+### Operations
 
-Example:
-
-> **SharePoint**
->
-> Connected
-> 12,438 documents indexed
-> Last synchronized 8 minutes ago
-
-Synchronization happens continuously or on an appropriate schedule so that organizational knowledge remains current.
-
----
-
-# Knowledge
-
-Knowledge provides visibility into what Onirix knows.
-
-Users with appropriate permissions can browse indexed organizational information without needing to understand how the underlying search system works.
-
-Knowledge can be organized into logical collections such as:
-
-* Company
-* Human Resources
-* Engineering
-* Sales
-* Legal
-* Finance
-* Customer Support
-* Product
-* Research
-
-Collections may contain information originating from multiple sources.
-
-For example:
-
-**Engineering Knowledge**
-
-could contain:
-
-* GitHub repositories
-* architecture documents
-* technical specifications
-* engineering Notion pages
-* selected Slack channels
-
-Knowledge therefore represents a logical organizational layer rather than simply a folder structure.
+- Docker-based self-hosting;
+- PostgreSQL for relational metadata;
+- OpenSearch for the hybrid knowledge index;
+- Redis for indexing jobs and resumable chat streams;
+- MinIO or compatible S3 storage for originals;
+- recoverable in-flight indexing jobs after a worker restart.
 
 ---
 
-# Documents
+## High-value use cases
 
-Users should be able to inspect individual documents known to Onirix.
+### Policy and operations
 
-A document page may show:
+Ask: “What is our international remote-work policy, and which exceptions require approval?”
 
-* title
-* source
-* location
-* owner
-* last updated date
-* synchronization status
-* access information
-* document preview
-* related knowledge collection
+Onirix answers from the organization’s policy documents and exposes the exact passages behind the response.
 
-Users can open the original source whenever available.
+### Spreadsheet analysis
 
-This makes AI answers auditable rather than turning organizational information into an opaque knowledge store.
+Ask: “Show quarterly attainment by account executive and mark the 85% target.”
 
----
+Onirix can read uploaded spreadsheet data, produce an interactive chart with a target line, and attach source citations to the plotted series.
 
-# Citations
+### Engineering knowledge
 
-Company-specific answers should provide citations whenever supporting evidence exists.
+Ask: “How does authentication work, and where are organization permissions enforced?”
 
-Example:
+Onirix retrieves across technical documents and presents the answer with evidence rather than forcing the reader to search each file manually.
 
-> Employees may work internationally for up to 30 consecutive days with manager approval. Longer periods require approval from HR and Legal.
->
-> **Sources**
->
-> * Remote Work Policy
-> * International Employment Guidelines
+### Cross-document comparison
 
-Selecting a citation should reveal the relevant passage and provide access to the original document.
+Ask: “Compare the renewal terms in these agreements and call out conflicts.”
 
-Citations are a central part of establishing trust in Onirix.
+Onirix brings together the most relevant documents, cites each claim, and explicitly surfaces disagreement in the source material.
 
 ---
 
-# Agents
+## Ideal customer profile
 
-Agents are specialized AI assistants configured for particular roles or tasks.
+Onirix is best suited to organizations that:
 
-The default Onirix assistant has broad access to the knowledge available to the current user.
+- have valuable internal knowledge spread across many documents;
+- need answers that employees can verify, not merely plausible prose;
+- handle team-restricted or sensitive material;
+- want freedom to choose cloud or locally hosted AI models;
+- prefer self-hosted infrastructure or a clear path to data residency; and
+- need reports and spreadsheet data turned into understandable, traceable analysis.
 
-Organizations can additionally create focused agents.
-
-Examples include:
-
-### HR Assistant
-
-Knowledge:
-
-* employee handbook
-* benefits documentation
-* leave policies
-* HR procedures
-
-Example questions:
-
-> "How many weeks of parental leave do we provide?"
-
-> "What is the reimbursement policy for home-office equipment?"
+Likely early teams include operations, HR, legal, engineering, sales enablement, research, and leadership.
 
 ---
 
-### Sales Assistant
+## Product boundaries and roadmap
 
-Knowledge:
+The current product is centered on uploaded files, grounded chat, search, administration, and model choice. The following ideas remain product direction and must not be presented as shipping flyer claims:
 
-* sales documentation
-* product information
-* pricing
-* customer material
-* sales processes
+- Google Drive, SharePoint, OneDrive, Notion, Slack, Confluence, GitHub, and website connectors;
+- scheduled or continuous connector synchronization;
+- configurable specialist agents;
+- agent actions in external business systems;
+- shared conversations and generated reports;
+- temporary, conversation-only file attachments;
+- PowerPoint and image extraction;
+- a production-ready mobile client; and
+- managed cloud or dedicated-hosting commercial offerings.
 
-Example questions:
+The intended progression remains:
 
-> "What are the major differences between our Enterprise and Business plans?"
+**Know → Answer → Analyze → Assist → Act**
 
-> "Prepare talking points for a customer concerned about data residency."
-
----
-
-### Engineering Assistant
-
-Knowledge:
-
-* technical documentation
-* architecture documents
-* repositories
-* engineering discussions
-
-Example questions:
-
-> "How does our authentication system work?"
-
-> "Where is invoice generation implemented?"
+Onirix should expand only while preserving its core promise: knowledge stays controlled, access follows the user, and outputs remain connected to evidence.
 
 ---
 
-# Agent Capabilities
+## Flyer messaging kit
 
-An agent can have:
+### Primary headline
 
-* a name
-* description
-* instructions
-* selected knowledge
-* available tools
-* permitted actions
-* access restrictions
+> **Ask your company. See the evidence.**
 
-Agents may initially focus primarily on knowledge retrieval.
+### Primary subhead
 
-Over time they can interact with business systems and perform controlled actions.
+> Onirix turns private company documents into cited answers and interactive, source-backed charts—using the AI models and infrastructure your organization chooses.
 
----
+### Alternate headlines
 
-# Actions
+- **Your company knowledge, ready to answer.**
+- **Private AI. Verifiable answers.**
+- **From internal documents to decisions you can defend.**
+- **Answers and charts that lead back to the source.**
+- **One private AI workspace. Your knowledge. Your models. Your control.**
 
-Onirix should eventually allow agents to do more than retrieve information.
+### Three proof points
 
-Depending on permissions and connected systems, agents may perform actions such as:
+- **Verify every answer.** Open the exact passage behind a claim and return to the original source.
+- **See the story in your data.** Turn spreadsheets and reports into interactive charts with citations attached to the numbers.
+- **Keep control.** Self-host the stack, choose from leading model providers, or run locally with Ollama.
 
-* create a support ticket
-* create a project task
-* retrieve customer information
-* inspect an account
-* prepare an email
-* update a business record
-* generate a report
-* query an internal system
+### Short product description
 
-Sensitive or destructive actions should require explicit user confirmation when appropriate.
+> Onirix is a private AI workspace for organizational knowledge. Upload company documents, ask questions naturally, and receive concise answers grounded in the sources your team is allowed to access. Inspect cited passages, visualize internal data, and choose the cloud or self-hosted AI models that fit your organization.
 
-The progression is:
+### One-sentence description
 
-**Ask → Understand → Research → Act**
+> Onirix gives every organization a private, permission-aware AI that answers from company knowledge and shows the evidence behind its words and charts.
 
-rather than limiting Onirix to question answering.
+### Call to action
 
----
+> **Turn company knowledge into answers your team can trust.**
 
-# Research
+### Recommended flyer hierarchy
 
-Some questions cannot be answered with a single search.
+1. Lead with “Ask your company. See the evidence.”
+2. Show an answer with inline citation chips and the cited-passage panel.
+3. Show an interactive chart generated from an uploaded spreadsheet.
+4. Support the visual with three short claims: permission-aware, model-independent, self-hostable.
+5. End with the call to action, not with infrastructure details.
 
-Onirix should be capable of investigating a question across multiple pieces of organizational knowledge.
+### Claims to avoid until the roadmap ships
 
-For example:
-
-> "What are the biggest recurring complaints from enterprise customers this quarter?"
-
-Onirix may need to examine information from several relevant sources, compare findings, identify patterns, and produce a consolidated answer.
-
-The user should receive both the conclusion and the evidence supporting it.
+Do not say “connect all your apps,” “continuous synchronization,” “AI agents that take action,” “mobile access,” or “supports every file type.” Use precise language: uploaded business documents, grounded answers, cited charts, permission-aware access, provider choice, and self-hosting.
 
 ---
 
-# File Uploads
+## Product north star
 
-Users can upload files directly into Onirix.
+A person should be able to ask the organization a question, understand the answer, inspect the evidence, and act with confidence—without needing to know where the information was stored or which model produced the prose.
 
-Supported document types should cover common business formats such as:
-
-* PDF
-* Word
-* PowerPoint
-* Excel
-* CSV
-* text
-* Markdown
-* HTML
-* common image formats
-
-Uploaded files can either:
-
-* exist temporarily within a conversation, or
-* become persistent organizational knowledge
-
-depending on the user's intent and permissions.
-
----
-
-# Team
-
-Organizations can invite employees into their Onirix workspace.
-
-Users belong to an organization and receive roles appropriate to their responsibilities.
-
-Initial roles can include:
-
-### Owner
-
-Full control over the organization.
-
-### Admin
-
-Manages users, sources, knowledge, agents, and organization configuration.
-
-### Member
-
-Uses Onirix according to assigned permissions.
-
-Additional permission models can be introduced as enterprise requirements evolve.
-
----
-
-# Groups
-
-Organizations should eventually be able to organize users into groups.
-
-Examples:
-
-* Engineering
-* Sales
-* Human Resources
-* Finance
-* Leadership
-
-Groups can simplify access management for knowledge and agents.
-
-For example:
-
-**HR Knowledge**
-
-Accessible to:
-
-* HR group
-* Executive group
-
-This allows Onirix to mirror how organizations already structure information access.
-
----
-
-# Onboarding
-
-Onboarding should minimize the time between creating an organization and experiencing useful AI.
-
-The ideal flow is:
-
-### Step 1 — Create Organization
-
-The user provides basic company information.
-
-### Step 2 — Connect Knowledge
-
-Onirix presents supported sources.
-
-For example:
-
-**Connect your company knowledge**
-
-[ Google Drive ]
-
-[ SharePoint ]
-
-[ OneDrive ]
-
-[ Notion ]
-
-[ Upload Files ]
-
-The user can connect one or several sources.
-
-### Step 3 — Build Company Knowledge
-
-Onirix begins processing connected information.
-
-The experience should communicate progress clearly:
-
-> **Onirix is learning your organization**
->
-> 8,421 of 10,230 documents processed
-
-Users should not need to understand indexing or AI infrastructure.
-
-### Step 4 — Start Asking
-
-Once sufficient knowledge is available:
-
-> **Your company AI is ready.**
->
-> Ask Onirix anything about your organization.
-
-The user is taken directly into Chat.
-
----
-
-# Search
-
-Onirix should also support direct organizational search for situations where the user wants information rather than a generated answer.
-
-Users should be able to search for:
-
-* documents
-* people-related information they are authorized to access
-* projects
-* policies
-* conversations
-* topics
-* customers
-* technical information
-
-Search results should clearly indicate their original source.
-
----
-
-# Conversation History
-
-Users can return to previous conversations.
-
-Conversation history should support:
-
-* titles
-* timestamps
-* search
-* favorites
-* deletion
-* sharing where permitted
-
-Users may also start temporary conversations that are not retained in normal history.
-
----
-
-# Sharing
-
-Users should eventually be able to share useful AI outputs within their organization.
-
-Examples include:
-
-* conversations
-* research results
-* generated reports
-* agents
-* knowledge collections
-
-Sharing must always respect underlying source permissions.
-
-Sharing an answer must never become a mechanism for bypassing access controls.
-
----
-
-# Privacy
-
-Privacy is a defining characteristic of Onirix.
-
-Organizations should have clear visibility into:
-
-* where their data is stored
-* which AI models can access it
-* which sources are connected
-* which users have access
-* what information is indexed
-* how information can be removed
-
-Onirix should not use customer knowledge to train models shared with other customers.
-
-Customer organizations must remain isolated from one another.
-
----
-
-# Deployment
-
-Onirix is designed to support organizations that require control over where their AI environment operates.
-
-The product should ultimately support multiple deployment models.
-
-### Onirix Cloud
-
-The simplest managed experience.
-
-Onirix operates the environment while maintaining isolation between organizations.
-
-### Dedicated Environment
-
-An isolated environment dedicated to a single organization.
-
-Designed for companies requiring stronger infrastructure separation.
-
-### Customer Infrastructure
-
-Onirix operates within infrastructure controlled by the customer.
-
-This option is intended for organizations with strict privacy, security, regulatory, or data-residency requirements.
-
-Regardless of deployment model, the product experience should remain consistent.
-
----
-
-# Administration
-
-Administrators need visibility into the state of their Onirix environment.
-
-Administration should eventually cover:
-
-* users
-* groups
-* permissions
-* connected sources
-* synchronization
-* knowledge
-* agents
-* models
-* usage
-* security
-* audit history
-
-The administration experience should remain separate from the everyday employee experience whenever possible.
-
-Most employees should simply open Onirix and ask questions.
-
----
-
-# Settings
-
-Settings can include:
-
-### Organization
-
-* organization name
-* logo
-* branding
-* default preferences
-
-### Members
-
-* users
-* invitations
-* roles
-* groups
-
-### AI
-
-* available models
-* default model
-* model permissions
-
-### Privacy
-
-* data retention
-* conversation retention
-* indexing controls
-
-### Security
-
-* authentication
-* enterprise identity
-* session policies
-* access policies
-
-### Usage
-
-* AI usage
-* storage
-* connected sources
-* organization activity
-
----
-
-# Product Scope
-
-Onirix should intentionally avoid trying to become a complete AI development platform.
-
-The product is not primarily:
-
-* a model training platform
-* a prompt engineering IDE
-* a generic workflow builder
-* an ML experimentation platform
-* a vector database interface
-* a low-level RAG development framework
-* an AI infrastructure dashboard
-
-Those capabilities may exist internally or through integrations, but they should not define the user experience.
-
-The core product remains:
-
-> **Connect your organization's knowledge and give your team a private AI that understands it.**
-
----
-
-# Initial Product Scope
-
-The first production version should prioritize:
-
-* organization creation
-* user authentication
-* team membership
-* document uploads
-* connected knowledge sources
-* automatic synchronization
-* organizational knowledge search
-* conversational AI
-* source-grounded answers
-* citations
-* conversation history
-* knowledge collections
-* basic agents
-* basic roles and permissions
-* self-hosted deployment
-
-The product should be useful before advanced automation or agent actions are introduced.
-
----
-
-# Future Product Direction
-
-Once the knowledge foundation is strong, Onirix can expand from an AI that **knows the company** into an AI that can **work within the company**.
-
-The progression is:
-
-### Phase 1 — Know
-
-Connect and understand organizational knowledge.
-
-### Phase 2 — Answer
-
-Provide reliable answers with citations.
-
-### Phase 3 — Research
-
-Investigate complex questions across multiple organizational sources.
-
-### Phase 4 — Assist
-
-Provide specialized agents for teams and business functions.
-
-### Phase 5 — Act
-
-Allow authorized agents to interact with business systems and perform controlled actions.
-
-This progression keeps the product grounded in a valuable initial use case while creating a path toward more capable enterprise AI agents.
-
----
-
-# Product North Star
-
-A successful Onirix deployment should make employees feel that they can ask their organization a question directly.
-
-They should not need to know:
-
-* which drive contains a document
-* which Slack channel discussed a decision
-* which wiki contains a policy
-* which repository contains an implementation
-* which business system contains a record
-
-They ask Onirix.
-
-Onirix determines where the relevant information exists, retrieves what the user is authorized to access, reasons over it, and returns a useful answer with evidence.
-
-The long-term goal is simple:
-
-> **Every organization should be able to have its own private AI—one that understands its knowledge, respects its permissions, and can eventually work across its systems.**
+> **Onirix makes company knowledge useful without making it opaque or giving up control.**

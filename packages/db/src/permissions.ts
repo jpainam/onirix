@@ -25,6 +25,7 @@ export const STATEMENTS = {
   ac: ["create", "read", "update", "delete"],
   source: ["create", "update", "delete"],
   knowledge: ["create", "update", "delete"],
+  skill: ["create", "update", "delete"],
   model: ["read", "update"],
 } as const;
 
@@ -68,6 +69,7 @@ export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRole, RoleGrants> = {
     ac: ["create", "read", "update", "delete"],
     source: ["create", "update", "delete"],
     knowledge: ["create", "update", "delete"],
+    skill: ["create", "update", "delete"],
     model: ["read", "update"],
   },
   admin: {
@@ -78,6 +80,7 @@ export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRole, RoleGrants> = {
     ac: ["create", "read", "update", "delete"],
     source: ["create", "update", "delete"],
     knowledge: ["create", "update", "delete"],
+    skill: ["create", "update", "delete"],
     model: ["read", "update"],
   },
   member: {

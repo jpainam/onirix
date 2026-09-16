@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@onirix/ui/components/table";
 
+import { MembershipPicker } from "@/components/membership-picker";
 import { Page, PageHeader, Row, Section } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import type { AuthAction } from "@/lib/auth-action";
@@ -251,7 +252,7 @@ export function UsersView({
 type RunAction = (action: AuthAction, ok: string) => Promise<boolean>;
 
 /**
- * The teams one member belongs to, each removable, with a picker for the rest.
+ * The teams one member belongs to, added and dropped from the same list.
  *
  * The same membership is editable from the other side on the Teams page; both
  * call the same Better Auth endpoints, so neither is the source of truth.
@@ -269,65 +270,40 @@ function MemberTeams({
   canManage: boolean;
   run: RunAction;
 }) {
-  const joined = new Set(memberTeams.map((group) => group.id));
-  const available = allTeams.filter((group) => !joined.has(group.id));
-
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {memberTeams.length === 0 ? (
-        <span className="text-ink-03 text-xs">None</span>
-      ) : (
-        memberTeams.map((group) => (
-          <Badge key={group.id} variant="outline">
-            {group.name}
-            {canManage ? (
-              <button
-                type="button"
-                aria-label={`Remove from ${group.name}`}
-                className="text-ink-03 hover:text-foreground ml-1"
-                onClick={() =>
-                  void run(
-                    () =>
-                      authClient.organization.removeTeamMember({
-                        teamId: group.id,
-                        userId,
-                      }),
-                    `Removed from ${group.name}.`,
-                  )
-                }
-              >
-                ×
-              </button>
-            ) : null}
-          </Badge>
-        ))
-      )}
-      {canManage && available.length > 0 ? (
-        <Select
-          value=""
-          onValueChange={(value) => {
-            const teamId = String(value);
-            const name =
-              available.find((group) => group.id === teamId)?.name ?? "team";
-            void run(
-              () => authClient.organization.addTeamMember({ teamId, userId }),
-              `Added to ${name}.`,
-            );
-          }}
-        >
-          <SelectTrigger data-size="sm" aria-label="Add to a team">
-            <SelectValue placeholder="Add…" />
-          </SelectTrigger>
-          <SelectContent>
-            {available.map((group) => (
-              <SelectItem key={group.id} value={group.id}>
-                {group.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : null}
-    </div>
+    <MembershipPicker
+      selected={memberTeams.map((group) => ({
+        id: group.id,
+        label: group.name,
+      }))}
+      options={allTeams.map((group) => ({ id: group.id, label: group.name }))}
+      editable={canManage}
+      addLabel="Add to a team"
+      emptyLabel="None"
+      searchPlaceholder="Search teams"
+      notFoundLabel="No such team."
+      removeLabel={(option) => `Remove from ${option.label}`}
+      onAdd={(option) =>
+        void run(
+          () =>
+            authClient.organization.addTeamMember({
+              teamId: option.id,
+              userId,
+            }),
+          `Added to ${option.label}.`,
+        )
+      }
+      onRemove={(option) =>
+        void run(
+          () =>
+            authClient.organization.removeTeamMember({
+              teamId: option.id,
+              userId,
+            }),
+          `Removed from ${option.label}.`,
+        )
+      }
+    />
   );
 }
 

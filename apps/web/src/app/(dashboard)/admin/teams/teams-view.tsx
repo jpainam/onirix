@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { NetworkIcon, PlusIcon, ShieldIcon, Trash2Icon } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
-import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
 import {
   Dialog,
@@ -23,15 +23,9 @@ import {
 } from "@onirix/ui/components/empty";
 import { Input } from "@onirix/ui/components/input";
 import { Label } from "@onirix/ui/components/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@onirix/ui/components/select";
 import { Spinner } from "@onirix/ui/components/spinner";
 
+import { AddMembersDialog } from "@/components/add-members-dialog";
 import { Notice, Page, PageHeader, Section } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import type { AuthAction } from "@/lib/auth-action";
@@ -40,36 +34,19 @@ import { trpc } from "@/utils/trpc";
 
 type RunAction = (action: AuthAction, ok: string) => Promise<boolean>;
 
-type Member = {
-  userId: string;
-  name: string;
-  email: string;
-  teams: { id: string; name: string }[];
-};
-
 /**
- * Teams, Better Auth's second axis of access, one card each with its roster.
+ * Teams, Better Auth's second axis of access, one card each.
  *
- * A team is the unit documents are shared with, so this page answers "who can
- * reach what Engineering has?". The same membership is editable per person on
- * the Users page; both go through Better Auth, so neither side is authoritative.
+ * A team is the unit documents are shared with, so the question this page opens
+ * is "who can reach what Engineering has?"; the team's own page answers it. The
+ * same membership is editable per person on the Users page, and all three go
+ * through Better Auth, so no one of them is authoritative.
  */
 export function TeamsView({ canManage }: { canManage: boolean }) {
   const run = useAuthAction();
   const [creating, setCreating] = useState(false);
 
   const teams = useQuery(trpc.team.listTeams.queryOptions());
-  const members = useQuery(trpc.team.listMembers.queryOptions());
-
-  // The roster of a team is the member list read the other way round: Better
-  // Auth has no call that returns a team with its users, and the members query
-  // already carries every membership this organization has.
-  const byTeam = new Map<string, Member[]>();
-  for (const row of members.data ?? []) {
-    for (const group of row.teams) {
-      byTeam.set(group.id, [...(byTeam.get(group.id) ?? []), row]);
-    }
-  }
 
   return (
     <Page>
@@ -96,7 +73,7 @@ export function TeamsView({ canManage }: { canManage: boolean }) {
 
         <Section
           title="Teams"
-          description="Add and remove members here, or from a person's row on the Users page."
+          description="Open a team to see who is in it, or add people to it from here."
         >
           {teams.isPending ? (
             <div className="flex justify-center py-8">
@@ -121,8 +98,6 @@ export function TeamsView({ canManage }: { canManage: boolean }) {
                 <TeamCard
                   key={group.id}
                   team={group}
-                  members={byTeam.get(group.id) ?? []}
-                  allMembers={members.data ?? []}
                   canManage={canManage}
                   run={run}
                 />
@@ -140,42 +115,50 @@ export function TeamsView({ canManage }: { canManage: boolean }) {
 }
 
 /**
- * One team: its name, who is in it, and the picker that puts someone there.
+ * One team in the list: its name, how many are in it, and the two things worth
+ * doing without opening it.
  *
- * The card carries its own roster rather than linking away to it: a team with
- * no members looks identical to one with ten in a list of counts, and that is
- * the mistake this page exists to make visible.
+ * The card used to carry the whole roster as chips. That reads well for a team
+ * of three and falls apart at thirty, so the roster moved to the team's own
+ * page and the name became the way in. Adding people stayed here, because the
+ * list is where someone stands when they realise a team is short.
  */
 function TeamCard({
   team,
-  members,
-  allMembers,
   canManage,
   run,
 }: {
   team: { id: string; name: string; memberCount: number; joined: boolean };
-  members: Member[];
-  allMembers: Member[];
   canManage: boolean;
   run: RunAction;
 }) {
-  const joined = new Set(members.map((row) => row.userId));
-  const available = allMembers.filter((row) => !joined.has(row.userId));
+  const [adding, setAdding] = useState(false);
 
   return (
-    <div className="bg-card flex flex-col gap-3 rounded-xl border px-4 py-3.5">
-      <div className="flex items-center gap-3">
-        <span className="text-ink-04 flex size-5 shrink-0 items-center justify-center">
-          <NetworkIcon className="size-5" />
+    <div className="bg-card hover:bg-tint-01 relative flex items-center gap-3 rounded-xl border px-4 py-3.5 transition-colors">
+      <span className="text-ink-04 flex size-5 shrink-0 items-center justify-center">
+        <NetworkIcon className="size-5" />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Stretched over the whole card, so the row is one target and the
+            buttons beside it stay their own. */}
+        <Link
+          href={`/admin/teams/${team.id}`}
+          className="truncate text-sm font-semibold after:absolute after:inset-0"
+        >
+          {team.name}
+        </Link>
+        <span className="text-ink-03 truncate text-xs leading-4">
+          {team.memberCount} {team.memberCount === 1 ? "member" : "members"}
+          {team.joined ? " · you are a member" : ""}
         </span>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-semibold">{team.name}</span>
-          <span className="text-ink-03 truncate text-xs leading-4">
-            {members.length} {members.length === 1 ? "member" : "members"}
-            {team.joined ? " · you are a member" : ""}
-          </span>
-        </div>
-        {canManage ? (
+      </div>
+      {canManage ? (
+        <div className="relative flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setAdding(true)}>
+            <PlusIcon />
+            Add members
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -189,68 +172,15 @@ function TeamCard({
             <Trash2Icon className="text-destructive" />
             Remove
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      <div className="flex flex-wrap items-center gap-1.5 pl-8">
-        {members.length === 0 ? (
-          <span className="text-ink-03 text-xs">No members yet</span>
-        ) : (
-          members.map((row) => (
-            <Badge key={row.userId} variant="outline" title={row.email}>
-              {row.name}
-              {canManage ? (
-                <button
-                  type="button"
-                  aria-label={`Remove ${row.name} from ${team.name}`}
-                  className="text-ink-03 hover:text-foreground ml-1"
-                  onClick={() =>
-                    void run(
-                      () =>
-                        authClient.organization.removeTeamMember({
-                          teamId: team.id,
-                          userId: row.userId,
-                        }),
-                      `Removed ${row.name} from ${team.name}.`,
-                    )
-                  }
-                >
-                  ×
-                </button>
-              ) : null}
-            </Badge>
-          ))
-        )}
-        {canManage && available.length > 0 ? (
-          <Select
-            value=""
-            onValueChange={(value) => {
-              const userId = String(value);
-              const name =
-                available.find((row) => row.userId === userId)?.name ?? "member";
-              void run(
-                () =>
-                  authClient.organization.addTeamMember({
-                    teamId: team.id,
-                    userId,
-                  }),
-                `Added ${name} to ${team.name}.`,
-              );
-            }}
-          >
-            <SelectTrigger data-size="sm" aria-label={`Add a member to ${team.name}`}>
-              <SelectValue placeholder="Add member…" />
-            </SelectTrigger>
-            <SelectContent>
-              {available.map((row) => (
-                <SelectItem key={row.userId} value={row.userId}>
-                  {row.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
-      </div>
+      <AddMembersDialog
+        teamId={team.id}
+        teamName={team.name}
+        open={adding}
+        onOpenChange={setAdding}
+      />
     </div>
   );
 }

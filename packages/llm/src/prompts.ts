@@ -19,6 +19,10 @@ export type AnswerPromptOptions = {
   /** Extra instructions from an agent configuration, if one is in use. */
   agentInstructions?: string | null;
   hasContext: boolean;
+  /** Bodies of the skills that load `always`, from `buildSkillSections`. */
+  inlinedSkills?: string;
+  /** Names and descriptions of the skills the model may fetch on demand. */
+  skillCatalog?: string;
   now?: Date;
 };
 
@@ -50,34 +54,6 @@ const RESPONSE_STYLE = `
 - Use Markdown: headings, lists, and tables where they aid readability.
 - Be concise. Do not restate the question or pad the answer.`;
 
-/**
- * Without this the model has no idea the chart tool exists as an option, and a
- * question like "show me attainment per rep" comes back as bars drawn out of
- * block characters — which is what it did before the tool was added.
- */
-const CHART_GUIDANCE = `
-# Charts
-- When the answer compares a quantity across several entities, follows a value \
-over time, or breaks a total into parts, call the \`render_chart\` tool rather \
-than describing the shape of the data in prose. Never draw a chart out of text \
-characters, block glyphs, or a Markdown table standing in for bars.
-- Every number you plot must come from the supplied context. Do not estimate, \
-interpolate, or invent a row to make a chart look complete: plot what you have, \
-and say in the prose what is missing.
-- Declare the series first, then send one point per plotted value, each naming \
-the series it belongs to. Points arrive in the order the x axis is drawn, so \
-send a time axis in chronological order. Omit a point you have no number for \
-rather than sending a zero.
-- Set \`citation\` on each series to the document index its numbers came from, \
-the same index you would write inline as [1].
-- When the question names a threshold, a target, or a cut-off, add it as a \
-\`referenceLines\` entry so the chart answers the question rather than merely \
-showing the data.
-- Keep writing after the tool call. The chart supports your answer; it is not \
-the answer, and it is never the whole of it.
-- One chart per point. If a second measure is on a different scale, that is a \
-second chart, not a second axis.`;
-
 export function buildSystemPrompt(options: AnswerPromptOptions): string {
   const now = (options.now ?? new Date()).toISOString().slice(0, 10);
 
@@ -89,7 +65,12 @@ truthful, precise, and concise.`,
     options.hasContext ? CITATION_GUIDANCE : "",
     GROUNDING_RULES,
     RESPONSE_STYLE,
-    CHART_GUIDANCE,
+    // Skills sit after the invariants above and before anything an agent adds.
+    // Chart guidance used to be a constant here; it is now a built-in skill that
+    // loads `always`, so what lands in this slot is the same text by a different
+    // route — one an admin can read, edit, and add to without a deploy.
+    options.inlinedSkills ?? "",
+    options.skillCatalog ?? "",
     options.agentInstructions
       ? `# Additional instructions\n${options.agentInstructions}`
       : "",

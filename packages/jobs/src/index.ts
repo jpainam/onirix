@@ -31,9 +31,24 @@ export const syncDocumentAccessJobSchema = z.object({
   documentId: z.string(),
 });
 
+/**
+ * Pushes a document's current collection into its already-indexed chunks.
+ *
+ * Same reasoning as the access sync: moving a document between collections
+ * changes one keyword field, not the text, so re-extracting and re-embedding it
+ * would be waste. Until the worker picks this up, a collection-scoped search
+ * still answers from the previous grouping.
+ */
+export const syncDocumentCollectionJobSchema = z.object({
+  type: z.literal("sync_document_collection"),
+  organizationId: z.string(),
+  documentId: z.string(),
+});
+
 export const jobSchema = z.discriminatedUnion("type", [
   indexDocumentJobSchema,
   syncDocumentAccessJobSchema,
+  syncDocumentCollectionJobSchema,
 ]);
 export type Job = z.infer<typeof jobSchema>;
 

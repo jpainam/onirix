@@ -49,6 +49,10 @@ const RESOURCES: Record<Resource, { label: string; description: string }> = {
     label: "Knowledge",
     description: "Create and edit knowledge collections.",
   },
+  skill: {
+    label: "Skills",
+    description: "Write the instructions the assistant follows when answering.",
+  },
   model: {
     label: "Language models",
     description: "Connect providers and choose the workspace default.",

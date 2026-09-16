@@ -4,6 +4,7 @@ import { knowledgeRouter } from "./knowledge";
 import { modelsRouter } from "./models";
 import { onboardingRouter } from "./onboarding";
 import { searchRouter } from "./search";
+import { skillRouter } from "./skill";
 import { teamRouter } from "./team";
 
 export const appRouter = router({
@@ -13,6 +14,7 @@ export const appRouter = router({
   knowledge: knowledgeRouter,
   chat: chatRouter,
   search: searchRouter,
+  skill: skillRouter,
   team: teamRouter,
 });
 

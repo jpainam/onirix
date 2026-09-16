@@ -175,6 +175,46 @@ export class DocumentIndex {
     });
   }
 
+  /**
+   * Rewrites the collection membership on every chunk of a document, in place.
+   *
+   * The counterpart to `updateDocumentAccess`, and for the same reason: moving
+   * a document between collections leaves its text untouched, so the chunks are
+   * patched rather than rebuilt. `refresh: true` keeps a collection-scoped
+   * search from answering out of the previous grouping.
+   */
+  async updateDocumentSets(
+    organizationId: string,
+    documentId: string,
+    documentSets: string[],
+  ): Promise<void> {
+    await this.client.updateByQuery({
+      index: this.indexName,
+      refresh: true,
+      // A concurrent index write already carries the new membership, so
+      // skipping the conflicting chunk is correct.
+      conflicts: "proceed",
+      body: {
+        query: {
+          bool: {
+            filter: [
+              { term: { [FIELD.organizationId]: organizationId } },
+              { term: { [FIELD.documentId]: documentId } },
+            ],
+          },
+        },
+        script: {
+          // Null rather than an empty list when a document belongs to no
+          // collection: that is what the indexer writes, and a `terms` filter
+          // must not match either form.
+          source: `ctx._source['${FIELD.documentSets}'] = params.sets;`,
+          lang: "painless",
+          params: { sets: documentSets.length > 0 ? documentSets : null },
+        },
+      },
+    });
+  }
+
   async hybridSearch(options: {
     queryText: string;
     queryVector: number[];

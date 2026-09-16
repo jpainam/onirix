@@ -76,6 +76,10 @@ async function handle(job: Job): Promise<void> {
     await syncDocumentAccess(job);
     return;
   }
+  if (job.type === "sync_document_collection") {
+    await syncDocumentCollection(job);
+    return;
+  }
 
   await indexOneDocument(job);
 }
@@ -115,6 +119,45 @@ async function syncDocumentAccess(job: Job): Promise<void> {
   });
 
   console.log(`[worker] access updated for "${doc.title}" (${doc.visibility})`);
+}
+
+/**
+ * Mirrors a document's current collection onto its indexed chunks.
+ *
+ * Retrieval reads the grouping from the chunks, so a document moved into
+ * "Engineering" is not in it, as far as search is concerned, until this runs.
+ */
+async function syncDocumentCollection(job: Job): Promise<void> {
+  const doc = await db.query.document.findFirst({
+    where: eq(document.id, job.documentId),
+  });
+  if (!doc) {
+    console.warn(`[worker] document ${job.documentId} no longer exists, skipping`);
+    return;
+  }
+
+  const config = await db.query.llmConfig.findFirst({
+    where: eq(llmConfig.organizationId, job.organizationId),
+  });
+  if (!config) {
+    throw new Error("Organization has no model configuration.");
+  }
+
+  const index = new DocumentIndex(
+    searchClient,
+    getIndexName(config.embeddingModel),
+    Number(config.embeddingDimension),
+  );
+
+  await index.updateDocumentSets(
+    job.organizationId,
+    doc.id,
+    doc.collectionId ? [doc.collectionId] : [],
+  );
+
+  console.log(
+    `[worker] collection updated for "${doc.title}" (${doc.collectionId ?? "none"})`,
+  );
 }
 
 async function indexOneDocument(job: Job): Promise<void> {

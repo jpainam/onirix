@@ -57,6 +57,13 @@
       "when": 1789526309180,
       "tag": "0007_organization_role",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789527882862,
+      "tag": "0008_chemical_colleen_wing",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@
  */
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -222,6 +223,87 @@ export const documentTeam = pgTable(
     index("document_team_team_idx").on(table.teamId),
   ],
 );
+
+/**
+ * When a skill's instructions reach the model.
+ *
+ * `on_demand` is the point of the feature: the model sees only the name and
+ * description, and pulls the body with `load_skill` if it judges the skill
+ * relevant. That keeps the prompt flat as skills accumulate.
+ *
+ * `always` inlines the body into every system prompt. It exists because
+ * progressive disclosure is not free — loading a skill costs a whole extra
+ * model round trip, which re-sends the system prompt and the retrieved context
+ * before a word of the answer appears. For a short body that applies to nearly
+ * every question, that trade is a loss: a few hundred tokens inlined beat a few
+ * thousand plus a second wait. It is also the only way to *guarantee* the model
+ * has read something, since a model is free to not call a tool.
+ */
+export const skillLoading = pgEnum("skill_loading", ["always", "on_demand"]);
+
+/**
+ * A named capability the answering model can reach for.
+ *
+ * Skills are how instructions stop being code. Everything here used to be a
+ * string constant in `@onirix/llm`, which meant a deploy to change how the
+ * product answers and a system prompt that grew for every capability whether or
+ * not the question needed it.
+ *
+ * Built-in skills are not rows: they are code constants in `@onirix/llm`,
+ * merged with these at read time. A built-in cannot be deleted, needs no
+ * migration, and versions with the deploy that relies on it.
+ */
+export const skill = pgTable(
+  "skill",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+
+    /**
+     * The identifier the model passes to `load_skill`, and the one the
+     * description is listed under. A slug, because it is written by a model
+     * into a tool argument rather than read by a person.
+     */
+    name: text("name").notNull(),
+    /**
+     * One line, and the single most important field here.
+     *
+     * For an `on_demand` skill this is *all* the model ever sees unprompted, so
+     * it carries the entire decision of whether to load the body. A description
+     * that does not say when the skill applies is a skill that never fires.
+     */
+    description: text("description").notNull(),
+    /** The body, in Markdown. What the model is given once the skill applies. */
+    instructions: text("instructions").notNull(),
+
+    loading: skillLoading("loading").notNull().default("on_demand"),
+    /** Off keeps a skill out of the prompt without losing the text. */
+    enabled: boolean("enabled").notNull().default(true),
+
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    // Names are the namespace `load_skill` resolves in, so two skills in one
+    // workspace cannot share one. Collisions with built-in names are rejected
+    // in the router, since those live in code and Postgres cannot see them.
+    uniqueIndex("skill_org_name_uidx").on(table.organizationId, table.name),
+  ],
+);
+
+export const skillRelations = relations(skill, ({ one }) => ({
+  organization: one(organization, {
+    fields: [skill.organizationId],
+    references: [organization.id],
+  }),
+  author: one(user, { fields: [skill.createdBy], references: [user.id] }),
+}));
 
 export const sourceRelations = relations(source, ({ one, many }) => ({
   organization: one(organization, {
