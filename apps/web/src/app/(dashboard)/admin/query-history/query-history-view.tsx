@@ -101,7 +101,9 @@ export function QueryHistoryView() {
 
   const search = useDebounced(query, 250);
 
-  const members = useQuery(trpc.team.listMembers.queryOptions());
+  // The first hundred members by name feed the filter; a larger roster is
+  // searched by typing, which the picker does over this page's entries.
+  const members = useQuery(trpc.team.listMembers.queryOptions({ pageSize: 100 }));
 
   const history = useQuery({
     ...trpc.history.list.queryOptions({
@@ -134,7 +136,7 @@ export function QueryHistoryView() {
     setPage(1);
   }
 
-  const selectedMember = members.data?.find((row) => row.userId === userId);
+  const selectedMember = members.data?.items.find((row) => row.userId === userId);
 
   return (
     <Page className="max-w-6xl">
@@ -172,7 +174,7 @@ export function QueryHistoryView() {
           </InputGroup>
 
           <MemberFilter
-            members={members.data ?? []}
+            members={members.data?.items ?? []}
             selected={selectedMember ?? null}
             onSelect={(next) => refine(() => setUserId(next))}
           />

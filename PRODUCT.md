@@ -22,7 +22,9 @@ Generic AI summarizes text but usually cannot show which internal document backs
 
 **Connect a provider.** The workspace owner picks a provider and models during setup. More can be added later, and chat and embedding providers can differ.
 
-**Upload documents.** Onirix keeps the original, extracts text, preserves page and sheet anchors, chunks it, embeds it, and indexes it in the background. Supported today: PDF, `.docx`, `.xlsx`, `.xls`, CSV, Markdown, HTML, JSON, and `text/*`. Limit is 50 MB per file. PowerPoint, images, and third-party connectors are not in the pipeline yet.
+**Upload documents, or connect where they live.** Onirix keeps the original, extracts text, preserves page and sheet anchors, chunks it, embeds it, and indexes it in the background. Supported today: PDF, `.docx`, `.xlsx`, `.xls`, CSV, Markdown, HTML, JSON, and `text/*`. Limit is 50 MB per file. PowerPoint and images are not in the pipeline yet.
+
+Connected sources go through the same pipeline. A website can be read as one page, as the pages its sitemap lists, or as a whole site followed link by link under a page limit. Google Drive folders, shared drives and My Drive are read through a service account or a linked Google account, with Docs, Sheets and Slides exported as they are read. OneDrive is read through a Microsoft 365 app registration. An S3 bucket, on AWS or any S3-compatible store, is read by prefix. Each source syncs on a schedule or on demand, re-indexes only what changed, removes what disappeared, and keeps a history of every run. A website source only reaches public addresses unless the deployment says otherwise, and can render pages in a browser through Firecrawl when a deployment provides a key, for sites that draw their content with JavaScript.
 
 **Ask a question.** Retrieval combines semantic and keyword search, reranks for relevance and freshness, and passes a bounded set of the strongest passages to the model. Follow-ups are rewritten into standalone queries, so "what about contractors?" keeps its context. Answers stream, and a refreshed browser reconnects to the stream in progress.
 
@@ -44,9 +46,11 @@ The model is told to prefer company sources for company questions, separate sour
 
 **Chat:** grounded answers, inspectable citations, cited charts, automatic titles, saved history with rename and delete, resumable streams, upload from chat.
 
-**Knowledge:** hybrid retrieval, fast keyword document search, recency-aware reranking, one best passage per document for source diversity, background indexing with status, failures, and retry, PDF page and spreadsheet sheet anchors, collections that group documents without changing access.
+**Knowledge:** hybrid retrieval, fast keyword document search, recency-aware reranking, one best passage per document for source diversity, background indexing with status, failures, bounded retries, and manual retry, PDF page and spreadsheet sheet anchors, collections that group documents without changing access, a searchable, paged document list that holds up at tens of thousands of documents.
 
-**Administration:** onboarding, email/password, magic link, optional Google sign-in, verification and password reset, invitations, teams, built-in and custom roles, document visibility, multiple providers with a selectable default, light and dark themes.
+**Connectors:** websites (one page, sitemap, or whole site), Google Drive, OneDrive, and Amazon S3 or compatible stores. Scheduled or on-demand sync, change detection by content, removal of documents that left the source, per-run history with counts and errors, and a per-source audience so a department's drive stays inside that department.
+
+**Administration:** onboarding, email/password, magic link, optional Google sign-in, verification and password reset, invitations, teams, built-in and custom roles, document visibility, multiple providers with a selectable default, light and dark themes, a member directory searched and paged on the server so a workspace of ten thousand people stays usable.
 
 **Operations:** Docker self-hosting on PostgreSQL, OpenSearch, Redis, and MinIO or another S3-compatible store, with indexing jobs that recover after a worker restart.
 
@@ -61,9 +65,9 @@ Best for organizations with knowledge spread across many documents, team-restric
 
 ## Not yet shipped
 
-Connectors for Drive, SharePoint, OneDrive, Notion, Slack, Confluence, GitHub, and websites. Scheduled sync. Specialist agents and actions in external systems. Shared conversations and generated reports. Conversation-only attachments. PowerPoint and image extraction. A production mobile client. Managed hosting.
+Connectors for SharePoint sites, Notion, Slack, Confluence, and GitHub. Carrying a source's own sharing permissions into Onirix (a connected drive takes the audience set on the source, not the file's ACL). Specialist agents and actions in external systems. Shared conversations and generated reports. Conversation-only attachments. PowerPoint and image extraction. A production mobile client. Managed hosting.
 
-Do not claim any of these. Precise language for the current product: uploaded business documents, grounded answers, cited charts, permission-aware access, provider choice, self-hosting.
+Do not claim any of these. Precise language for the current product: uploaded and connected business documents, grounded answers, cited charts, permission-aware access, provider choice, self-hosting.
 
 Direction: **Know → Answer → Analyze → Assist → Act**, expanded only while knowledge stays controlled, access follows the user, and output stays connected to evidence.
 

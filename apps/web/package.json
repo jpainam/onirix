@@ -16,6 +16,7 @@
     "@aws-sdk/client-s3": "^3.982.0",
     "@onirix/api": "workspace:*",
     "@onirix/auth": "workspace:*",
+    "@onirix/connectors": "workspace:*",
     "@onirix/datasource": "workspace:*",
     "@onirix/db": "workspace:*",
     "@onirix/ingestion": "workspace:*",

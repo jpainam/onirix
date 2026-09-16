@@ -11,6 +11,7 @@
 | `apps/native/` | Expo application workspace; current AI screen targets `/ai`, which the web app does not expose | `apps/native/package.json`, `apps/native/app/(drawer)/ai.tsx` |
 | `packages/api/` | tRPC context, procedures, and feature routers | `packages/api/src/index.ts`, `packages/api/src/routers/` |
 | `packages/auth/` | Better Auth setup and permission integration | `packages/auth/src/index.ts` |
+| `packages/connectors/` | Readers for websites, Google Drive, OneDrive and S3: settings schemas, validation, document streams | `packages/connectors/src/index.ts`, `packages/connectors/src/config.ts` |
 | `packages/db/` | Drizzle schema, access rules, principal resolution, migrations | `packages/db/src/` |
 | `packages/ingestion/` | File storage, extraction, chunking, embedding, retrieval | `packages/ingestion/src/` |
 | `packages/jobs/` | Redis reliable-list queue and job schemas | `packages/jobs/src/index.ts` |
@@ -35,6 +36,7 @@
 | `apps/web` | Page composition, browser state, HTTP adapters, streaming UI | Reusable DB schema or search algorithms |
 | `apps/worker` | Queue consumption and indexing orchestration | Interactive request handling |
 | `packages/api` | Validated, organization-scoped business operations | Page rendering |
+| `packages/connectors` | Turning a source's settings into a stream of documents with bytes and identity | Extraction, embedding, database access |
 | `packages/db` | Persistence schema, tenant/principal/ACL rules | Provider-specific model calls |
 | `packages/ingestion` | Bytes-to-sections-to-chunks-to-vectors pipeline | Authentication/UI concerns |
 | `packages/search` | Index schema, query construction, ranking, index client | LLM prompting |

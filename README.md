@@ -18,7 +18,7 @@ and mirrors its infrastructure choices:
 | `redis` | Background indexing queue |
 | `minio` | S3-compatible store for uploaded originals |
 | `web` | Next.js application |
-| `worker` | Background indexing; replaces Onyx's Celery workers |
+| `worker` | Background indexing, connector syncs and their schedule; replaces Onyx's Celery workers |
 
 The OpenSearch index mapping, hybrid query shape, and scoring constants in
 `packages/search` are ported from Onyx so their retrieval-quality work carries
@@ -34,6 +34,7 @@ apps/
 packages/
   api/          tRPC routers and org-scoped procedures
   auth/         Better Auth configuration
+  connectors/   Website, Google Drive, OneDrive and S3 readers (Onyx's connectors, in TypeScript)
   db/           Drizzle schema and migrations
   ingestion/    Text extraction, chunking, embedding, retrieval
   jobs/         Redis job queue

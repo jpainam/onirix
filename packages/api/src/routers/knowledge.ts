@@ -8,7 +8,7 @@
  */
 import { TRPCError } from "@trpc/server";
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { refreshDocumentAcl, visibleToPrincipal } from "@onirix/db/access";
@@ -310,6 +310,114 @@ export const knowledgeRouter = router({
         .where(and(...conditions))
         .orderBy(desc(document.createdAt))
         .limit(input.limit);
+    }),
+
+  /**
+   * A page of documents, for tables that have to work at the size a website
+   * or a drive produces.
+   *
+   * Offset paging rather than a cursor: the table shows page numbers and a
+   * total, and a document list of even a hundred thousand rows pages fine
+   * with the indexes on `document`. Same visibility rule as every read here.
+   */
+  documentsPage: orgProcedure
+    .input(
+      z.object({
+        sourceId: z.string().nullish(),
+        collectionId: z.string().nullish(),
+        status: z.enum(["pending", "processing", "indexed", "failed"]).nullish(),
+        /** Matched against the title, case-insensitively. */
+        query: z.string().max(200).default(""),
+        page: z.number().int().min(0).default(0),
+        pageSize: z.number().int().min(1).max(100).default(25),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const conditions = [
+        eq(document.organizationId, ctx.organizationId),
+        visibleToPrincipal(ctx.principal.accessControlList),
+      ];
+      if (input.sourceId) conditions.push(eq(document.sourceId, input.sourceId));
+      if (input.status) conditions.push(eq(document.status, input.status));
+      if (input.collectionId === "unassigned") {
+        conditions.push(isNull(document.collectionId));
+      } else if (input.collectionId) {
+        conditions.push(eq(document.collectionId, input.collectionId));
+      }
+      const query = input.query.trim();
+      if (query) {
+        // LIKE wildcards in what someone typed are characters, not operators.
+        const pattern = `%${query.replace(/([\\%_])/g, "\\$1")}%`;
+        const match = or(ilike(document.title, pattern), ilike(document.sourceUrl, pattern));
+        if (match) conditions.push(match);
+      }
+      const where = and(...conditions);
+
+      const [items, [count]] = await Promise.all([
+        ctx.db
+          .select({
+            id: document.id,
+            title: document.title,
+            status: document.status,
+            chunkCount: document.chunkCount,
+            indexError: document.indexError,
+            mimeType: document.mimeType,
+            sizeBytes: document.sizeBytes,
+            sourceUrl: document.sourceUrl,
+            sourceUpdatedAt: document.sourceUpdatedAt,
+            visibility: document.visibility,
+            collectionId: document.collectionId,
+            sourceId: document.sourceId,
+            sourceType: source.type,
+            sourceName: source.name,
+            createdAt: document.createdAt,
+            updatedAt: document.updatedAt,
+          })
+          .from(document)
+          .innerJoin(source, eq(source.id, document.sourceId))
+          .where(where)
+          .orderBy(desc(document.updatedAt), desc(document.id))
+          .limit(input.pageSize)
+          .offset(input.page * input.pageSize),
+        ctx.db.select({ total: sql<number>`count(*)::int` }).from(document).where(where),
+      ]);
+
+      return { items, total: count?.total ?? 0, page: input.page, pageSize: input.pageSize };
+    }),
+
+  /**
+   * Removes one document: the row now, its chunks and stored original when
+   * the worker gets to them.
+   *
+   * A document that a connector brought in comes back on the next sync
+   * unless the source no longer offers it; the honest fix for an unwanted
+   * page is an exclusion on the source, and the page says so.
+   */
+  deleteDocument: permissionProcedure("source", "delete")
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const deleted = await ctx.db
+        .delete(document)
+        .where(
+          and(eq(document.id, input.documentId), eq(document.organizationId, ctx.organizationId)),
+        )
+        .returning({ id: document.id, fileKey: document.fileKey, sourceId: document.sourceId });
+      const row = deleted[0];
+      if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Document not found." });
+
+      await ctx.db
+        .update(source)
+        .set({
+          documentCount: sql`(select count(*) from ${document} where ${document.sourceId} = ${source.id})`,
+        })
+        .where(eq(source.id, row.sourceId));
+
+      await enqueue(ctx.queue, {
+        type: "purge_documents",
+        organizationId: ctx.organizationId,
+        documents: [{ id: row.id, fileKey: row.fileKey }],
+      });
+      return { id: row.id };
     }),
 
   getDocument: orgProcedure

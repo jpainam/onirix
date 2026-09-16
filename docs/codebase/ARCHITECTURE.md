@@ -17,6 +17,10 @@ Browser -> authenticated Next.js route -> principal/tenant resolution
 
 Upload -> S3/MinIO + PostgreSQL pending row -> Redis job
        -> worker extract/chunk/embed -> OpenSearch chunks -> PostgreSQL indexed state
+
+Connector -> sync_source job (on demand or on schedule) -> worker streams documents
+          -> unchanged by hash: stamped; new or changed: S3/MinIO + pending row + index job
+          -> not seen this run: row, chunks and file removed -> source_sync_run outcome
 ```
 
 Grounded chat proceeds as follows:
@@ -38,7 +42,8 @@ Grounded chat proceeds as follows:
 | Ingestion | Extraction, chunking, embedding, retrieval shaping | Auth decisions | `packages/ingestion/src/` |
 | Search | OpenSearch index/query/rerank behavior | Provider credentials | `packages/search/src/` |
 | LLM | Provider abstraction, prompts, chart schema | Tenant resolution | `packages/llm/src/` |
-| Worker/jobs | Reliable job handoff and index synchronization | Browser requests | `packages/jobs/src/index.ts`, `apps/worker/src/index.ts` |
+| Connectors | Settings schemas, credential placement, source validation, document streams | Indexing, tenant resolution | `packages/connectors/src/` |
+| Worker/jobs | Reliable job handoff, index synchronization, connector syncs and their schedule | Browser requests | `packages/jobs/src/index.ts`, `apps/worker/src/index.ts` |
 
 ### 4) Reused Patterns
 

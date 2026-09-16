@@ -5,7 +5,13 @@ import { SourcesView } from "./sources-view";
 export default async function SourcesPage() {
   const { workspace } = await requireConfiguredWorkspace();
 
-  // Retargeting a document needs the Sources grant; without it the audience is
-  // visible but fixed. The server checks the same grant on the mutation.
-  return <SourcesView canManage={workspaceCan(workspace, "source", "update")} />;
+  // Rendering decisions only. Every procedure behind these controls checks
+  // the same grant again on the server.
+  return (
+    <SourcesView
+      canCreate={workspaceCan(workspace, "source", "create")}
+      canManage={workspaceCan(workspace, "source", "update")}
+      canDelete={workspaceCan(workspace, "source", "delete")}
+    />
+  );
 }

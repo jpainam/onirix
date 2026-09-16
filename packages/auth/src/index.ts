@@ -85,6 +85,10 @@ export function createAuth(env: AuthConfig, database: Database) {
           google: {
             clientId: env.GOOGLE_CLIENT_ID!,
             clientSecret: env.GOOGLE_CLIENT_SECRET!,
+            // A refresh token comes back only for offline access. The Google
+            // Drive connector reads through a linked account with it, long
+            // after the sign-in that produced it has expired.
+            accessType: "offline",
           },
         }
       : {},

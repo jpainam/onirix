@@ -85,6 +85,13 @@
       "when": 1789579109891,
       "tag": "0011_saved_query",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789595513078,
+      "tag": "0012_connectors_and_sync_runs",
+      "breakpoints": true
     }
   ]
 }

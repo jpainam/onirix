@@ -1,14 +1,26 @@
 "use client";
 
+/**
+ * Sources: where the workspace's knowledge comes from, and what came in.
+ *
+ * Three kinds of thing live here and the page keeps them apart. Connected
+ * sources are read on a schedule and each has a page of its own. Databases
+ * are queried live and index nothing. Uploads are the implicit source every
+ * workspace has. Under all of them, one table of every document, because the
+ * question "is the thing I need actually in here?" should not depend on
+ * knowing which source it came through.
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircleIcon,
+  ChevronRightIcon,
   DatabaseIcon,
-  FileTextIcon,
-  GlobeIcon,
-  LockIcon,
-  NetworkIcon,
+  PlugIcon,
+  PlusIcon,
+  RefreshCwIcon,
   UploadIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -21,95 +33,58 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@onirix/ui/components/empty";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@onirix/ui/components/select";
 import { Spinner } from "@onirix/ui/components/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@onirix/ui/components/table";
 
 import { Page, PageHeader, Row, Section } from "@/components/page";
+import { SourceIcon } from "@/components/source-icon";
+import { formatCount, formatInterval, formatRelative } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
+import { AddSourceDialog } from "./add-source-dialog";
 import { DatabasesSection } from "./databases-section";
+import { DocumentsTable } from "./documents-table";
 
-/** Indexing state reads as a tinted pill, one colour per outcome. */
-const STATUS_VARIANT = {
-  indexed: "success",
-  processing: "info",
-  pending: "muted",
-  failed: "destructive",
+/** A source's sync state as a pill. Queued and running both read as activity. */
+export const SYNC_STATUS = {
+  not_started: { label: "Not synced yet", variant: "muted" },
+  queued: { label: "Queued", variant: "info" },
+  in_progress: { label: "Syncing", variant: "info" },
+  success: { label: "Up to date", variant: "success" },
+  failed: { label: "Failed", variant: "destructive" },
 } as const;
 
-/**
- * How each audience reads in the table.
- *
- * Wording is about who can reach the document, not about the mechanism — an
- * admin retargeting a file needs to know the consequence, not the ACL.
- */
-const VISIBILITY = {
-  organization: { label: "Everyone", icon: GlobeIcon },
-  teams: { label: "Teams", icon: NetworkIcon },
-  private: { label: "Only me", icon: LockIcon },
-} as const;
-
-export function SourcesView({ canManage }: { canManage: boolean }) {
+export function SourcesView({
+  canCreate,
+  canManage,
+  canDelete,
+}: {
+  canCreate: boolean;
+  canManage: boolean;
+  canDelete: boolean;
+}) {
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [connectingDatabase, setConnectingDatabase] = useState(false);
 
-  const documents = useQuery({
-    ...trpc.knowledge.listDocuments.queryOptions({ limit: 50 }),
-    // Indexing happens in the worker, so poll while anything is in flight.
-    refetchInterval: (query) => {
-      const rows = query.state.data as { status: string }[] | undefined;
-      return rows?.some((doc) => doc.status === "pending" || doc.status === "processing")
-        ? 2000
-        : false;
-    },
+  const connectors = useQuery({
+    ...trpc.connector.list.queryOptions(),
+    // Syncs run in the worker; poll while any of them is queued or running.
+    refetchInterval: (state) =>
+      state.state.data?.some((row) => row.status === "queued" || row.status === "in_progress") ? 4000 : false,
   });
 
   const progress = useQuery({
     ...trpc.knowledge.indexingProgress.queryOptions(),
-    refetchInterval: (query) => {
-      const summary = query.state.data as { pending: number } | undefined;
-      return (summary?.pending ?? 0) > 0 ? 2000 : false;
-    },
+    refetchInterval: (state) => ((state.state.data?.pending ?? 0) > 0 ? 3000 : false),
   });
 
-  const teams = useQuery({
-    ...trpc.team.listTeams.queryOptions(),
-    enabled: canManage,
-  });
-
-  const setVisibility = useMutation(
-    trpc.knowledge.setDocumentVisibility.mutationOptions({
+  const syncNow = useMutation(
+    trpc.connector.syncNow.mutationOptions({
       onSuccess: () => {
-        // Retrieval keeps enforcing the old permissions until the worker
-        // rewrites the chunks, so the toast promises a change in progress
-        // rather than one already in force.
-        toast.success("Visibility updated. Search will reflect it shortly.");
-        void queryClient.invalidateQueries();
-      },
-      onError: (error) => toast.error(error.message),
-    }),
-  );
-
-  const retry = useMutation(
-    trpc.knowledge.retryDocument.mutationOptions({
-      onSuccess: () => {
-        toast.success("Re-queued for indexing.");
-        void queryClient.invalidateQueries();
+        toast.success("Sync queued.");
+        void queryClient.invalidateQueries({ queryKey: trpc.connector.pathKey() });
       },
       onError: (error) => toast.error(error.message),
     }),
@@ -131,9 +106,7 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
         return;
       }
       if (result.accepted.length > 0) {
-        toast.success(
-          `Uploaded ${result.accepted.length} file(s). Onirix is indexing them now.`,
-        );
+        toast.success(`Uploaded ${result.accepted.length} file(s). Onirix is indexing them now.`);
       }
       // Surface per-file rejections; a silent drop looks like data loss.
       for (const rejected of result.rejected ?? []) {
@@ -147,18 +120,21 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
   }
 
   const summary = progress.data;
+  const rows = connectors.data ?? [];
 
   return (
     <Page>
       <PageHeader
         icon={DatabaseIcon}
         title="Sources"
-        description="Manage indexed documents and connected databases."
+        description="Where the workspace's knowledge comes from: uploads, connected systems, and live databases."
         action={
-          <Button onClick={() => fileInput.current?.click()} disabled={uploading}>
-            {uploading ? <Spinner /> : <UploadIcon />}
-            Add files
-          </Button>
+          canCreate ? (
+            <Button onClick={() => setAdding(true)}>
+              <PlusIcon />
+              Add source
+            </Button>
+          ) : null
         }
       />
 
@@ -171,196 +147,136 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
       />
 
       <div className="flex flex-col gap-10">
-        <Section>
+        <Section
+          title="Connected sources"
+          description="Read on a schedule. Open one to see its settings, its sync history and its documents."
+        >
+          {connectors.isPending ? (
+            <div className="flex justify-center py-8">
+              <Spinner />
+            </div>
+          ) : rows.length === 0 ? (
+            <Empty variant="outline">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <PlugIcon />
+                </EmptyMedia>
+                <EmptyTitle>Nothing connected yet</EmptyTitle>
+                <EmptyDescription>
+                  {canCreate
+                    ? "Connect a website, Google Drive, OneDrive or an S3 bucket, and Onirix keeps it indexed."
+                    : "An administrator has not connected any external source."}
+                </EmptyDescription>
+              </EmptyHeader>
+              {canCreate ? (
+                <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+                  <PlusIcon />
+                  Add source
+                </Button>
+              ) : null}
+            </Empty>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {rows.map((row) => {
+                const state = SYNC_STATUS[row.status] ?? SYNC_STATUS.not_started;
+                const busy = row.status === "queued" || row.status === "in_progress";
+                return (
+                  <div
+                    key={row.id}
+                    className="bg-card hover:bg-tint-01 flex items-center gap-3 rounded-xl border px-4 py-3.5 transition-colors"
+                  >
+                    <SourceIcon type={row.type} />
+                    <Link href={`/admin/sources/${row.id}`} className="flex min-w-0 flex-1 flex-col">
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        <span className="truncate">{row.name}</span>
+                        <Badge variant={state.variant}>{state.label}</Badge>
+                      </span>
+                      <span className="text-ink-03 truncate text-xs leading-4">
+                        {row.status === "failed" && row.lastError ? (
+                          <span className="text-destructive inline-flex items-center gap-1">
+                            <AlertCircleIcon className="size-3" />
+                            {row.lastError}
+                          </span>
+                        ) : (
+                          [
+                            row.summary,
+                            row.lastSyncedAt ? `synced ${formatRelative(row.lastSyncedAt)}` : null,
+                            formatInterval(row.syncIntervalMinutes).toLowerCase(),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        )}
+                      </span>
+                    </Link>
+                    <span className="font-figure text-ink-03 shrink-0">
+                      {formatCount(row.documentCount)} {row.documentCount === 1 ? "document" : "documents"}
+                    </span>
+                    {canManage ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Sync ${row.name} now`}
+                        disabled={busy || syncNow.isPending}
+                        onClick={() => syncNow.mutate({ sourceId: row.id })}
+                      >
+                        {busy ? <Spinner /> : <RefreshCwIcon />}
+                      </Button>
+                    ) : null}
+                    <Link
+                      href={`/admin/sources/${row.id}`}
+                      aria-label={`Open ${row.name}`}
+                      className="text-ink-02 hover:text-foreground shrink-0"
+                    >
+                      <ChevronRightIcon className="size-4" />
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Section>
+
+        <Section title="Uploads" description="Files added by hand, from this page or from a chat.">
           <Row
             icon={<UploadIcon />}
-            title="Upload files"
-            description="PDF, Word, Excel, CSV, Markdown, HTML, and plain text."
+            title="File uploads"
+            description="PDF, Word, Excel, CSV, Markdown, HTML, and plain text. 50 MB per file."
             action={
-              summary && summary.total > 0 ? (
-                <span className="font-figure text-ink-03">
-                  {summary.indexed}/{summary.total} processed
-                  {summary.failed > 0 ? ` · ${summary.failed} failed` : ""}
-                </span>
-              ) : null
+              <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()} disabled={uploading}>
+                {uploading ? <Spinner /> : <UploadIcon />}
+                Add files
+              </Button>
             }
           />
         </Section>
 
-        <DatabasesSection canManage={canManage} />
+        <DatabasesSection
+          canManage={canManage}
+          connecting={connectingDatabase}
+          onConnectingChange={setConnectingDatabase}
+        />
 
-        <Section title="Documents">
-          {documents.isPending ? (
-            <div className="flex justify-center py-12">
-              <Spinner />
-            </div>
-          ) : documents.data?.length === 0 ? (
-            <Empty variant="outline">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <FileTextIcon />
-                </EmptyMedia>
-                <EmptyTitle>No documents yet</EmptyTitle>
-                <EmptyDescription>Upload a file to get started.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="bg-card overflow-hidden rounded-xl border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead className="w-40">Status</TableHead>
-                    <TableHead className="w-44">Visible to</TableHead>
-                    <TableHead className="w-24 text-right">Chunks</TableHead>
-                    <TableHead className="w-24" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {documents.data?.map((doc) => (
-                    <TableRow key={doc.id}>
-                      <TableCell variant="strong">{doc.title}</TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_VARIANT[doc.status] ?? "muted"}>
-                          {doc.status}
-                        </Badge>
-                        {doc.indexError ? (
-                          <p className="text-destructive mt-1 text-xs">
-                            {doc.indexError}
-                          </p>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <DocumentVisibility
-                          documentId={doc.id}
-                          visibility={doc.visibility}
-                          teams={teams.data ?? []}
-                          canManage={canManage}
-                          onChange={(visibility, teamIds) =>
-                            setVisibility.mutate({
-                              documentId: doc.id,
-                              visibility,
-                              teamIds,
-                            })
-                          }
-                        />
-                      </TableCell>
-                      <TableCell variant="figure" className="text-right">
-                        {doc.chunkCount}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {doc.status === "failed" ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => retry.mutate({ documentId: doc.id })}
-                          >
-                            Retry
-                          </Button>
-                        ) : null}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          {documents.data && documents.data.length > 0 ? (
-            <p className="font-figure text-ink-02">
-              {documents.data.length} documents
-            </p>
-          ) : null}
+        <Section
+          title="Documents"
+          description={
+            summary && summary.total > 0
+              ? `${formatCount(summary.indexed)} of ${formatCount(summary.total)} indexed${
+                  summary.pending > 0 ? ` · ${formatCount(summary.pending)} in progress` : ""
+                }${summary.failed > 0 ? ` · ${formatCount(summary.failed)} failed` : ""}. From every source; search by title or address.`
+              : "Everything indexed, from every source. Search by title or address."
+          }
+        >
+          <DocumentsTable showSource canManage={canManage} canDelete={canDelete} />
         </Section>
       </div>
+
+      <AddSourceDialog
+        open={adding}
+        onOpenChange={setAdding}
+        canConnectDatabase={canCreate}
+        onUploadFiles={() => fileInput.current?.click()}
+        onConnectDatabase={() => setConnectingDatabase(true)}
+      />
     </Page>
-  );
-}
-
-type Visibility = "organization" | "teams" | "private";
-
-/**
- * The audience control on a document row.
- *
- * Choosing "Teams" needs a team to be named, so the picker stays on screen
- * until one is. A document restricted to no team at all would
- * silently collapse to "only its uploader", which is not what the person
- * clicking meant.
- */
-function DocumentVisibility({
-  documentId,
-  visibility,
-  teams,
-  canManage,
-  onChange,
-}: {
-  documentId: string;
-  visibility: Visibility;
-  teams: { id: string; name: string }[];
-  canManage: boolean;
-  onChange: (visibility: Visibility, teamIds: string[]) => void;
-}) {
-  const [pendingTeams, setPendingTeams] = useState(false);
-  const current = VISIBILITY[visibility];
-  const Icon = current.icon;
-
-  if (!canManage) {
-    return (
-      <span className="text-ink-03 flex items-center gap-1.5 text-xs">
-        <Icon className="size-3.5" />
-        {current.label}
-      </span>
-    );
-  }
-
-  if (pendingTeams) {
-    return (
-      <Select
-        value=""
-        onValueChange={(value) => {
-          setPendingTeams(false);
-          onChange("teams", [String(value)]);
-        }}
-      >
-        <SelectTrigger data-size="sm" aria-label="Choose a team">
-          <SelectValue placeholder="Team…" />
-        </SelectTrigger>
-        <SelectContent>
-          {teams.map((group) => (
-            <SelectItem key={group.id} value={group.id}>
-              {group.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-
-  return (
-    <Select
-      value={visibility}
-      onValueChange={(value) => {
-        const next = String(value) as Visibility;
-        if (next === "teams") {
-          if (teams.length === 0) {
-            toast.error("Create a team on the Teams page first.");
-            return;
-          }
-          setPendingTeams(true);
-          return;
-        }
-        onChange(next, []);
-      }}
-    >
-      <SelectTrigger data-size="sm" aria-label={`Visibility of ${documentId}`}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {(Object.keys(VISIBILITY) as Visibility[]).map((key) => (
-          <SelectItem key={key} value={key}>
-            {VISIBILITY[key].label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

@@ -267,6 +267,9 @@ importers:
       '@onirix/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@onirix/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
       '@onirix/datasource':
         specifier: workspace:*
         version: link:../../packages/datasource
@@ -400,6 +403,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.982.0
         version: 3.1133.0
+      '@onirix/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
       '@onirix/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -443,6 +449,9 @@ importers:
       '@onirix/auth':
         specifier: workspace:*
         version: link:../auth
+      '@onirix/connectors':
+        specifier: workspace:*
+        version: link:../connectors
       '@onirix/datasource':
         specifier: workspace:*
         version: link:../datasource
@@ -514,6 +523,28 @@ importers:
 
   packages/config: {}
 
+  packages/connectors:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.982.0
+        version: 3.1133.0
+      '@onirix/ingestion':
+        specifier: workspace:*
+        version: link:../ingestion
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
+    devDependencies:
+      '@onirix/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/datasource:
     dependencies:
       '@onirix/llm':
@@ -535,6 +566,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@onirix/connectors':
+        specifier: workspace:*
+        version: link:../connectors
       '@onirix/llm':
         specifier: workspace:*
         version: link:../llm
@@ -581,9 +615,15 @@ importers:
       ai:
         specifier: 'catalog:'
         version: 7.0.102(zod@4.6.5)
+      domhandler:
+        specifier: ^5.0.3
+        version: 5.0.3
       gpt-tokenizer:
         specifier: ^3.0.1
         version: 3.4.0
+      htmlparser2:
+        specifier: ^8.0.2
+        version: 8.0.2
       mammoth:
         specifier: ^1.12.0
         version: 1.12.3

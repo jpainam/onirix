@@ -64,9 +64,18 @@ const MODE = {
   adhoc: { label: "Any read-only SQL", short: "Ad hoc SQL" },
 } as const;
 
-export function DatabasesSection({ canManage }: { canManage: boolean }) {
+export function DatabasesSection({
+  canManage,
+  connecting,
+  onConnectingChange,
+}: {
+  canManage: boolean;
+  /** Owned by the Sources page, so its "Add source" catalogue can open the dialog too. */
+  connecting: boolean;
+  onConnectingChange: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
-  const [connecting, setConnecting] = useState(false);
+  const setConnecting = onConnectingChange;
   const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null);
   const [editingQueries, setEditingQueries] = useState<{ id: string; name: string } | null>(null);
   const [loosening, setLoosening] = useState<{ id: string; name: string } | null>(null);

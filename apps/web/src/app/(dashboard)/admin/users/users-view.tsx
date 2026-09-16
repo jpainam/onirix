@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { MailIcon, ShieldIcon, UserPlusIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -36,6 +36,9 @@ import {
 
 import { MembershipPicker } from "@/components/membership-picker";
 import { Page, PageHeader, Row, Section } from "@/components/page";
+import { PersonAvatar } from "@/components/person-avatar";
+import { SearchField, TablePager } from "@/components/table-pager";
+import { useDebounced } from "@/hooks/use-debounced";
 import { authClient } from "@/lib/auth-client";
 import type { AuthAction } from "@/lib/auth-action";
 import { useAuthAction } from "@/lib/auth-action";
@@ -46,6 +49,10 @@ const ROLE_VARIANT: Record<string, "info" | "warning" | "muted"> = {
   admin: "warning",
   member: "muted",
 };
+
+/** Fifty rows is a screenful with room to scan; the rest is a page away. */
+const PAGE_SIZE = 50;
+const INVITATION_PAGE_SIZE = 25;
 
 /**
  * Roles a member can be moved to.
@@ -76,15 +83,47 @@ export function UsersView({
 }) {
   const run = useAuthAction();
   const [inviting, setInviting] = useState(false);
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [teamFilter, setTeamFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const [invitationPage, setInvitationPage] = useState(0);
 
-  const members = useQuery(trpc.team.listMembers.queryOptions());
+  const search = useDebounced(query, 250);
+
+  // Paged and searched on the server: this page has to hold up for a
+  // workspace of ten thousand people, and the browser only ever sees one page.
+  const members = useQuery({
+    ...trpc.team.listMembers.queryOptions({
+      query: search,
+      role: roleFilter === "all" ? null : roleFilter,
+      teamId: teamFilter === "all" ? null : teamFilter,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    // Each filter change is a new query key; without this the table would
+    // blink out to a spinner between one view of the roster and the next.
+    placeholderData: keepPreviousData,
+  });
   const teams = useQuery(trpc.team.listTeams.queryOptions());
   const roles = useQuery(trpc.team.listRoles.queryOptions());
   const invitations = useQuery({
-    ...trpc.team.listInvitations.queryOptions(),
+    ...trpc.team.listInvitations.queryOptions({ page: invitationPage, pageSize: INVITATION_PAGE_SIZE }),
     // Only someone who may invite is allowed to see who is being invited.
     enabled: canInvite,
+    placeholderData: keepPreviousData,
   });
+
+  /** Any filter change puts you back on the first page: page 6 of a narrower
+   *  roster is usually empty, and an empty page looks like an empty roster. */
+  function refine(apply: () => void) {
+    apply();
+    setPage(0);
+  }
+
+  const filtered = Boolean(query.trim() || roleFilter !== "all" || teamFilter !== "all");
+  const rows = members.data?.items ?? [];
+  const total = members.data?.total ?? 0;
 
   const roleOptions = assignableRoles(roles.data ?? []);
 
@@ -109,10 +148,68 @@ export function UsersView({
           title="Members"
           description="A role says what someone may administer. Teams decide what they can reach."
         >
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchField
+              value={query}
+              onChange={(next) => refine(() => setQuery(next))}
+              placeholder="Search by name or email"
+              className="max-w-sm"
+            />
+            <Select value={roleFilter} onValueChange={(value) => refine(() => setRoleFilter(String(value)))}>
+              <SelectTrigger size="sm" aria-label="Filter by role">
+                <SelectValue>{roleFilter === "all" ? "Any role" : roleFilter}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any role</SelectItem>
+                {(roles.data ?? []).map((role) => (
+                  <SelectItem key={role.name} value={role.name}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={teamFilter} onValueChange={(value) => refine(() => setTeamFilter(String(value)))}>
+              <SelectTrigger size="sm" aria-label="Filter by team">
+                <SelectValue>
+                  {teamFilter === "all"
+                    ? "Any team"
+                    : (teams.data?.find((team) => team.id === teamFilter)?.name ?? "Team")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any team</SelectItem>
+                {(teams.data ?? []).map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {filtered ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  refine(() => {
+                    setQuery("");
+                    setRoleFilter("all");
+                    setTeamFilter("all");
+                  })
+                }
+              >
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+
           {members.isPending ? (
             <div className="flex justify-center py-8">
               <Spinner />
             </div>
+          ) : rows.length === 0 ? (
+            <p className="text-ink-03 py-6 text-center text-sm">
+              {filtered ? "Nobody matches these filters." : "Nobody is in this workspace yet."}
+            </p>
           ) : (
             <div className="bg-card overflow-hidden rounded-xl border">
               <Table>
@@ -121,17 +218,20 @@ export function UsersView({
                     <TableHead>Name</TableHead>
                     <TableHead className="w-32">Role</TableHead>
                     <TableHead>Teams</TableHead>
-                    <TableHead className="w-56" />
+                    <TableHead className="w-24" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {members.data?.map((row) => (
+                  {rows.map((row) => (
                     <TableRow key={row.memberId}>
                       <TableCell variant="strong">
-                        {row.name}
-                        <p className="text-ink-03 text-xs font-normal">
-                          {row.email}
-                        </p>
+                        <span className="flex items-center gap-3">
+                          <PersonAvatar name={row.name} image={row.image} />
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate">{row.name}</span>
+                            <span className="text-ink-03 truncate text-xs font-normal">{row.email}</span>
+                          </span>
+                        </span>
                       </TableCell>
                       <TableCell>
                         {canManage && row.role !== "owner" ? (
@@ -151,8 +251,8 @@ export function UsersView({
                               )
                             }
                           >
-                            <SelectTrigger data-size="sm">
-                              <SelectValue />
+                            <SelectTrigger size="sm" aria-label={`Role of ${row.name}`}>
+                              <SelectValue>{row.role}</SelectValue>
                             </SelectTrigger>
                             <SelectContent>
                               {roleOptions.map((role) => (
@@ -163,9 +263,7 @@ export function UsersView({
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Badge variant={ROLE_VARIANT[row.role] ?? "muted"}>
-                            {row.role}
-                          </Badge>
+                          <Badge variant={ROLE_VARIANT[row.role] ?? "muted"}>{row.role}</Badge>
                         )}
                       </TableCell>
                       <TableCell>
@@ -202,12 +300,24 @@ export function UsersView({
               </Table>
             </div>
           )}
+
+          <TablePager
+            page={page}
+            pageSize={PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            isFetching={members.isFetching && !members.isPending}
+            noun="members"
+          />
         </Section>
 
-        {canManage && (invitations.data?.length ?? 0) > 0 ? (
-          <Section title="Pending invitations">
+        {canInvite && (invitations.data?.total ?? 0) > 0 ? (
+          <Section
+            title="Pending invitations"
+            description="Sent but not yet accepted. An expired one can be sent again from Invite users."
+          >
             <div className="flex flex-col gap-2">
-              {invitations.data?.map((invite) => (
+              {invitations.data?.items.map((invite) => (
                 <Row
                   key={invite.id}
                   icon={<MailIcon />}
@@ -233,6 +343,13 @@ export function UsersView({
                 />
               ))}
             </div>
+            <TablePager
+              page={invitationPage}
+              pageSize={INVITATION_PAGE_SIZE}
+              total={invitations.data?.total ?? 0}
+              onPageChange={setInvitationPage}
+              noun="invitations"
+            />
           </Section>
         ) : null}
       </div>

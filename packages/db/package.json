@@ -22,6 +22,7 @@
     "db:encrypt-secrets": "node --import tsx --import varlock/auto-load src/encrypt-secrets.ts"
   },
   "dependencies": {
+    "@onirix/connectors": "workspace:*",
     "@onirix/llm": "workspace:*",
     "drizzle-orm": "catalog:",
     "pg": "^8.23.0",

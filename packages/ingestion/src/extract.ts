@@ -6,6 +6,8 @@
  * location in the original document for citation purposes.
  */
 
+import { parseHtml } from "./html";
+
 export type Section = {
   text: string;
   /** Anchor within the source document, e.g. a page or sheet reference. */
@@ -39,6 +41,36 @@ export function isSupportedMimeType(mimeType: string): boolean {
   return (SUPPORTED_MIME_TYPES as readonly string[]).includes(mimeType);
 }
 
+/**
+ * The MIME type a file name implies, for sources that do not report one
+ * reliably: an object key in a bucket, a file in a drive listing.
+ *
+ * Null when the extension is not one Onirix extracts, which callers read as
+ * "skip this file" rather than "guess".
+ */
+export function mimeTypeForFileName(fileName: string): string | null {
+  const extension = fileName.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1];
+  if (!extension) return null;
+  return MIME_BY_EXTENSION[extension] ?? null;
+}
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xls: "application/vnd.ms-excel",
+  csv: "text/csv",
+  md: "text/markdown",
+  markdown: "text/markdown",
+  html: "text/html",
+  htm: "text/html",
+  json: "application/json",
+  txt: "text/plain",
+  text: "text/plain",
+  log: "text/plain",
+  rst: "text/plain",
+};
+
 export class UnsupportedFileTypeError extends Error {
   constructor(mimeType: string) {
     super(`Onirix cannot yet extract text from files of type "${mimeType}".`);
@@ -62,8 +94,13 @@ export async function extractSections(
     case "application/vnd.ms-excel":
       return extractSpreadsheet(buffer);
 
-    case "text/html":
-      return [{ text: stripHtml(buffer.toString("utf8")) }];
+    case "text/html": {
+      // Headings, lists and tables survive as line structure; navigation,
+      // scripts and hidden elements do not. Same reader's-eye rules as the
+      // website connector, which stores pages as HTML for this to read.
+      const page = parseHtml(buffer.toString("utf8"));
+      return page.text ? [{ text: page.text }] : [];
+    }
 
     case "text/csv": {
       const text = buffer.toString("utf8");
@@ -146,16 +183,3 @@ function tableHeader(text: string): string | undefined {
   return lines.slice(0, 2).join("\n");
 }
 
-/** Minimal tag strip. Adequate for stored HTML; not a sanitizer. */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/\s+/g, " ")
-    .trim();
-}

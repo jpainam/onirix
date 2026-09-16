@@ -48,6 +48,8 @@ export const sourceType = pgEnum("source_type", [
   "confluence",
   "github",
   "website",
+  /** Amazon S3, or any S3-compatible store such as MinIO or Cloudflare R2. */
+  "s3",
   /**
    * A live PostgreSQL database the model may query, rather than a system whose
    * documents are indexed. Its `config` is a `PostgresSourceConfig`, it never
@@ -58,6 +60,8 @@ export const sourceType = pgEnum("source_type", [
 
 export const syncStatus = pgEnum("sync_status", [
   "not_started",
+  /** A sync is on the queue and no worker has picked it up yet. */
+  "queued",
   "in_progress",
   "success",
   "failed",
@@ -95,6 +99,14 @@ export const source = pgTable(
     lastError: text("last_error"),
     documentCount: integer("document_count").notNull().default(0),
 
+    /**
+     * How often the worker re-reads the source, in minutes. Null means only
+     * when an admin asks. Uploads and databases never sync, so they leave it
+     * null too.
+     */
+    syncIntervalMinutes: integer("sync_interval_minutes"),
+
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -140,6 +152,26 @@ export const document = pgTable(
       onDelete: "set null",
     }),
 
+    /**
+     * The document's identity inside its source: a page URL, a Drive file id,
+     * an object key. What a re-sync matches on to tell "changed" from "new",
+     * and what pruning uses to tell "gone". Null for uploads, which have no
+     * source to be re-read from.
+     */
+    externalId: text("external_id"),
+    /**
+     * SHA-256 of the stored bytes. A sync that fetches identical bytes skips
+     * the extract-and-embed step, which is what makes a nightly re-read of a
+     * large site affordable.
+     */
+    contentHash: text("content_hash"),
+    /**
+     * The sync run that last saw this document. After a run finishes, any
+     * document of the source it did not stamp was not found at the source any
+     * more, and is removed.
+     */
+    lastSyncRunId: text("last_sync_run_id"),
+
     /** Human-readable name shown in results and citations. */
     title: text("title").notNull(),
     /** Link back to the document in its originating system, when one exists. */
@@ -184,8 +216,59 @@ export const document = pgTable(
     index("document_status_idx").on(table.status),
     // Listing a workspace's documents always filters on visibility first.
     index("document_org_visibility_idx").on(table.organizationId, table.visibility),
+    // A sync matches what it fetched against what it stored by this pair.
+    uniqueIndex("document_source_external_uidx").on(table.sourceId, table.externalId),
   ],
 );
+
+/**
+ * One pass of a connector over its source.
+ *
+ * The Sources page reads the latest of these to say what a connector is doing
+ * and what it last did; the history is what turns "failed" into "failed at
+ * 03:12 with this error, after succeeding the six nights before".
+ */
+export const sourceSyncRun = pgTable(
+  "source_sync_run",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => source.id, { onDelete: "cascade" }),
+    // No column default on purpose: `queued` is a value added to the enum by
+    // the same migration that creates this table, and Postgres refuses to use
+    // an enum value in the transaction that added it. Writers set it.
+    status: syncStatus("status").notNull(),
+    /** Who asked for it, when a person did. Null for a scheduled run. */
+    requestedBy: text("requested_by").references(() => user.id, { onDelete: "set null" }),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
+    error: text("error"),
+    /**
+     * What the connector reported along the way: pages it skipped, a limit it
+     * hit. Not an error, but the difference between "success" and "success,
+     * and it stopped at 500 pages".
+     */
+    notes: text("notes"),
+    /** Documents the connector produced, whether or not anything changed. */
+    documentsSeen: integer("documents_seen").notNull().default(0),
+    documentsAdded: integer("documents_added").notNull().default(0),
+    documentsUpdated: integer("documents_updated").notNull().default(0),
+    documentsRemoved: integer("documents_removed").notNull().default(0),
+    /** Seen, unchanged, and therefore not re-indexed. */
+    documentsUnchanged: integer("documents_unchanged").notNull().default(0),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("source_sync_run_source_idx").on(table.sourceId, table.createdAt)],
+);
+
+export const sourceSyncRunRelations = relations(sourceSyncRun, ({ one }) => ({
+  source: one(source, { fields: [sourceSyncRun.sourceId], references: [source.id] }),
+  requester: one(user, { fields: [sourceSyncRun.requestedBy], references: [user.id] }),
+}));
 
 /**
  * Teams a source grants its documents to, applied when `defaultVisibility` is
@@ -398,6 +481,7 @@ export const sourceRelations = relations(source, ({ one, many }) => ({
   documents: many(document),
   defaultTeams: many(sourceDefaultTeam),
   savedQueries: many(savedQuery),
+  syncRuns: many(sourceSyncRun),
 }));
 
 export const sourceDefaultTeamRelations = relations(sourceDefaultTeam, ({ one }) => ({
