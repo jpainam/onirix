@@ -453,9 +453,7 @@ function ConnectDatabaseDialog({
         <DialogHeader>
           <DialogTitle>Connect a database</DialogTitle>
           <DialogDescription>
-            Onirix checks that the role cannot write, reads the schema, and runs
-            read-only queries when a question calls for live figures. A role with
-            any write grant is refused.
+            Use a read-only role. A role that can write is refused.
           </DialogDescription>
         </DialogHeader>
 
@@ -468,9 +466,6 @@ function ConnectDatabaseDialog({
               placeholder="Discolaire"
               onChange={(event) => setName(event.target.value)}
             />
-            <p className="text-ink-03 text-xs">
-              What the assistant calls it in answers and how it tells databases apart.
-            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -486,17 +481,14 @@ function ConnectDatabaseDialog({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="database-description">What it holds</Label>
+            <Label htmlFor="database-description">What it holds (optional)</Label>
             <Textarea
               id="database-description"
               rows={2}
               value={description}
-              placeholder="Student records, enrolments, grades and fees for the school."
+              placeholder="Student records, grades and fees."
               onChange={(event) => setDescription(event.target.value)}
             />
-            <p className="text-ink-03 text-xs">
-              Optional. Helps the assistant choose this database for the right questions.
-            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -512,8 +504,8 @@ function ConnectDatabaseDialog({
             </Select>
             <p className="text-ink-03 text-xs">
               {mode === "saved"
-                ? "The assistant can only run queries you write and test here. Nothing it writes reaches the database."
-                : "The assistant writes its own SELECT statements over every table the role can read."}
+                ? "Only queries you write and test here."
+                : "The assistant writes its own SELECT statements."}
             </p>
           </div>
 

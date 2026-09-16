@@ -4,7 +4,10 @@
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
-@custom-variant dark (&:is(.dark *));
+/* Nearest theme scope wins. The public pages wrap themselves in `.light` so a
+   visitor's dark system theme does not reach them, and a `.dark` band inside
+   one of those pages still gets its dark variants. */
+@custom-variant dark (&:is(.dark *):not(.light *), &:is(.light .dark *));
 
 /*
   Palette and semantics are ported from the Onyx "Opal" design system so the
@@ -16,7 +19,8 @@
     - `stone-*` very slightly cool neutrals, used for page/chrome surfaces
   Mixing them is what gives the UI its "warm paper, cool chrome" feel.
 */
-:root {
+:root,
+.light {
   /* --- primitives ------------------------------------------------------- */
   --grey-100: #000000;
   --grey-95: #0d0d0d;
@@ -141,6 +145,10 @@
   --chart-4: var(--orange-50);
   --chart-5: var(--red-60);
 
+  /* One section wash for the public pages: a warm sand mixed faintly into
+     the page so the band reads as coloured paper, not a tint of the accent. */
+  --wash-sand: color-mix(in oklab, var(--orange-50) 7%, var(--grey-00));
+
   /* Buttons and inputs sit at 12px; cards and panels at 16px (`rounded-xl`). */
   --radius: 0.75rem;
 
@@ -262,6 +270,8 @@
   --color-info-subtle: var(--info-subtle);
   --color-danger-subtle: var(--danger-subtle);
 
+  --color-wash-sand: var(--wash-sand);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -347,4 +357,13 @@
 /* The mono ramp is used for counts, ids, and figures — never for prose. */
 @utility font-figure {
   @apply font-mono text-xs tabular-nums;
+}
+
+/* The public pages' backdrop: a faint plotting grid behind the hero and the
+   closing section, drawn from the tint ramp so it needs no dark variant. */
+@utility paper-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--tint-03) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--tint-03) 70%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
 }
