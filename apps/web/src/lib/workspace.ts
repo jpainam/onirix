@@ -15,7 +15,9 @@ import type { Principal } from "@onirix/db/principal";
 import { resolvePrincipal } from "@onirix/db/principal";
 import { organization } from "@onirix/db/schema";
 
-import { auth, getDb } from "@/services";
+import { openNullable } from "@onirix/db/secrets";
+
+import { auth, getDb, getSecrets } from "@/services";
 
 export type Workspace = {
   organizationId: string;
@@ -89,6 +91,12 @@ export async function loadWorkspace(
   });
   if (!org) return null;
 
+  // Credentials are stored sealed and opened here, once, so everything that
+  // calls a model from a workspace holds the key it needs and nothing reads a
+  // ciphertext by accident. This object is server-only: it never crosses to a
+  // client component as a whole.
+  const secrets = getSecrets();
+
   return {
     organizationId: principal.organizationId,
     organizationName: org.name,
@@ -96,8 +104,16 @@ export async function loadWorkspace(
     permissions: principal.permissions,
     teamIds: principal.teamIds,
     accessControlList: principal.accessControlList,
-    llmConfig: org.llmConfig ?? null,
-    llmProviders: org.llmProviders,
+    llmConfig: org.llmConfig
+      ? {
+          ...org.llmConfig,
+          embeddingApiKey: openNullable(secrets, org.llmConfig.embeddingApiKey),
+        }
+      : null,
+    llmProviders: org.llmProviders.map((row) => ({
+      ...row,
+      apiKey: openNullable(secrets, row.apiKey),
+    })),
   };
 }
 

@@ -22,11 +22,16 @@ import { SAVED_QUERY_PARAMETER_TYPES } from "@onirix/llm/database";
 
 import { resolveDocumentAcl } from "./access";
 import type { Database } from "./index";
+import type { SecretBox } from "./secrets";
 import { savedQuery, source } from "./schema/knowledge";
 
 /** What `source.config` holds for a `postgres` source. */
 export type PostgresSourceConfig = {
-  /** The full connection string, secret included. Never sent to a client. */
+  /**
+   * The full connection string, secret included, in the clear. Never sent to
+   * a client, and never written as-is: `sealPostgresConfig` is the only way a
+   * config reaches the `jsonb` column, and it encrypts this field.
+   */
   connectionUrl: string;
   /** What the data is, in the admin's words, for the model's catalogue. */
   description: string | null;
@@ -63,6 +68,7 @@ export async function listAccessibleDatabases(
   db: Database,
   organizationId: string,
   accessControlList: readonly string[],
+  secrets: SecretBox,
 ): Promise<AccessibleDatabase[]> {
   const rows = await db.query.source.findMany({
     where: and(eq(source.organizationId, organizationId), eq(source.type, "postgres")),
@@ -83,7 +89,7 @@ export async function listAccessibleDatabases(
       return required.some((token) => held.has(token));
     })
     .flatMap((row) => {
-      const config = readPostgresConfig(row.config);
+      const config = readPostgresConfig(row.config, secrets);
       // A row whose config does not parse is skipped rather than surfaced as a
       // database the model can name and then fail against every time.
       if (!config) return [];
@@ -101,6 +107,18 @@ export async function listAccessibleDatabases(
         },
       ];
     });
+}
+
+/**
+ * The form a config takes in the `jsonb` column: the same object with its one
+ * secret sealed. Every write of `source.config` for a `postgres` source goes
+ * through here, so a config read and written back never lands in the clear.
+ */
+export function sealPostgresConfig(
+  config: PostgresSourceConfig,
+  secrets: SecretBox,
+): Record<string, unknown> {
+  return { ...config, connectionUrl: secrets.seal(config.connectionUrl) };
 }
 
 /**
@@ -137,7 +155,7 @@ export function readSavedQueryParameters(raw: unknown): SavedQueryParameter[] {
  * written by `introspectPostgres`, and a broken one costs the model a bad table
  * list, not the process.
  */
-export function readPostgresConfig(raw: unknown): PostgresSourceConfig | null {
+export function readPostgresConfig(raw: unknown, secrets: SecretBox): PostgresSourceConfig | null {
   if (!raw || typeof raw !== "object") return null;
   const candidate = raw as Partial<PostgresSourceConfig>;
   if (typeof candidate.connectionUrl !== "string" || candidate.connectionUrl.length === 0) {
@@ -145,7 +163,9 @@ export function readPostgresConfig(raw: unknown): PostgresSourceConfig | null {
   }
   const tables = (candidate.schema as { tables?: unknown } | undefined)?.tables;
   return {
-    connectionUrl: candidate.connectionUrl,
+    // Sealed on disk, opened here. A legacy plaintext value passes through
+    // until `db:encrypt-secrets` rewrites it.
+    connectionUrl: secrets.open(candidate.connectionUrl),
     description: typeof candidate.description === "string" ? candidate.description : null,
     schema: { tables: Array.isArray(tables) ? (tables as DatabaseSchema["tables"]) : [] },
     introspectedAt:

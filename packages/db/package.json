@@ -16,9 +16,10 @@
     "check-types": "tsc --noEmit",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:deploy": "node --import tsx src/migrate.ts",
+    "db:migrate:deploy": "node --import tsx --import varlock/auto-load src/migrate.ts",
     "db:studio": "drizzle-kit studio",
-    "db:migrate": "node --import tsx src/migrate.ts"
+    "db:migrate": "node --import tsx --import varlock/auto-load src/migrate.ts",
+    "db:encrypt-secrets": "node --import tsx --import varlock/auto-load src/encrypt-secrets.ts"
   },
   "dependencies": {
     "@onirix/llm": "workspace:*",

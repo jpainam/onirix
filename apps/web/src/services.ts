@@ -11,6 +11,7 @@
  */
 import { createAuth } from "@onirix/auth";
 import { type Database, createDb } from "@onirix/db";
+import { createSecretBox, type SecretBox } from "@onirix/db/secrets";
 import { createQueueClient } from "@onirix/jobs";
 import { createStorageClient, ensureBucket } from "@onirix/ingestion";
 import { DocumentIndex, createSearchClient, getIndexName } from "@onirix/search";
@@ -24,6 +25,7 @@ import { env } from "./env.server";
 
 type ServiceCache = {
   db?: Database;
+  secrets?: SecretBox;
   redis?: Redis;
   streamCommands?: Redis;
   streamSubscriber?: Redis;
@@ -37,6 +39,11 @@ const cache: ServiceCache = ((globalThis as { __onirix?: ServiceCache }).__oniri
 
 export function getDb(): Database {
   return (cache.db ??= createDb(env));
+}
+
+/** The box every stored credential goes through. Built once; the key never changes at runtime. */
+export function getSecrets(): SecretBox {
+  return (cache.secrets ??= createSecretBox(env.SECRETS_ENCRYPTION_KEY));
 }
 
 export function getQueue(): Redis {

@@ -8,6 +8,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { createDb } from "@onirix/db";
+import { createSecretBox } from "@onirix/db/secrets";
 import { isOrganizationWide } from "@onirix/db/access";
 import { runMigrations } from "@onirix/db/migrate";
 import { document, llmConfig, source } from "@onirix/db/schema";
@@ -30,6 +31,9 @@ import { DocumentIndex, createSearchClient, getIndexName } from "@onirix/search"
 import { ENV as env } from "./env";
 
 const db = createDb(env);
+// Embedding keys are stored sealed; the worker holds the same key as the web
+// process and nothing else about the workspace's credentials.
+const secrets = createSecretBox(env.SECRETS_ENCRYPTION_KEY);
 const queue = createQueueClient(env.REDIS_URL);
 const storage = createStorageClient(env);
 const searchClient = createSearchClient(env);
@@ -200,7 +204,7 @@ async function indexOneDocument(job: Job): Promise<void> {
   // credentials of its own.
   const embeddingCredentials: ProviderCredentials = {
     provider: config.embeddingProvider as ProviderCredentials["provider"],
-    apiKey: config.embeddingApiKey,
+    apiKey: config.embeddingApiKey ? secrets.open(config.embeddingApiKey) : null,
     baseUrl: config.embeddingBaseUrl,
   };
 

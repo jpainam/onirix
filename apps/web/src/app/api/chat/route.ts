@@ -65,7 +65,13 @@ import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
 import { clearActiveStream, markStreamActive } from "@/lib/chat-stream";
 import { fallbackTitle, sanitizeTitle } from "@/lib/chat-title";
 import { loadWorkspace, providerCredentials } from "@/lib/workspace";
-import { auth, getDb, getDocumentIndex, getResumableStreamContext } from "@/services";
+import {
+  auth,
+  getDb,
+  getDocumentIndex,
+  getResumableStreamContext,
+  getSecrets,
+} from "@/services";
 
 /**
  * A turn can now spend several steps on tools before it writes a word — load a
@@ -496,7 +502,7 @@ async function loadDatabases(
   accessControlList: string[],
 ) {
   try {
-    return await listAccessibleDatabases(db, organizationId, accessControlList);
+    return await listAccessibleDatabases(db, organizationId, accessControlList, getSecrets());
   } catch (error) {
     console.error("Failed to load connected databases", error);
     return [];

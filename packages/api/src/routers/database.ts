@@ -28,8 +28,10 @@ import type { Database } from "@onirix/db";
 import {
   readPostgresConfig,
   readSavedQueryParameters,
+  sealPostgresConfig,
   type PostgresSourceConfig,
 } from "@onirix/db/datasources";
+import type { SecretBox } from "@onirix/db/secrets";
 import { savedQuery, source, sourceDefaultTeam, team } from "@onirix/db/schema";
 import {
   SAVED_QUERY_PARAMETER_TYPES,
@@ -165,7 +167,7 @@ export const databaseRouter = router({
     });
 
     return rows.map((row) => {
-      const config = readPostgresConfig(row.config);
+      const config = readPostgresConfig(row.config, ctx.secrets);
       const connection = config ? describeConnection(config.connectionUrl) : null;
       return {
         id: row.id,
@@ -235,7 +237,7 @@ export const databaseRouter = router({
           organizationId: ctx.organizationId,
           type: "postgres",
           name: input.name,
-          config,
+          config: sealPostgresConfig(config, ctx.secrets),
           defaultVisibility: input.visibility,
           status: "success",
           lastSyncedAt: new Date(),
@@ -260,12 +262,15 @@ export const databaseRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
       await ctx.db
         .update(source)
         .set({
           name: input.name,
-          config: { ...config, description: normalizeDescription(input.description) },
+          config: sealPostgresConfig(
+            { ...config, description: normalizeDescription(input.description) },
+            ctx.secrets,
+          ),
         })
         .where(eq(source.id, row.id));
       return { id: row.id };
@@ -280,7 +285,7 @@ export const databaseRouter = router({
   refreshSchema: permissionProcedure("source", "update")
     .input(z.object({ sourceId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
 
       try {
         const verification = await verifyReadOnlyRole(config.connectionUrl);
@@ -291,7 +296,10 @@ export const databaseRouter = router({
         await ctx.db
           .update(source)
           .set({
-            config: { ...config, schema, introspectedAt: new Date().toISOString() },
+            config: sealPostgresConfig(
+              { ...config, schema, introspectedAt: new Date().toISOString() },
+              ctx.secrets,
+            ),
             status: "success",
             lastError: null,
             lastSyncedAt: new Date(),
@@ -317,10 +325,10 @@ export const databaseRouter = router({
   setMode: permissionProcedure("source", "update")
     .input(z.object({ sourceId: z.string(), mode: modeInput }))
     .mutation(async ({ ctx, input }) => {
-      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
       await ctx.db
         .update(source)
-        .set({ config: { ...config, mode: input.mode } })
+        .set({ config: sealPostgresConfig({ ...config, mode: input.mode }, ctx.secrets) })
         .where(eq(source.id, row.id));
       return { mode: input.mode };
     }),
@@ -329,7 +337,7 @@ export const databaseRouter = router({
   listSavedQueries: orgProcedure
     .input(z.object({ sourceId: z.string() }))
     .query(async ({ ctx, input }) => {
-      await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
       const rows = await ctx.db.query.savedQuery.findMany({
         where: eq(savedQuery.sourceId, input.sourceId),
         orderBy: asc(savedQuery.name),
@@ -347,7 +355,7 @@ export const databaseRouter = router({
   createSavedQuery: permissionProcedure("source", "update")
     .input(savedQueryInput)
     .mutation(async ({ ctx, input }) => {
-      await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
       validateSavedQuery(input);
       const id = randomUUID();
       await ctx.db
@@ -372,7 +380,7 @@ export const databaseRouter = router({
   updateSavedQuery: permissionProcedure("source", "update")
     .input(savedQueryInput.extend({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
       validateSavedQuery(input);
       const updated = await ctx.db
         .update(savedQuery)
@@ -427,7 +435,7 @@ export const databaseRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      const { config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
       validateSavedQuery(input);
       const bound = bindSavedQueryParameters(
         {
@@ -462,7 +470,7 @@ export const databaseRouter = router({
   remove: permissionProcedure("source", "delete")
     .input(z.object({ sourceId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId);
+      const { row, config } = await ownedDatabase(ctx.db, ctx.organizationId, input.sourceId, ctx.secrets);
       await ctx.db.delete(source).where(eq(source.id, row.id));
       // Best effort: the pool is a process-local cache, and this process may
       // not be the one holding it.
@@ -471,7 +479,12 @@ export const databaseRouter = router({
     }),
 });
 
-async function ownedDatabase(db: Database, organizationId: string, sourceId: string) {
+async function ownedDatabase(
+  db: Database,
+  organizationId: string,
+  sourceId: string,
+  secrets: SecretBox,
+) {
   const row = await db.query.source.findFirst({
     where: and(
       eq(source.id, sourceId),
@@ -479,7 +492,7 @@ async function ownedDatabase(db: Database, organizationId: string, sourceId: str
       eq(source.type, "postgres"),
     ),
   });
-  const config = row ? readPostgresConfig(row.config) : null;
+  const config = row ? readPostgresConfig(row.config, secrets) : null;
   if (!row || !config) {
     throw new TRPCError({ code: "NOT_FOUND", message: "Database not found." });
   }

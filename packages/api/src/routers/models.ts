@@ -17,6 +17,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { llmConfig, llmProvider } from "@onirix/db/schema";
+import { openNullable, sealNullable } from "@onirix/db/secrets";
 import {
   PROVIDERS,
   type ProviderId,
@@ -127,7 +128,10 @@ export async function connectProvider(
 
   // Editing a connection does not require retyping the key: a blank field
   // means "keep the one you already have", since we never send it back out.
-  const apiKey = input.apiKey ?? existing?.apiKey ?? null;
+  // Resolved in the clear, then sealed once below, so a key kept from a row
+  // written before encryption comes out sealed like a new one.
+  const apiKeyPlain = input.apiKey ?? openNullable(ctx.secrets, existing?.apiKey);
+  const apiKey = sealNullable(ctx.secrets, apiKeyPlain);
   const baseUrl = input.baseUrl ?? existing?.baseUrl ?? null;
 
   // Reject a missing credential here rather than letting the first request
@@ -171,8 +175,10 @@ export async function connectProvider(
   // The first provider settles the embedding model too, and the index it
   // implies is created up front so the first upload does not pay for it.
   if (!config) {
+    // The embedding key is resolved in the clear (an explicit one arrives from
+    // the form) and sealed when it is written.
     const embedding = resolveEmbedding(
-      { provider: input.provider, apiKey, baseUrl },
+      { provider: input.provider, apiKey: apiKeyPlain, baseUrl },
       input.embedding,
     );
     const embeddingSpec = findEmbeddingModel(embedding.provider, embedding.model);
@@ -190,7 +196,7 @@ export async function connectProvider(
       chatModel: input.models[0]!,
       embeddingProvider: embedding.provider,
       embeddingModel: embedding.model,
-      embeddingApiKey: embedding.apiKey,
+      embeddingApiKey: sealNullable(ctx.secrets, embedding.apiKey),
       embeddingBaseUrl: embedding.baseUrl,
       embeddingDimension: String(embeddingSpec.dimension),
       indexName: getIndexName(embedding.model),
@@ -207,6 +213,7 @@ export async function connectProvider(
   // Embedding credentials are copied onto the config because the indexing
   // worker reads them from there; a rotated key has to reach that copy too.
   if (config.embeddingProvider === input.provider) {
+    // Already sealed above; the same ciphertext serves both rows.
     patch.embeddingApiKey = apiKey;
     patch.embeddingBaseUrl = baseUrl;
   }
