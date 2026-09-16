@@ -61,9 +61,26 @@ export const message = pgTable(
     content: text("content").notNull(),
     /** AI SDK message parts, retained so tool calls survive a reload. */
     parts: jsonb("parts").$type<unknown[]>(),
+    /**
+     * What the turn cost, as the provider reported it. Assistant rows only, and
+     * null on every row written before this was recorded: the Usage page counts
+     * a null as nothing spent rather than backfilling a guess, so an old
+     * workspace shows a token history that starts when the meter did.
+     *
+     * Stored per message rather than summed into a counter because the question
+     * "which model spent this" is only answerable at the row that spent it.
+     */
+    model: text("model"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("message_chat_idx").on(table.chatId, table.createdAt)],
+  (table) => [
+    index("message_chat_idx").on(table.chatId, table.createdAt),
+    // Usage buckets every message by day across a whole workspace, which is the
+    // one read that does not start from a conversation.
+    index("message_created_idx").on(table.createdAt),
+  ],
 );
 
 export const citation = pgTable(

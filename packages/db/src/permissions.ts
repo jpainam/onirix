@@ -27,6 +27,7 @@ export const STATEMENTS = {
   knowledge: ["create", "update", "delete"],
   skill: ["create", "update", "delete"],
   model: ["read", "update"],
+  usage: ["read"],
 } as const;
 
 export type Resource = keyof typeof STATEMENTS;
@@ -71,6 +72,7 @@ export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRole, RoleGrants> = {
     knowledge: ["create", "update", "delete"],
     skill: ["create", "update", "delete"],
     model: ["read", "update"],
+    usage: ["read"],
   },
   admin: {
     organization: ["update"],
@@ -82,6 +84,7 @@ export const BUILT_IN_ROLE_PERMISSIONS: Record<BuiltInRole, RoleGrants> = {
     knowledge: ["create", "update", "delete"],
     skill: ["create", "update", "delete"],
     model: ["read", "update"],
+    usage: ["read"],
   },
   member: {
     ac: ["read"],

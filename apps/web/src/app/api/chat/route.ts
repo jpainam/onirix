@@ -259,6 +259,12 @@ export async function POST(request: Request) {
   // which stream a reconnecting client is being pointed at.
   const streamId = randomUUID();
 
+  // What the turn cost, filled in by `streamText` before the UI stream
+  // finishes: the two `onFinish` callbacks fire in that order, and the outer
+  // one is where the row is written. A mutable box rather than a promise,
+  // because a turn that never reports usage must not hold up the answer.
+  let spend: { inputTokens: number | null; outputTokens: number | null } | null = null;
+
   const stream = createUIMessageStream<OnirixUIMessage>({
     // Passed so the SDK can tell a fresh answer from a continuation, which is
     // what makes `responseMessage` in `onFinish` the assistant's turn alone.
@@ -293,6 +299,16 @@ export async function POST(request: Request) {
           // rather than unlikely.
           prepareStep: ({ stepNumber }) =>
             stepNumber >= MAX_ANSWER_STEPS - 1 ? { toolChoice: "none" } : {},
+          // `totalUsage`, not the last step's usage: a turn that loaded two
+          // skills and drew a chart spent four round trips, and the Usage page
+          // is asking what the workspace was billed for, not what the final
+          // call cost.
+          onFinish: ({ totalUsage }) => {
+            spend = {
+              inputTokens: totalUsage?.inputTokens ?? null,
+              outputTokens: totalUsage?.outputTokens ?? null,
+            };
+          },
         }).toUIMessageStream<OnirixUIMessage>(),
       );
     },
@@ -311,6 +327,8 @@ export async function POST(request: Request) {
           answer: responseMessage,
           sources,
           title: titlePromise ? await titlePromise : null,
+          model: config.chatModel,
+          usage: spend,
         });
       } catch (error) {
         // A persistence failure must not break the user's stream; the answer
@@ -583,6 +601,10 @@ async function persistTurn(args: {
   sources: CitedSource[];
   /** Null once the conversation has a name, generated or typed. */
   title: string | null;
+  /** Which model answered, recorded so Usage can break spend down by model. */
+  model: string;
+  /** Null when the provider reported no usage for the turn. */
+  usage: { inputTokens: number | null; outputTokens: number | null } | null;
 }) {
   const { db, chatId, sources } = args;
   const parts = storableParts(args.answer);
@@ -614,6 +636,9 @@ async function persistTurn(args: {
     // working unchanged; `parts` is what carries the charts.
     content: answer,
     parts,
+    model: args.model,
+    inputTokens: args.usage?.inputTokens ?? null,
+    outputTokens: args.usage?.outputTokens ?? null,
   });
 
   // Store only the sources the model actually cited. Retrieval returns more

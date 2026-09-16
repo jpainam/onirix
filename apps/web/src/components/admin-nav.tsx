@@ -63,8 +63,8 @@ const ADMIN_SECTIONS = [
   {
     label: "Usage",
     items: [
-      { title: "Usage", icon: PieChartIcon },
-      { title: "Query History", icon: HistoryIcon },
+      { title: "Usage", url: "/admin/usage", icon: PieChartIcon },
+      { title: "Query History", url: "/admin/query-history", icon: HistoryIcon },
     ],
   },
 ] as const;

@@ -3,11 +3,17 @@ import { BuildingIcon, ShieldIcon } from "lucide-react";
 import { Badge } from "@onirix/ui/components/badge";
 
 import { Page, PageHeader, Row, Section } from "@/components/page";
-import { requireConfiguredWorkspace } from "@/lib/workspace";
+import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
+
+import { RenameOrganization } from "./organization-view";
 
 export default async function OrganizationPage() {
   const { user, workspace } = await requireConfiguredWorkspace();
   const roleLabel = workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1);
+
+  // Rendering decision only. Better Auth re-checks the same grant on the write,
+  // so a member who forces the dialog open still gets refused.
+  const canManage = workspaceCan(workspace, "organization", "update");
 
   return (
     <Page>
@@ -23,7 +29,17 @@ export default async function OrganizationPage() {
             icon={<BuildingIcon />}
             title={workspace.organizationName}
             description={`Signed in as ${user.email}`}
-            action={<Badge variant="secondary">{roleLabel}</Badge>}
+            action={
+              <div className="flex items-center gap-1">
+                <Badge variant="secondary">{roleLabel}</Badge>
+                {canManage ? (
+                  <RenameOrganization
+                    organizationId={workspace.organizationId}
+                    name={workspace.organizationName}
+                  />
+                ) : null}
+              </div>
+            }
           />
         </Section>
 

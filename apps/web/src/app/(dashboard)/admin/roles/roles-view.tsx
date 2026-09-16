@@ -77,6 +77,10 @@ const RESOURCES: Record<Resource, { label: string; description: string }> = {
     label: "Workspace",
     description: "Rename the workspace, or delete it entirely.",
   },
+  usage: {
+    label: "Usage",
+    description: "See what the workspace asks, spends and indexes.",
+  },
 };
 
 /** Render order, most often granted first. */

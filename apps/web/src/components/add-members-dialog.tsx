@@ -14,6 +14,7 @@ import {
 import { Spinner } from "@onirix/ui/components/spinner";
 
 import { PersonAvatar } from "@/components/person-avatar";
+import { useDebounced } from "@/hooks/use-debounced";
 import { authClient } from "@/lib/auth-client";
 import { useAuthAction } from "@/lib/auth-action";
 import { trpc } from "@/utils/trpc";
@@ -124,14 +125,3 @@ export function AddMembersDialog({
   );
 }
 
-/** Holds a value still for `delay`, so a search runs on a pause, not a keystroke. */
-function useDebounced(value: string, delay: number) {
-  const [settled, setSettled] = useState(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), delay);
-    return () => clearTimeout(timer);
-  }, [value, delay]);
-
-  return settled;
-}
