@@ -4,10 +4,15 @@ import { useChat } from "@ai-sdk/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DefaultChatTransport } from "ai";
 import { ArrowUpIcon, PaperclipIcon } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@onirix/ui/components/button";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@onirix/ui/components/ai-elements/conversation";
 import {
   InputGroup,
   InputGroupAddon,
@@ -53,7 +58,6 @@ export function ChatPanel({
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [open, setOpen] = useState<OpenCitation | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // A conversation row is created lazily, so an abandoned empty chat never
@@ -72,13 +76,6 @@ export function ChatPanel({
       void queryClient.invalidateQueries(trpc.chat.list.queryFilter());
     },
   });
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [messages]);
 
   const busy = status === "streaming" || status === "submitted";
   const started = messages.length > 0;
@@ -209,8 +206,15 @@ export function ChatPanel({
 
         {started ? (
           <>
-            <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-              <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-6 py-8">
+            {/* Autoscroll is delegated rather than hand-rolled: an effect that
+                re-aimed at `scrollHeight` on every streamed chunk kept
+                restarting a smooth animation toward a target the next chunk had
+                already moved, which read as the page juddering up and down for
+                the length of a long answer. This sticks to the bottom only
+                while the reader is already there, and yields the moment they
+                scroll up to re-read something. */}
+            <Conversation className="min-h-0 flex-1">
+              <ConversationContent className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-6 py-8">
                 {messages.map((message) =>
                   message.role === "user" ? (
                     <div key={message.id} className="flex justify-end">
@@ -241,8 +245,9 @@ export function ChatPanel({
                     <span className="text-ink-03 text-sm">Searching your knowledge…</span>
                   </div>
                 ) : null}
-              </div>
-            </div>
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
 
             <div className="shrink-0 px-6 pb-4">
               <div className="mx-auto w-full max-w-3xl">

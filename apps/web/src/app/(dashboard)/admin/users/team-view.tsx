@@ -88,7 +88,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
   }
 
   return (
-    <Page width="wide">
+    <Page>
       <PageHeader
         icon={UsersIcon}
         title="Users & Teams"

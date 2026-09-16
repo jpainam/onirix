@@ -8,26 +8,20 @@ import { cn } from "@onirix/ui/lib/utils";
  * The scroll container every non-chat page renders inside.
  *
  * Content is capped and centred rather than stretched: long measures are what
- * make a settings page feel like a spreadsheet.
+ * make a settings page feel like a spreadsheet. The cap is deliberately one
+ * value for every page — a per-page width prop only ever drifts, and the seam
+ * shows the moment you move between two of them in the sidebar.
  */
 export function Page({
   children,
   className,
-  width = "default",
 }: {
   children: ReactNode;
   className?: string;
-  width?: "default" | "wide";
 }) {
   return (
     <div className="h-full min-h-0 overflow-y-auto">
-      <div
-        className={cn(
-          "mx-auto w-full px-8 py-10",
-          width === "wide" ? "max-w-5xl" : "max-w-3xl",
-          className
-        )}
-      >
+      <div className={cn("mx-auto w-full max-w-5xl px-8 py-10", className)}>
         {children}
       </div>
     </div>

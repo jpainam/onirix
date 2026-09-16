@@ -147,7 +147,7 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
   const summary = progress.data;
 
   return (
-    <Page width="wide">
+    <Page>
       <PageHeader
         icon={DatabaseIcon}
         title="Sources"
