@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { DefaultChatTransport } from "ai";
 import { ArrowUpIcon, PaperclipIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@onirix/ui/components/button";
@@ -46,28 +46,42 @@ export function ChatPanel({
   modelLabel,
   conversationId = null,
   initialMessages,
+  resume = false,
 }: {
   organizationName: string;
   modelLabel: string;
   /** Set when reopening stored history; null for a fresh session. */
   conversationId?: string | null;
   initialMessages?: OnirixUIMessage[];
+  /**
+   * Set when the conversation was still being answered as the page rendered,
+   * which is how a reader who refreshed mid-answer gets it back.
+   */
+  resume?: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [chatId, setChatId] = useState<string | null>(conversationId);
+  // Minted here rather than on the server so the conversation has an identity
+  // from the first keystroke. `useChat` keys its state on this id and rebuilds
+  // from scratch when it changes, so an id that only appeared once the row had
+  // been created would throw away the turn it was created for.
+  const [chatId] = useState(() => conversationId ?? crypto.randomUUID());
+  // The row behind that id is created lazily, so an abandoned empty chat never
+  // clutters history.
+  const [created, setCreated] = useState(conversationId !== null);
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [open, setOpen] = useState<OpenCitation | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // A conversation row is created lazily, so an abandoned empty chat never
-  // clutters history.
   const createChat = useMutation(trpc.chat.create.mutationOptions());
 
-  const { messages, sendMessage, status, error } = useChat<OnirixUIMessage>({
+  const { messages, sendMessage, resumeStream, status, error } = useChat<OnirixUIMessage>({
+    // Also what the transport reconnects on: `resume` fetches
+    // `/api/chat/<id>/stream`, which only resolves to an answer if this is the
+    // id the server is writing one under.
+    id: chatId,
     messages: initialMessages,
-    // The conversation id travels per call rather than on the transport; see
-    // `submit` for why reading it from state here would drop the first turn.
+    resume,
     transport: new DefaultChatTransport({ api: "/api/chat" }),
     onFinish: () => {
       // The opening exchange is what names the conversation, and that happens
@@ -76,6 +90,17 @@ export function ChatPanel({
       void queryClient.invalidateQueries(trpc.chat.list.queryFilter());
     },
   });
+
+  // A connection that drops mid-answer surfaces here as an error, but the
+  // server carries on writing. Re-attaching the moment the network is back
+  // finishes the answer in place, so recovering does not depend on the reader
+  // thinking to refresh.
+  useEffect(() => {
+    if (status !== "error") return;
+    const reattach = () => void resumeStream();
+    window.addEventListener("online", reattach);
+    return () => window.removeEventListener("online", reattach);
+  }, [status, resumeStream]);
 
   const busy = status === "streaming" || status === "submitted";
   const started = messages.length > 0;
@@ -104,25 +129,22 @@ export function ChatPanel({
     const trimmed = text.trim();
     if (!trimmed || busy) return;
 
-    let id = chatId;
-    if (!id) {
-      const created = await createChat.mutateAsync();
-      id = created.id;
-      setChatId(id);
+    if (!created) {
+      await createChat.mutateAsync({ id: chatId });
+      setCreated(true);
       // The row exists now but is nameless until the answer is persisted, so
       // the sidebar is shown the question in the meantime.
-      seedRecentConversation(id, trimmed);
+      seedRecentConversation(chatId, trimmed);
       // Reopening the conversation needs its id in the URL, but a router
       // navigation here would remount this panel and abort the stream that is
       // about to start — so the address bar is corrected in place instead.
-      window.history.replaceState(null, "", `/chat/${id}`);
+      window.history.replaceState(null, "", `/chat/${chatId}`);
     }
 
     setInput("");
-    // The id is passed per call because `setChatId` above has not re-rendered
-    // yet: anything reading `chatId` at this point still sees null, and the
-    // server drops a turn that arrives without one.
-    sendMessage({ text: trimmed }, { body: { chatId: id } });
+    // Sent in the body as well as on the transport: the server has to look the
+    // conversation up to check it is the caller's before it generates anything.
+    sendMessage({ text: trimmed }, { body: { chatId } });
   }
 
   async function attach(files: FileList | null) {

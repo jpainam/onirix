@@ -10,7 +10,10 @@ import { type Database, createDb } from "@onirix/db";
 import { createQueueClient } from "@onirix/jobs";
 import { createStorageClient, ensureBucket } from "@onirix/ingestion";
 import { DocumentIndex, createSearchClient, getIndexName } from "@onirix/search";
-import type { Redis } from "ioredis";
+import { Redis } from "ioredis";
+import { after } from "next/server";
+import { createResumableStreamContext } from "resumable-stream/ioredis";
+import type { ResumableStreamContext } from "resumable-stream/ioredis";
 import type { S3Client } from "@aws-sdk/client-s3";
 
 import { env } from "./env.server";
@@ -18,6 +21,9 @@ import { env } from "./env.server";
 type ServiceCache = {
   db?: Database;
   redis?: Redis;
+  streamCommands?: Redis;
+  streamSubscriber?: Redis;
+  resumableStreams?: ResumableStreamContext;
   storage?: S3Client;
   bucketReady?: Promise<void>;
 };
@@ -30,6 +36,44 @@ export function getDb(): Database {
 
 export function getQueue(): Redis {
   return (cache.redis ??= createQueueClient(env.REDIS_URL));
+}
+
+/**
+ * Redis handle for the bookkeeping around resumable answer streams.
+ *
+ * Separate from the queue client, which is configured for blocking reads, and
+ * separate again from the subscriber below: a connection in subscriber mode
+ * cannot issue ordinary commands.
+ */
+export function getStreamRedis(): Redis {
+  return (cache.streamCommands ??= new Redis(env.REDIS_URL));
+}
+
+/**
+ * The pub/sub context that lets an answer outlive the request that asked for
+ * it.
+ *
+ * Generation is pumped into this context, not into the HTTP response, so a
+ * reader who refreshes or drops off the network does not cancel the model —
+ * their next request re-attaches to the same stream and replays what it missed.
+ */
+export function getResumableStreamContext(): ResumableStreamContext {
+  return (cache.resumableStreams ??= createResumableStreamContext({
+    keyPrefix: "onirix:chat",
+    // Onirix runs as a long-lived server, where a promise left running needs
+    // nothing to keep it alive. `after` is what matters on a platform that
+    // freezes the function the moment its response ends, and it throws outside
+    // a request — which is exactly the case where it is not needed.
+    waitUntil: (promise) => {
+      try {
+        after(promise);
+      } catch {
+        void promise;
+      }
+    },
+    publisher: getStreamRedis(),
+    subscriber: (cache.streamSubscriber ??= new Redis(env.REDIS_URL)),
+  }));
 }
 
 export function getStorage(): S3Client {

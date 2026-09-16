@@ -7,6 +7,11 @@
  * An answer is a sequence of parts, not a string: prose, and charts the model
  * drew by calling `render_chart`. The whole sequence is persisted, so reopening
  * a conversation shows the same interleaving of text and charts it had live.
+ *
+ * Generation is driven by a resumable stream rather than by the HTTP response.
+ * The response is one reader of that stream; losing it — a refresh, a closed
+ * laptop, a dropped connection — neither stops the model nor costs the reader
+ * the answer, which they re-attach to through `GET /api/chat/[id]/stream`.
  */
 import { randomUUID } from "node:crypto";
 import {
@@ -42,9 +47,10 @@ import type { SearchHit } from "@onirix/search";
 import { env } from "@/env.server";
 import { isChartPart } from "@/lib/chat-message";
 import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
+import { clearActiveStream, markStreamActive } from "@/lib/chat-stream";
 import { fallbackTitle, sanitizeTitle } from "@/lib/chat-title";
 import { loadWorkspace } from "@/lib/workspace";
-import { auth, getDb, getDocumentIndex } from "@/services";
+import { auth, getDb, getDocumentIndex, getResumableStreamContext } from "@/services";
 
 export const maxDuration = 60;
 
@@ -117,6 +123,20 @@ export async function POST(request: Request) {
       })
     : null;
 
+  // The question is stored before a single token is generated rather than with
+  // the answer at the end. A reader who refreshes mid-answer reloads the
+  // conversation from the database, and a turn that only appeared once it had
+  // finished would leave them looking at an answer to a question that is not
+  // there.
+  if (conversation) {
+    await db.insert(message).values({
+      id: randomUUID(),
+      chatId: conversation.id,
+      role: "user",
+      content: question,
+    });
+  }
+
   // Naming runs alongside retrieval and generation rather than after them. The
   // name is not needed until the answer is persisted, by which point this has
   // long since settled — so a second model call costs the reader nothing. Only
@@ -167,6 +187,10 @@ export async function POST(request: Request) {
 
   const sources = toCitedSources(hits);
 
+  // Named up front because both the response and `onFinish` have to agree on
+  // which stream a reconnecting client is being pointed at.
+  const streamId = randomUUID();
+
   const stream = createUIMessageStream<OnirixUIMessage>({
     // Passed so the SDK can tell a fresh answer from a continuation, which is
     // what makes `responseMessage` in `onFinish` the assistant's turn alone.
@@ -197,12 +221,11 @@ export async function POST(request: Request) {
     // here is the answer assembled into ordered parts. Taking the text alone
     // would drop every chart the turn drew.
     onFinish: async ({ responseMessage }) => {
-      if (!chatId || !conversation) return;
+      if (!conversation) return;
       try {
         await persistTurn({
           db,
-          chatId,
-          question,
+          chatId: conversation.id,
           answer: responseMessage,
           sources,
           title: titlePromise ? await titlePromise : null,
@@ -212,10 +235,43 @@ export async function POST(request: Request) {
         // has already been delivered.
         console.error("Failed to persist chat turn", error);
       }
+      try {
+        // The turn has landed, so a reader arriving now should be served the
+        // stored conversation rather than sent to re-attach to a stream with
+        // nothing left to give.
+        await clearActiveStream(conversation.id);
+      } catch (error) {
+        // The pointer expires on its own; a stale one only costs a reader one
+        // request that comes back empty.
+        console.error("Failed to clear active chat stream", error);
+      }
     },
   });
 
-  return createUIMessageStreamResponse({ stream });
+  // A turn with no conversation behind it cannot be persisted and so has
+  // nothing to resume into; it streams straight to the one reader it has.
+  if (!conversation) {
+    return createUIMessageStreamResponse({ stream });
+  }
+
+  // Registered before the response is handed back so the pointer is already in
+  // place if the reader reconnects on the very next tick.
+  await markStreamActive(conversation.id, streamId);
+
+  return createUIMessageStreamResponse({
+    stream,
+    consumeSseStream: ({ stream: sseStream }) => {
+      // This is what makes generation outlive the request. The response and
+      // the resumable context each read their own copy of the stream, and the
+      // context reads its copy to the end whether or not anyone is still
+      // listening to the other one — so a disconnect costs the reader their
+      // connection, not their answer.
+      void getResumableStreamContext().createNewResumableStream(
+        streamId,
+        () => sseStream,
+      );
+    },
+  });
 }
 
 /**
@@ -347,10 +403,13 @@ function chartCitations(parts: OnirixUIMessage["parts"]): number[] {
   });
 }
 
+/**
+ * Stores the answer half of a turn. The question was written before generation
+ * started, so that it survives a reader who leaves mid-answer.
+ */
 async function persistTurn(args: {
   db: ReturnType<typeof getDb>;
   chatId: string;
-  question: string;
   answer: OnirixUIMessage;
   sources: CitedSource[];
   /** Null once the conversation has a name, generated or typed. */
@@ -362,13 +421,6 @@ async function persistTurn(args: {
     .filter((part) => part.type === "text")
     .map((part) => part.text)
     .join("");
-
-  await db.insert(message).values({
-    id: randomUUID(),
-    chatId,
-    role: "user",
-    content: args.question,
-  });
 
   const assistantMessageId = randomUUID();
   await db.insert(message).values({

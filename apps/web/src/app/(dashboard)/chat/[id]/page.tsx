@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { loadConversation } from "@/lib/chat-history";
+import { hasActiveStream } from "@/lib/chat-stream";
 import { requireConfiguredWorkspace } from "@/lib/workspace";
 
 import { ChatPanel } from "../chat-panel";
@@ -22,6 +23,11 @@ export default async function ConversationPage({
   // forbidden here — from this caller's side it does not exist.
   if (!conversation) notFound();
 
+  // Asked here rather than left to the client to discover, so a conversation
+  // that is not being answered costs nothing: only a reader who arrived back
+  // mid-answer goes looking for the stream to rejoin.
+  const streaming = await hasActiveStream(conversation.id);
+
   return (
     <ChatPanel
       // Moving between two conversations keeps the panel in the same slot, so
@@ -31,6 +37,7 @@ export default async function ConversationPage({
       modelLabel={workspace.llmConfig.chatModel}
       conversationId={conversation.id}
       initialMessages={conversation.messages}
+      resume={streaming}
     />
   );
 }

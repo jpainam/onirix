@@ -41,6 +41,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "3.8.0",
+    "resumable-stream": "^2.2.12",
     "sonner": "catalog:",
     "streamdown": "^2.6.0",
     "varlock": "catalog:",

@@ -36,17 +36,34 @@ export const chatRouter = router({
         .limit(input?.limit ?? 30);
     }),
 
-  create: orgProcedure.mutation(async ({ ctx }) => {
-    const [created] = await ctx.db
-      .insert(chat)
-      .values({
-        id: randomUUID(),
-        organizationId: ctx.organizationId,
-        userId: ctx.session.user.id,
-      })
-      .returning({ id: chat.id, title: chat.title });
-    return created;
-  }),
+  /**
+   * The id may be supplied by the caller. The chat panel mints one when it
+   * mounts so its own state, and the stream it may later have to re-attach to,
+   * are keyed on the conversation from the first keystroke rather than from
+   * whenever this call returns. It is still only ever a new row: an id already
+   * taken is refused, not joined.
+   */
+  create: orgProcedure
+    .input(z.object({ id: z.uuid() }).optional())
+    .mutation(async ({ ctx, input }) => {
+      const [created] = await ctx.db
+        .insert(chat)
+        .values({
+          id: input?.id ?? randomUUID(),
+          organizationId: ctx.organizationId,
+          userId: ctx.session.user.id,
+        })
+        .onConflictDoNothing()
+        .returning({ id: chat.id, title: chat.title });
+
+      if (!created) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "That conversation already exists.",
+        });
+      }
+      return created;
+    }),
 
   /** Full conversation with messages and the citations backing each answer. */
   get: orgProcedure
