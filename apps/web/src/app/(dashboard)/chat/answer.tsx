@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ComponentProps } from "react";
 import { defaultRemarkPlugins, Streamdown, type Components } from "streamdown";
 
 import { cn } from "@onirix/ui/lib/utils";
@@ -14,10 +14,14 @@ import {
 import {
   getCitedSources,
   getMessageText,
+  getRetrievedSources,
+  isChartPart,
+  type ChartPart,
   type CitedSource,
   type OnirixUIMessage,
 } from "@/lib/chat-message";
 
+import { ChartMessagePart } from "./chart";
 import { CITATION_ATTRIBUTE, remarkCitations } from "./citations";
 
 /**
@@ -27,6 +31,10 @@ import { CITATION_ATTRIBUTE, remarkCitations } from "./citations";
  * PRODUCT.md treats citations as central to trusting Onirix, so a marker is a
  * real affordance rather than literal text in the prose: selecting one reveals
  * the passage it came from.
+ *
+ * The answer is walked part by part rather than flattened to one string, so a
+ * chart appears where the model drew it — between the paragraph that sets it up
+ * and the one that reads it — instead of being swept to the end of the turn.
  */
 export function AnswerWithCitations({
   message,
@@ -37,10 +45,32 @@ export function AnswerWithCitations({
   onSelectSource: (source: CitedSource) => void;
   activeIndex: number | null;
 }) {
-  const text = getMessageText(message);
   // Recomputed per streamed chunk, but held steady across re-renders that only
   // move the open citation — which is what keeps the markdown memo effective.
   const cited = useMemo(() => getCitedSources(message), [message]);
+  // Charts resolve against everything retrieved, not just what the prose cited:
+  // a chart may be the only thing in the turn referring to its document.
+  const retrieved = useMemo(() => getRetrievedSources(message), [message]);
+
+  // Consecutive text parts are merged so a paragraph split across stream chunks
+  // stays one markdown block; a chart closes the run it interrupts.
+  const blocks = useMemo(() => {
+    const out: (
+      | { kind: "text"; text: string }
+      | { kind: "chart"; part: ChartPart }
+    )[] = [];
+
+    for (const part of message.parts) {
+      if (part.type === "text") {
+        const last = out.at(-1);
+        if (last?.kind === "text") last.text += part.text;
+        else out.push({ kind: "text", text: part.text });
+      } else if (isChartPart(part)) {
+        out.push({ kind: "chart", part });
+      }
+    }
+    return out;
+  }, [message.parts]);
 
   const components = useMemo<Components>(
     () => ({
@@ -81,8 +111,54 @@ export function AnswerWithCitations({
 
   return (
     <>
-      {/* The markdown is styled here rather than in a `prose` preset so the type
-          scale matches the rest of the app instead of a typography plugin's. */}
+      {blocks.map((block, i) =>
+        block.kind === "chart" ? (
+          <ChartMessagePart
+            key={`chart-${block.part.toolCallId}`}
+            part={block.part}
+            sources={retrieved}
+            onSelectSource={onSelectSource}
+          />
+        ) : (
+          <Prose
+            key={`text-${i}`}
+            text={block.text}
+            components={components}
+            remarkPlugins={remarkPlugins}
+          />
+        ),
+      )}
+
+      {cited.length > 0 ? (
+        <SourceList
+          sources={cited}
+          activeIndex={activeIndex}
+          onSelectSource={onSelectSource}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * One run of prose between charts.
+ *
+ * Split out so each run memoises on its own text: a chart landing mid-answer
+ * must not invalidate the markdown above it.
+ */
+function Prose({
+  text,
+  components,
+  remarkPlugins,
+}: {
+  text: string;
+  components: Components;
+  remarkPlugins: ComponentProps<typeof Streamdown>["remarkPlugins"];
+}) {
+  return (
+    /* The markdown is styled here rather than in a `prose` preset so the type
+       scale matches the rest of the app instead of a typography plugin's. */
+    <>
       {/* Streamdown directly rather than ai-elements' `MessageResponse`: that
           wrapper memoises on `children` alone, so it would not re-render when
           the open citation changes and the highlight would go stale. */}
@@ -108,14 +184,6 @@ export function AnswerWithCitations({
       >
         {text}
       </Streamdown>
-
-      {cited.length > 0 ? (
-        <SourceList
-          sources={cited}
-          activeIndex={activeIndex}
-          onSelectSource={onSelectSource}
-        />
-      ) : null}
     </>
   );
 }

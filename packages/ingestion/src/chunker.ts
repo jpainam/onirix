@@ -149,7 +149,10 @@ function accumulateSections(sections: Section[], contentTokenLimit: number): Pay
     if (countTokens(text) > contentTokenLimit) {
       // Oversized: flush what we have, then split the section itself.
       flush();
-      for (const piece of splitOversized(text, contentTokenLimit)) {
+      const pieces = section.header
+        ? splitTable(text, section.header, contentTokenLimit)
+        : splitOversized(text, contentTokenLimit);
+      for (const piece of pieces) {
         chunks.push({ text: piece, linkOffsets: link ? { 0: link } : {} });
       }
       continue;
@@ -170,6 +173,63 @@ function accumulateSections(sections: Section[], contentTokenLimit: number): Pay
 
   flush();
   return chunks;
+}
+
+/**
+ * Splits a table, repeating its header at the top of every piece.
+ *
+ * Rows, not sentences, are the unit: a spreadsheet row split down the middle
+ * produces two half-records, and sentence boundaries do not exist in a grid of
+ * numbers anyway. The header is charged against the budget of each piece rather
+ * than added on top, so a chunk still fits the embedding window.
+ */
+function splitTable(text: string, header: string, contentTokenLimit: number): string[] {
+  const headerTokens = countTokens(`${header}\n`);
+  const bodyLimit = contentTokenLimit - headerTokens;
+
+  // A very wide table can have a header longer than the rows it labels. Past
+  // half the budget, repeating it costs more chunks than the labels are worth,
+  // so the table is split the generic way instead.
+  if (bodyLimit < contentTokenLimit / 2) {
+    return splitOversized(text, contentTokenLimit);
+  }
+
+  // The header is prepended to every piece, so the copy at the top of the
+  // source text would otherwise be duplicated in the first one.
+  const rows = text.split("\n");
+  const body = text.startsWith(header) ? rows.slice(header.split("\n").length) : rows;
+
+  const pieces: string[] = [];
+  let buffer: string[] = [];
+  let tokens = 0;
+
+  const flush = () => {
+    if (buffer.length === 0) return;
+    pieces.push(`${header}\n${buffer.join("\n")}`);
+    buffer = [];
+    tokens = 0;
+  };
+
+  for (const row of body) {
+    const rowTokens = countTokens(`${row}\n`);
+
+    // A single row over the whole budget is pathological — a cell holding an
+    // essay. Cut it the generic way rather than letting it blow the chunk.
+    if (rowTokens > bodyLimit) {
+      flush();
+      for (const piece of hardSplit(row, bodyLimit)) {
+        pieces.push(`${header}\n${piece}`);
+      }
+      continue;
+    }
+
+    if (tokens + rowTokens > bodyLimit) flush();
+    buffer.push(row);
+    tokens += rowTokens;
+  }
+
+  flush();
+  return pieces;
 }
 
 /**

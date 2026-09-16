@@ -9,7 +9,9 @@
 import { and, asc, eq } from "drizzle-orm";
 
 import { chat, citation, message } from "@onirix/db/schema";
+import { chartSpecSchema } from "@onirix/llm/chart";
 
+import { isChartPart, type ChartPart } from "@/lib/chat-message";
 import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
 import { getDb } from "@/services";
 
@@ -65,13 +67,52 @@ export async function loadConversation(args: {
   return { id: found.id, title: found.title, messages: rows.map(toUIMessage) };
 }
 
+/**
+ * Validates the stored part list before it is handed to the renderer.
+ *
+ * The column is `jsonb`, so nothing about its contents is guaranteed by the
+ * database: a row written by an older build, or by a schema since changed, must
+ * degrade to the plain text rather than crash the conversation. A chart whose
+ * spec no longer parses is dropped; the prose around it still reads.
+ */
+function restoreParts(raw: unknown[] | null): OnirixUIMessage["parts"] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.flatMap<OnirixUIMessage["parts"][number]>((candidate) => {
+    const part = candidate as OnirixUIMessage["parts"][number];
+    if (part?.type === "text" && typeof part.text === "string") return [part];
+    if (!isChartPart(part)) return [];
+
+    const spec = chartSpecSchema.safeParse(part.input);
+    if (!spec.success) return [];
+
+    // Rebuilt as a completed call whatever state it was stored in. The next
+    // turn converts this history back into model messages, and a tool call
+    // without a matching result is rejected there.
+    const restored: ChartPart = {
+      type: "tool-render_chart",
+      toolCallId: part.toolCallId,
+      state: "output-available",
+      input: spec.data,
+      output: { rendered: true },
+    };
+    return [restored];
+  });
+}
+
 function toUIMessage(row: {
   id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  parts: unknown[] | null;
   citations: StoredCitation[];
 }): OnirixUIMessage {
-  const parts: OnirixUIMessage["parts"] = [{ type: "text", text: row.content }];
+  // Stored parts keep the original interleaving of prose and charts. Falling
+  // back to the flat text matters for turns written before charts existed, and
+  // for any turn whose parts failed to store.
+  const stored = restoreParts(row.parts);
+  const parts: OnirixUIMessage["parts"] =
+    stored.length > 0 ? stored : [{ type: "text", text: row.content }];
 
   // A live turn ships every retrieved chunk and lets the renderer narrow to the
   // cited ones; only the cited ones were ever stored, so the restored list is

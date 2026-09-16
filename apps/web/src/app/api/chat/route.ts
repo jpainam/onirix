@@ -3,6 +3,10 @@
  *
  * Retrieves from the organization's knowledge, answers with inline citations,
  * and persists the answer together with the sources it actually cited.
+ *
+ * An answer is a sequence of parts, not a string: prose, and charts the model
+ * drew by calling `render_chart`. The whole sequence is persisted, so reopening
+ * a conversation shows the same interleaving of text and charts it had live.
  */
 import { randomUUID } from "node:crypto";
 import {
@@ -10,8 +14,8 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
   generateText,
+  stepCountIs,
   streamText,
-  type UIMessage,
 } from "ai";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
@@ -23,10 +27,12 @@ import {
   retrieveContext,
 } from "@onirix/ingestion";
 import {
+  CHART_TOOL_NAME,
   CHAT_TITLE_PROMPT,
   QUERY_REWRITE_PROMPT,
   buildContextBlock,
   buildSystemPrompt,
+  chartTool,
   createChatModel,
   resolveCredentials,
   type ProviderCredentials,
@@ -34,6 +40,7 @@ import {
 import type { SearchHit } from "@onirix/search";
 
 import { env } from "@/env.server";
+import { isChartPart } from "@/lib/chat-message";
 import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
 import { fallbackTitle, sanitizeTitle } from "@/lib/chat-title";
 import { loadWorkspace } from "@/lib/workspace";
@@ -47,7 +54,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  const body = (await request.json()) as { messages: UIMessage[]; chatId?: string };
+  const body = (await request.json()) as {
+    messages: OnirixUIMessage[];
+    chatId?: string;
+  };
   const workspace = await loadWorkspace(
     session.user.id,
     session.session.activeOrganizationId,
@@ -158,6 +168,9 @@ export async function POST(request: Request) {
   const sources = toCitedSources(hits);
 
   const stream = createUIMessageStream<OnirixUIMessage>({
+    // Passed so the SDK can tell a fresh answer from a continuation, which is
+    // what makes `responseMessage` in `onFinish` the assistant's turn alone.
+    originalMessages: body.messages,
     execute: ({ writer }) => {
       // Sent before the first token so a `[1]` is resolvable the moment it is
       // rendered. All retrieved chunks go over, not just the cited ones: which
@@ -171,25 +184,34 @@ export async function POST(request: Request) {
           model,
           system: systemPrompt,
           messages: modelMessages,
-          onFinish: async ({ text }) => {
-            if (!chatId || !conversation) return;
-            try {
-              await persistTurn({
-                db,
-                chatId,
-                question,
-                answer: text,
-                sources,
-                title: titlePromise ? await titlePromise : null,
-              });
-            } catch (error) {
-              // A persistence failure must not break the user's stream; the
-              // answer has already been delivered.
-              console.error("Failed to persist chat turn", error);
-            }
-          },
+          tools: { [CHART_TOOL_NAME]: chartTool },
+          // A chart is drawn from the tool call's input, so the call itself
+          // produces no prose. Without a second step the turn would end on the
+          // chart and the reader would get a picture with nothing said about
+          // it; three leaves room for a second chart before the commentary.
+          stopWhen: stepCountIs(3),
         }).toUIMessageStream<OnirixUIMessage>(),
       );
+    },
+    // Persistence hangs off the UI stream rather than `streamText` because only
+    // here is the answer assembled into ordered parts. Taking the text alone
+    // would drop every chart the turn drew.
+    onFinish: async ({ responseMessage }) => {
+      if (!chatId || !conversation) return;
+      try {
+        await persistTurn({
+          db,
+          chatId,
+          question,
+          answer: responseMessage,
+          sources,
+          title: titlePromise ? await titlePromise : null,
+        });
+      } catch (error) {
+        // A persistence failure must not break the user's stream; the answer
+        // has already been delivered.
+        console.error("Failed to persist chat turn", error);
+      }
     },
   });
 
@@ -237,7 +259,7 @@ function firstSourceLink(raw: string | null): string | null {
   }
 }
 
-function extractText(uiMessage: UIMessage | undefined): string {
+function extractText(uiMessage: OnirixUIMessage | undefined): string {
   if (!uiMessage) return "";
   return uiMessage.parts
     .filter((part): part is { type: "text"; text: string } => part.type === "text")
@@ -247,7 +269,7 @@ function extractText(uiMessage: UIMessage | undefined): string {
 
 async function rewriteQuery(
   model: Parameters<typeof generateText>[0]["model"],
-  messages: UIMessage[],
+  messages: OnirixUIMessage[],
   fallback: string,
 ): Promise<string> {
   try {
@@ -292,16 +314,54 @@ async function generateTitle(
   }
 }
 
+/**
+ * The parts of an answer worth storing, in the order they were produced.
+ *
+ * `data-sources` is dropped: it is rebuilt from the citation rows on reload,
+ * and keeping both would let the two copies disagree. A chart is kept only once
+ * its call has completed: a half-arrived one has no data to draw, and a tool
+ * call without its result is rejected outright when the restored history is
+ * converted back into model messages on the next turn.
+ */
+function storableParts(answer: OnirixUIMessage): OnirixUIMessage["parts"] {
+  return answer.parts.filter((part) => {
+    if (part.type === "data-sources") return false;
+    if (part.type === "text") return part.text.trim().length > 0;
+    if (isChartPart(part)) return part.state === "output-available";
+    // Step boundaries and anything else the SDK emits for its own bookkeeping
+    // are not part of what the reader saw.
+    return false;
+  });
+}
+
+/** The citation indices attached to the series of any chart in the answer. */
+function chartCitations(parts: OnirixUIMessage["parts"]): number[] {
+  return parts.flatMap((part) => {
+    if (!isChartPart(part)) return [];
+    const series = (part.input as { series?: { citation?: number }[] } | undefined)
+      ?.series;
+    if (!Array.isArray(series)) return [];
+    return series
+      .map((entry) => entry?.citation)
+      .filter((index): index is number => typeof index === "number");
+  });
+}
+
 async function persistTurn(args: {
   db: ReturnType<typeof getDb>;
   chatId: string;
   question: string;
-  answer: string;
+  answer: OnirixUIMessage;
   sources: CitedSource[];
   /** Null once the conversation has a name, generated or typed. */
   title: string | null;
 }) {
-  const { db, chatId, answer, sources } = args;
+  const { db, chatId, sources } = args;
+  const parts = storableParts(args.answer);
+  const answer = parts
+    .filter((part) => part.type === "text")
+    .map((part) => part.text)
+    .join("");
 
   await db.insert(message).values({
     id: randomUUID(),
@@ -315,13 +375,20 @@ async function persistTurn(args: {
     id: assistantMessageId,
     chatId,
     role: "assistant",
+    // The prose alone. Everything that reads a message as a string — citation
+    // extraction here, the conversation list, search over history — keeps
+    // working unchanged; `parts` is what carries the charts.
     content: answer,
+    parts,
   });
 
   // Store only the sources the model actually cited. Retrieval returns more
   // context than gets used, and listing all of it would misstate the basis of
-  // the answer.
-  const cited = extractCitedIndices(answer);
+  // the answer. A chart's series carry citations too, and a document the model
+  // only plotted is just as much the basis of the answer as one it quoted.
+  const cited = [
+    ...new Set([...extractCitedIndices(answer), ...chartCitations(parts)]),
+  ].sort((a, b) => a - b);
   if (cited.length > 0) {
     const rows = cited
       .map((citationIndex) => {

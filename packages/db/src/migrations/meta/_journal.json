@@ -36,6 +36,13 @@
       "when": 1789517450559,
       "tag": "0004_chat_title_nullable",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789517450560,
+      "tag": "0005_message_parts",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,9 @@
  * the passage behind every `[1]`, so the sources travel to the client as a
  * typed data part alongside the answer text rather than being thrown away.
  */
-import type { UIMessage } from "ai";
+import type { InferUITools, UIMessage } from "ai";
+
+import type { chartTool } from "@onirix/llm/chart";
 
 export type CitedSource = {
   /** 1-based number the model writes inline, e.g. 1 for `[1]`. */
@@ -25,7 +27,27 @@ export type ChatDataParts = {
   sources: CitedSource[];
 };
 
-export type OnirixUIMessage = UIMessage<unknown, ChatDataParts>;
+/**
+ * Derived from the tool definition rather than restated, so the day the chart
+ * schema gains a field the renderer fails to compile instead of silently
+ * dropping it. The import is type-only: none of `@onirix/llm` reaches the
+ * client bundle.
+ */
+export type ChatTools = InferUITools<{ render_chart: typeof chartTool }>;
+
+export type OnirixUIMessage = UIMessage<unknown, ChatDataParts, ChatTools>;
+
+/** The streamed part a `render_chart` call arrives as. */
+export type ChartPart = Extract<
+  OnirixUIMessage["parts"][number],
+  { type: "tool-render_chart" }
+>;
+
+export function isChartPart(
+  part: OnirixUIMessage["parts"][number],
+): part is ChartPart {
+  return part.type === "tool-render_chart";
+}
 
 /**
  * The inline marker the model writes, e.g. `[1]`.
@@ -44,11 +66,40 @@ export function getMessageText(message: OnirixUIMessage): string {
 }
 
 /** Everything retrieved for a turn, cited or not. */
-function getRetrievedSources(message: OnirixUIMessage): CitedSource[] {
+export function getRetrievedSources(message: OnirixUIMessage): CitedSource[] {
   for (const part of message.parts) {
     if (part.type === "data-sources") return part.data;
   }
   return [];
+}
+
+/**
+ * Every citation index an answer leaned on, whether it wrote it inline or
+ * attached it to a chart series.
+ *
+ * A chart is grounded the same way a sentence is, so a document the model only
+ * plotted still belongs in the answer's source list — otherwise the numbers in
+ * the chart would be the one part of the answer with no stated basis.
+ */
+export function getCitedIndices(message: OnirixUIMessage): number[] {
+  const cited = new Set<number>();
+
+  for (const match of getMessageText(message).matchAll(CITATION_MARKER)) {
+    const value = match[1];
+    if (value) cited.add(Number.parseInt(value, 10));
+  }
+
+  for (const part of message.parts) {
+    if (!isChartPart(part)) continue;
+    const series = (part.input as { series?: { citation?: number }[] } | undefined)
+      ?.series;
+    if (!Array.isArray(series)) continue;
+    for (const entry of series) {
+      if (typeof entry?.citation === "number") cited.add(entry.citation);
+    }
+  }
+
+  return [...cited].sort((a, b) => a - b);
 }
 
 /**
@@ -62,15 +113,8 @@ export function getCitedSources(message: OnirixUIMessage): CitedSource[] {
   if (retrieved.length === 0) return [];
 
   const byIndex = new Map(retrieved.map((source) => [source.index, source]));
-  const cited = new Set<number>();
 
-  for (const match of getMessageText(message).matchAll(CITATION_MARKER)) {
-    const value = match[1];
-    if (value) cited.add(Number.parseInt(value, 10));
-  }
-
-  return [...cited]
-    .sort((a, b) => a - b)
+  return getCitedIndices(message)
     .map((index) => byIndex.get(index))
     .filter((source): source is CitedSource => source !== undefined);
 }

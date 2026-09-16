@@ -10,6 +10,17 @@ export type Section = {
   text: string;
   /** Anchor within the source document, e.g. a page or sheet reference. */
   link?: string;
+  /**
+   * The column header of a tabular section, repeated at the top of every chunk
+   * the section is split into.
+   *
+   * A sheet of 40 rows does not fit one chunk, and the chunk that starts at row
+   * 18 is a grid of bare numbers: the model can read the values but has no idea
+   * which column is "attainment" and which is "quota". Carrying the header
+   * costs a line per chunk and is the difference between a chart the model can
+   * label and one it cannot build at all.
+   */
+  header?: string;
 };
 
 export const SUPPORTED_MIME_TYPES = [
@@ -54,9 +65,15 @@ export async function extractSections(
     case "text/html":
       return [{ text: stripHtml(buffer.toString("utf8")) }];
 
+    case "text/csv": {
+      const text = buffer.toString("utf8");
+      // Same reasoning as a spreadsheet sheet: the first row names the columns,
+      // and every chunk after the first needs it to mean anything.
+      return [{ text, header: text.split("\n", 2)[0] }];
+    }
+
     case "text/plain":
     case "text/markdown":
-    case "text/csv":
     case "application/json":
       return [{ text: buffer.toString("utf8") }];
 
@@ -101,8 +118,32 @@ async function extractSpreadsheet(buffer: Buffer): Promise<Section[]> {
 
     const csv = XLSX.utils.sheet_to_csv(sheet);
     const text = `${name}\n${csv}`.trim();
-    return text ? [{ text, link: `#sheet=${encodeURIComponent(name)}` }] : [];
+    if (!text) return [];
+
+    return [
+      {
+        text,
+        link: `#sheet=${encodeURIComponent(name)}`,
+        // The sheet name belongs in the header too: a chunk from the middle of
+        // a workbook should still say which sheet it is, the way a reader would
+        // cite "the Collaborateurs tab".
+        header: tableHeader(text),
+      },
+    ];
   });
+}
+
+/**
+ * The lines that identify a table's columns — the sheet name and the header
+ * row, or just the header row for a bare CSV.
+ *
+ * Returns undefined for anything too short to have been split, where repeating
+ * a header would only crowd the chunk.
+ */
+function tableHeader(text: string): string | undefined {
+  const lines = text.split("\n", 3);
+  if (lines.length < 3) return undefined;
+  return lines.slice(0, 2).join("\n");
 }
 
 /** Minimal tag strip. Adequate for stored HTML; not a sanitizer. */
