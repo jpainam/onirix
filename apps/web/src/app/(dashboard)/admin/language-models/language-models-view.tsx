@@ -40,17 +40,9 @@ import {
   type ConnectedProvider,
   type Provider,
 } from "@/components/provider-dialog";
+import { ProviderLogo } from "@/components/provider-logo";
 import { ResetSettings } from "@/components/reset-settings";
 import { trpc } from "@/utils/trpc";
-
-/** The lettered tile standing in for a provider logo. */
-function ProviderGlyph({ label }: { label: string }) {
-  return (
-    <span className="bg-tint-02 text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold">
-      {label.slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
 
 /** The default model is one value in the picker: provider and model together. */
 function encode(provider: string, model: string) {
@@ -185,7 +177,7 @@ export function LanguageModelsView({ canManage }: { canManage: boolean }) {
                 return (
                   <Row
                     key={provider.id}
-                    icon={<ProviderGlyph label={provider.label} />}
+                    icon={<ProviderLogo id={provider.id} label={provider.label} />}
                     title={
                       <span className="flex items-center gap-2">
                         {provider.label}
@@ -243,7 +235,7 @@ export function LanguageModelsView({ canManage }: { canManage: boolean }) {
                       onClick={() => setEditing(provider)}
                       className="bg-card hover:bg-tint-01 flex items-center gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors"
                     >
-                      <ProviderGlyph label={provider.label} />
+                      <ProviderLogo id={provider.id} label={provider.label} />
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="truncate text-sm font-semibold">
                           {provider.label}

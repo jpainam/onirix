@@ -180,7 +180,7 @@ export const TerminalClearButton = ({
       variant="ghost"
       {...props}
     >
-      {children ?? <Trash2Icon size={14} />}
+      {children ?? <Trash2Icon className="text-destructive" size={14} />}
     </Button>
   );
 };

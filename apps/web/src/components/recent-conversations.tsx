@@ -185,7 +185,7 @@ export function RecentConversations({ enabled }: { enabled: boolean }) {
                   variant="destructive"
                   onClick={() => setDeleting(conversation)}
                 >
-                  <Trash2Icon />
+                  <Trash2Icon className="text-destructive" />
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>

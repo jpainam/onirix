@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2Icon,
   MailIcon,
@@ -52,6 +52,11 @@ import { Page, PageHeader, Row, Section } from "@/components/page";
 import { authClient } from "@/lib/auth-client";
 import { trpc } from "@/utils/trpc";
 
+const ROLE_LABELS = {
+  member: "Member",
+  admin: "Admin",
+} as const;
+
 const ROLE_VARIANT = {
   owner: "info",
   admin: "warning",
@@ -76,7 +81,10 @@ export function TeamView({ canManage }: { canManage: boolean }) {
     void queryClient.invalidateQueries();
   }
 
-  async function run(action: () => Promise<{ error?: { message?: string } | null }>, ok: string) {
+  async function run(
+    action: () => Promise<{ error?: { message?: string } | null }>,
+    ok: string,
+  ) {
     const result = await action();
     if (result.error) {
       toast.error(result.error.message ?? "Something went wrong.");
@@ -109,7 +117,11 @@ export function TeamView({ canManage }: { canManage: boolean }) {
           description="Only department members can access its documents."
           action={
             canManage ? (
-              <Button variant="outline" size="sm" onClick={() => setCreatingTeam(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCreatingTeam(true)}
+              >
                 <Building2Icon />
                 New department
               </Button>
@@ -147,12 +159,15 @@ export function TeamView({ canManage }: { canManage: boolean }) {
                         size="sm"
                         onClick={() =>
                           void run(
-                            () => authClient.organization.removeTeam({ teamId: group.id }),
+                            () =>
+                              authClient.organization.removeTeam({
+                                teamId: group.id,
+                              }),
                             `Removed ${group.name}.`,
                           )
                         }
                       >
-                        <Trash2Icon />
+                        <Trash2Icon className="text-destructive" />
                         Remove
                       </Button>
                     ) : null
@@ -184,7 +199,9 @@ export function TeamView({ canManage }: { canManage: boolean }) {
                     <TableRow key={row.memberId}>
                       <TableCell variant="strong">
                         {row.name}
-                        <p className="text-ink-03 text-xs font-normal">{row.email}</p>
+                        <p className="text-ink-03 text-xs font-normal">
+                          {row.email}
+                        </p>
                       </TableCell>
                       <TableCell>
                         {canManage && row.role !== "owner" ? (
@@ -293,7 +310,10 @@ export function TeamView({ canManage }: { canManage: boolean }) {
       ) : null}
 
       {creatingTeam ? (
-        <CreateTeamDialog onClose={() => setCreatingTeam(false)} onCreate={run} />
+        <CreateTeamDialog
+          onClose={() => setCreatingTeam(false)}
+          onCreate={run}
+        />
       ) : null}
     </Page>
   );
@@ -375,7 +395,8 @@ function MemberTeams({
           value=""
           onValueChange={(value) => {
             const teamId = String(value);
-            const name = available.find((group) => group.id === teamId)?.name ?? "team";
+            const name =
+              available.find((group) => group.id === teamId)?.name ?? "team";
             void change(
               () => authClient.organization.addTeamMember({ teamId, userId }),
               `Added to ${name}.`,
@@ -435,7 +456,9 @@ function InviteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite to your workspace</DialogTitle>
-          <DialogDescription>We&apos;ll send a link to this address.</DialogDescription>
+          <DialogDescription>
+            We&apos;ll send a link to this address.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -454,23 +477,36 @@ function InviteDialog({
             <div className="flex flex-col gap-1.5">
               <Label>Role</Label>
               <Select
+                items={ROLE_LABELS}
                 value={role}
-                onValueChange={(value) => setRole(String(value) as "admin" | "member")}
+                onValueChange={(value) =>
+                  setRole(String(value) as "admin" | "member")
+                }
               >
-                <SelectTrigger>
+                <SelectTrigger className={"w-full"}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="flex flex-col gap-1.5">
               <Label>Department</Label>
-              <Select value={teamId} onValueChange={(value) => setTeamId(String(value))}>
-                <SelectTrigger>
+              <Select
+                items={teams.map((group) => ({
+                  value: group.id,
+                  label: group.name,
+                }))}
+                value={teamId}
+                onValueChange={(value) => setTeamId(String(value))}
+              >
+                <SelectTrigger className={"w-full"}>
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
@@ -494,7 +530,10 @@ function InviteDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={!email.trim() || sending}>
+          <Button
+            onClick={() => void submit()}
+            disabled={!email.trim() || sending}
+          >
             {sending ? <Spinner /> : null}
             Send invitation
           </Button>
@@ -532,7 +571,9 @@ function CreateTeamDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New department</DialogTitle>
-          <DialogDescription>Group document access by department.</DialogDescription>
+          <DialogDescription>
+            Group document access by department.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-1.5">
@@ -549,7 +590,10 @@ function CreateTeamDialog({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={!name.trim() || saving}>
+          <Button
+            onClick={() => void submit()}
+            disabled={!name.trim() || saving}
+          >
             {saving ? <Spinner /> : null}
             Create
           </Button>

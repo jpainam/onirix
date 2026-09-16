@@ -32,6 +32,7 @@ import { Switch } from "@onirix/ui/components/switch";
 import { cn } from "@onirix/ui/lib/utils";
 
 import { OnirixMark } from "@/components/onirix-mark";
+import { ProviderLogo } from "@/components/provider-logo";
 import { trpc } from "@/utils/trpc";
 
 export type Provider = inferRouterOutputs<AppRouter>["onboarding"]["providers"][number];
@@ -174,9 +175,7 @@ export function ProviderDialog({
         <div className="p-5 pb-4">
         <DialogHeader>
           <div className="text-ink-03 flex items-center gap-2">
-            <span className="bg-tint-02 text-ink-04 flex size-7 items-center justify-center rounded-lg text-xs font-semibold">
-              {provider.label.slice(0, 1).toUpperCase()}
-            </span>
+            <ProviderLogo id={provider.id} label={provider.label} />
             <RepeatIcon className="size-4" />
             <OnirixMark className="text-ink-04 size-6" />
           </div>
@@ -408,7 +407,7 @@ export function ProviderDialog({
               behind a second menu. */}
           {connected && onDisconnect ? (
             <Button variant="ghost" className="mr-auto" onClick={onDisconnect}>
-              <Trash2Icon />
+              <Trash2Icon className="text-destructive" />
               Disconnect
             </Button>
           ) : null}

@@ -31,7 +31,14 @@ export function GoogleButton({ label, next }: { label: string; next?: string | n
         );
       }}
     >
-      <Image src="/images/google.svg" alt="" width={18} height={18} aria-hidden />
+      <Image
+        src="/images/google.svg"
+        alt=""
+        width={18}
+        height={18}
+        aria-hidden
+        unoptimized
+      />
       {label}
     </Button>
   );
