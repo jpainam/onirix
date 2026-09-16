@@ -1,19 +1,17 @@
 /**
- * Skills: the instructions the answering model follows, as data rather than code.
+ * Turning a workspace's skills into prompt.
  *
- * Everything here was once a string constant in `prompts.ts`, concatenated into
- * one system prompt on every turn. That has two costs. Changing how the product
- * answers needs a deploy, and the prompt grows for every capability whether or
- * not the question needed it — a workspace with a dozen house rules pays for all
- * twelve to ask what the parental leave policy is.
+ * A skill pairs a one-line description with a body of Markdown, and the two are
+ * used very differently: the description is in every prompt, the body usually is
+ * not. That split is the point — a workspace accumulates house rules without
+ * every question paying for all of them.
  *
- * A skill separates *what it is for* from *what it says*. The description is one
- * line and is always in the prompt; the body is only sent when it applies. Onyx
- * does the same thing, and so do Anthropic's own Skills: the model reads a
- * catalogue and reaches for an entry.
- *
- * This module holds no database code on purpose. Skills arrive as a plain array,
- * so the client can name these types without `@onirix/llm` reaching the bundle.
+ * Nothing here knows which skills exist, or which of them shipped with the
+ * product. Skills are rows, they arrive as a plain array, and this module only
+ * decides how they reach the model. That keeps the answering behaviour a
+ * property of the database rather than of the deploy, and it keeps this module
+ * free of database code so the client can name its types without pulling
+ * `@onirix/llm` into the bundle.
  */
 import { tool } from "ai";
 import { z } from "zod";
@@ -40,86 +38,52 @@ export type Skill = {
   description: string;
   instructions: string;
   loading: SkillLoading;
+  /**
+   * Set on a skill that only means anything when documents were retrieved.
+   *
+   * Telling a model how to cite when it has nothing to cite is not merely
+   * wasted tokens: it invites a citation to a source that was never supplied.
+   */
+  requiresContext?: boolean;
 };
-
-/**
- * Skills that ship with the product.
- *
- * Constants rather than seeded rows. A built-in cannot be deleted out from under
- * the code that depends on it, needs no migration to change, and can never drift
- * from the deploy it belongs to. The router merges these with a workspace's own.
- */
-export const BUILT_IN_SKILLS: readonly Skill[] = [
-  {
-    name: "charts",
-    description:
-      "How to plot data with the render_chart tool: choosing a chart type, " +
-      "citing the numbers, and what never to draw.",
-    // Always inlined. The body is short, it applies to any question with numbers
-    // in it, and the alternative is a model that calls `render_chart` having
-    // never read this — which is the regression that put this guidance in the
-    // prompt in the first place.
-    loading: "always",
-    instructions: `# Charts
-- When the answer compares a quantity across several entities, follows a value \
-over time, or breaks a total into parts, call the \`render_chart\` tool rather \
-than describing the shape of the data in prose. Never draw a chart out of text \
-characters, block glyphs, or a Markdown table standing in for bars.
-- Every number you plot must come from the supplied context. Do not estimate, \
-interpolate, or invent a row to make a chart look complete: plot what you have, \
-and say in the prose what is missing.
-- Declare the series first, then send one point per plotted value, each naming \
-the series it belongs to. Points arrive in the order the x axis is drawn, so \
-send a time axis in chronological order. Omit a point you have no number for \
-rather than sending a zero.
-- Set \`citation\` on each series to the document index its numbers came from, \
-the same index you would write inline as [1].
-- When the question names a threshold, a target, or a cut-off, add it as a \
-\`referenceLines\` entry so the chart answers the question rather than merely \
-showing the data.
-- Keep writing after the tool call. The chart supports your answer; it is not \
-the answer, and it is never the whole of it.
-- One chart per point. If a second measure is on a different scale, that is a \
-second chart, not a second axis.`,
-  },
-];
-
-const BUILT_IN_NAMES = new Set(BUILT_IN_SKILLS.map((entry) => entry.name));
-
-/** Whether a name belongs to a built-in, and so cannot be taken by a custom skill. */
-export function isBuiltInSkillName(name: string): boolean {
-  return BUILT_IN_NAMES.has(name);
-}
 
 export const SKILL_TOOL_NAME = "load_skill";
 
 /**
  * The two ways skills reach the system prompt.
  *
- * `inlined` is the bodies of the `always` skills. `catalog` is the name and
- * description of each `on_demand` one, plus the instruction to fetch it — empty
- * when a workspace has none, so a prompt never carries a heading for an empty
- * list or advertises a tool there is no reason to call.
+ * `inlinedSkills` is the bodies of the `always` skills. `skillCatalog` is the
+ * name and description of each `on_demand` one, plus the instruction to fetch
+ * it — empty when a workspace has none, so a prompt never carries a heading for
+ * an empty list or advertises a tool there is no reason to call.
+ *
+ * The keys are named for the `buildSystemPrompt` options they fill, so the
+ * result spreads straight into it. Two names for one string is how a prompt
+ * quietly loses a section that everything still claims to pass.
  */
-export function buildSkillSections(skills: readonly Skill[]): {
-  inlined: string;
-  catalog: string;
-} {
-  const inlined = skills
+export function buildSkillSections(
+  skills: readonly Skill[],
+  options: { hasContext?: boolean } = {},
+): { inlinedSkills: string; skillCatalog: string } {
+  const applicable = skills.filter(
+    (entry) => !entry.requiresContext || options.hasContext === true,
+  );
+
+  const inlinedSkills = applicable
     .filter((entry) => entry.loading === "always")
     .map((entry) => entry.instructions.trim())
     .join("\n\n");
 
-  const onDemand = skills.filter((entry) => entry.loading === "on_demand");
-  if (onDemand.length === 0) return { inlined, catalog: "" };
+  const onDemand = applicable.filter((entry) => entry.loading === "on_demand");
+  if (onDemand.length === 0) return { inlinedSkills, skillCatalog: "" };
 
   const listed = onDemand
     .map((entry) => `- \`${entry.name}\` — ${entry.description}`)
     .join("\n");
 
   return {
-    inlined,
-    catalog: `# Skills
+    inlinedSkills,
+    skillCatalog: `# Skills
 This workspace has written guidance for the situations below. When one applies to \
 the question, call \`${SKILL_TOOL_NAME}\` with its name and follow what it says \
 before you answer. Judge from the descriptions — do not load a skill that does \

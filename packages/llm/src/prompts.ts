@@ -1,8 +1,16 @@
 /**
- * System prompts for grounded answering.
+ * The frame around a grounded answer.
+ *
+ * What is left here is only what cannot sensibly be edited: who the assistant
+ * is, what day it is, and the shape of the retrieved context block. How to
+ * answer — grounding, citations, response style, charts — lives in
+ * `skills.ts` as built-in skills, which a workspace can rewrite.
  *
  * Citation format follows Onyx: inline `[1]`, `[2]` markers keyed to the
- * `document` field of the supplied context, never trailing links.
+ * `document` field of the supplied context, never trailing links. That contract
+ * is shared with `extractCitedIndices` and the client's citation renderer, so
+ * the `citations` skill is the one whose text has consequences beyond the
+ * prose: rewriting it away from `[n]` markers costs the answer its citations.
  */
 
 export type RetrievedContext = {
@@ -26,34 +34,6 @@ export type AnswerPromptOptions = {
   now?: Date;
 };
 
-const CITATION_GUIDANCE = `
-CRITICAL: When referencing knowledge from the organization's documents, cite the \
-relevant statements INLINE using the format [1], [2], [3], matching the "document" \
-field of the supplied context. Cite as you go rather than collecting citations at \
-the end, and do not append links after a citation.`;
-
-/**
- * PRODUCT.md requires answers to distinguish what came from company sources,
- * what was inferred, and what is general knowledge — that distinction is the
- * basis for trusting the product, so it is stated as a hard rule.
- */
-const GROUNDING_RULES = `
-# Grounding
-- Prefer the organization's own documents over your general knowledge when the \
-question is about the organization.
-- Make it clear which parts of an answer come from company sources, which are \
-your inference, and which are general knowledge.
-- If the supplied context does not answer the question, say so plainly and \
-suggest what might be searched instead. Never invent a source, a policy, or a \
-citation.
-- If sources disagree, surface the disagreement instead of silently picking one.`;
-
-const RESPONSE_STYLE = `
-# Response style
-- Answer the question directly first, then supply the supporting detail.
-- Use Markdown: headings, lists, and tables where they aid readability.
-- Be concise. Do not restate the question or pad the answer.`;
-
 export function buildSystemPrompt(options: AnswerPromptOptions): string {
   const now = (options.now ?? new Date()).toISOString().slice(0, 10);
 
@@ -62,13 +42,10 @@ export function buildSystemPrompt(options: AnswerPromptOptions): string {
 You answer questions using that organization's own knowledge, and you are \
 truthful, precise, and concise.`,
     `The current date is ${now}.`,
-    options.hasContext ? CITATION_GUIDANCE : "",
-    GROUNDING_RULES,
-    RESPONSE_STYLE,
-    // Skills sit after the invariants above and before anything an agent adds.
-    // Chart guidance used to be a constant here; it is now a built-in skill that
-    // loads `always`, so what lands in this slot is the same text by a different
-    // route — one an admin can read, edit, and add to without a deploy.
+    // Everything about how to answer now arrives here. Grounding, citations,
+    // response style and charts were all string constants in this file; they are
+    // built-in skills now, so the same text reaches the model by a route an
+    // admin can read, edit and add to without a deploy.
     options.inlinedSkills ?? "",
     options.skillCatalog ?? "",
     options.agentInstructions

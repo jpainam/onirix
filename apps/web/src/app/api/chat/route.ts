@@ -26,13 +26,13 @@ import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
 import { chat, citation, message, skill } from "@onirix/db/schema";
+import { ensureBuiltInSkills } from "@onirix/db/skills";
 import {
   DEFAULT_CONTEXT_CHUNKS,
   extractCitedIndices,
   retrieveContext,
 } from "@onirix/ingestion";
 import {
-  BUILT_IN_SKILLS,
   CHART_TOOL_NAME,
   CHAT_TITLE_PROMPT,
   QUERY_REWRITE_PROMPT,
@@ -231,7 +231,11 @@ export async function POST(request: Request) {
   // Settled long before now: the query was rewritten and the index searched
   // while this was in flight.
   const skills = await skillsLoaded;
-  const { inlined, catalog } = buildSkillSections(skills);
+  // `hasContext` gates the citation guidance: telling a model how to cite when
+  // nothing was retrieved invites a citation to a source that does not exist.
+  const skillSections = buildSkillSections(skills, {
+    hasContext: context.length > 0,
+  });
 
   // Retrieved context goes in the system field, not as a system-role message:
   // the AI SDK rejects system messages inside `messages`. The prompt is rebuilt
@@ -240,8 +244,7 @@ export async function POST(request: Request) {
     buildSystemPrompt({
       organizationName: workspace.organizationName,
       hasContext: context.length > 0,
-      inlinedSkills: inlined,
-      skillCatalog: catalog,
+      ...skillSections,
     }),
     contextBlock,
   ]
@@ -365,20 +368,40 @@ async function loadSkills(
   organizationId: string,
 ): Promise<Skill[]> {
   try {
-    const rows = await db
-      .select({
-        name: skill.name,
-        description: skill.description,
-        instructions: skill.instructions,
-        loading: skill.loading,
-      })
-      .from(skill)
-      .where(and(eq(skill.organizationId, organizationId), eq(skill.enabled, true)));
+    const read = () =>
+      db
+        .select({
+          name: skill.name,
+          description: skill.description,
+          instructions: skill.instructions,
+          loading: skill.loading,
+          requiresContext: skill.requiresContext,
+          builtInId: skill.builtInId,
+          enabled: skill.enabled,
+        })
+        .from(skill)
+        .where(eq(skill.organizationId, organizationId));
 
-    return [...BUILT_IN_SKILLS, ...rows];
+    let rows = await read();
+    // A workspace that has never opened the Skills page still has to answer
+    // with the product's grounding and citation rules, so the seed runs here
+    // too. It writes nothing once the rows exist, which is every turn but the
+    // first.
+    if (await ensureBuiltInSkills(db, organizationId, rows.map((row) => row.builtInId))) {
+      rows = await read();
+    }
+
+    // Disabled rows are filtered here rather than in SQL only because the seed
+    // above needs to see them: a disabled built-in is present, and reseeding it
+    // would put back what an admin deliberately switched off.
+    return rows.filter((row) => row.enabled);
   } catch (error) {
+    // Losing the workspace's skills costs the answer its house rules. Losing the
+    // answer costs the reader everything, so this degrades rather than throws —
+    // and `buildSystemPrompt` still states who the assistant is and what it is
+    // answering from.
     console.error("Failed to load workspace skills", error);
-    return [...BUILT_IN_SKILLS];
+    return [];
   }
 }
 

@@ -4,14 +4,25 @@ import { cn } from "cn"
 function Card({
   className,
   size = "default",
+  interactive = false,
   ...props
-}: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+}: React.ComponentProps<"div"> & {
+  size?: "default" | "sm"
+  /**
+   * For a card that is itself the control — a browsable grid where the whole
+   * tile opens the thing it describes. Without it a card is a static container
+   * and its controls are its own children.
+   */
+  interactive?: boolean
+}) {
   return (
     <div
       data-slot="card"
       data-size={size}
       className={cn(
         "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-border [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        interactive &&
+          "cursor-pointer transition-shadow hover:ring-ring/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         className
       )}
       {...props}

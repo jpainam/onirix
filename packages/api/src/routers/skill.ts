@@ -1,10 +1,16 @@
 /**
  * Skills: the instructions the answering model follows.
  *
- * A workspace's own skills are rows; the ones that ship with the product are
- * code constants in `@onirix/llm`. Both reach the model through one namespace,
- * so this router is where the two are merged for reading and where a custom
- * skill is stopped from taking a built-in's name.
+ * Every skill is a row, including the ones that ship with the product. Those are
+ * seeded from `BUILT_IN_SKILL_SEEDS` the first time a workspace reads its
+ * skills, and from that moment they are ordinary rows — edited, disabled and
+ * read exactly like any other. Nothing about how an answer is written is read
+ * out of code at answer time.
+ *
+ * `builtInId` is all that distinguishes them, and it buys two things: a seeded
+ * skill can be put back the way it shipped, and it cannot be deleted outright,
+ * since the product's grounding rules disappearing on a stray click is not a
+ * recoverable state for a workspace to be in.
  */
 import { TRPCError } from "@trpc/server";
 import { randomUUID } from "node:crypto";
@@ -12,8 +18,8 @@ import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { Database } from "@onirix/db";
-import { skill } from "@onirix/db/schema";
-import { BUILT_IN_SKILLS, isBuiltInSkillName } from "@onirix/llm";
+import { skill, user } from "@onirix/db/schema";
+import { builtInSkillSeed, ensureBuiltInSkills, resetBuiltInSkill } from "@onirix/db/skills";
 
 import { orgProcedure, permissionProcedure, router } from "../index";
 
@@ -32,8 +38,14 @@ const skillName = z
     "Use lowercase letters, numbers and single hyphens, e.g. expense-policy.",
   );
 
-const skillInput = z.object({
-  name: skillName,
+/**
+ * The fields an admin may change on any skill.
+ *
+ * `name` and `loading` are absent for a seeded skill — see `update` — and
+ * `requiresContext` is absent for every skill: it is how a built-in is wired
+ * into the answering path, not a preference.
+ */
+const skillFields = z.object({
   /**
    * Capped hard, and deliberately. For a skill that loads on demand this line
    * is the whole basis on which the model decides to fetch the body — a
@@ -42,7 +54,6 @@ const skillInput = z.object({
    */
   description: z.string().trim().min(1).max(200),
   instructions: z.string().trim().min(1).max(20_000),
-  loading: z.enum(["always", "on_demand"]).default("on_demand"),
   enabled: z.boolean().default(true),
 });
 
@@ -62,22 +73,6 @@ function rethrowDuplicateName(error: unknown): never {
   throw error;
 }
 
-/**
- * Built-in names are reserved.
- *
- * Postgres cannot enforce this — the built-ins are not rows — so it is checked
- * here. Two skills answering to one name would make `load_skill` ambiguous, and
- * the resolver would have to pick a winner no admin could predict.
- */
-function assertNameAvailable(name: string): void {
-  if (isBuiltInSkillName(name)) {
-    throw new TRPCError({
-      code: "CONFLICT",
-      message: `"${name}" is a built-in skill. Choose another name.`,
-    });
-  }
-}
-
 /** Ownership probe. 404 rather than 403, so a miss does not confirm existence. */
 async function requireOwnSkill(db: Database, id: string, organizationId: string) {
   const found = await db.query.skill.findFirst({
@@ -89,50 +84,63 @@ async function requireOwnSkill(db: Database, id: string, organizationId: string)
   return found;
 }
 
+const SELECTION = {
+  id: skill.id,
+  name: skill.name,
+  description: skill.description,
+  instructions: skill.instructions,
+  loading: skill.loading,
+  enabled: skill.enabled,
+  requiresContext: skill.requiresContext,
+  builtInId: skill.builtInId,
+  updatedAt: skill.updatedAt,
+  // Left join: deleting the author nulls the reference but leaves the skill,
+  // which is the right way round — instructions outlive whoever typed them.
+  author: user.name,
+} as const;
+
 export const skillRouter = router({
   /**
-   * Every skill the workspace has, built-ins first.
+   * Every skill this workspace has, seeding the built-ins if it has none yet.
    *
-   * Built-ins are returned alongside the workspace's own so the page shows one
-   * list rather than making the reader understand the distinction before they
-   * can find anything. They carry `builtIn` so the UI can badge them and refuse
-   * to edit them.
+   * Seeding on read rather than at workspace creation is what covers the two
+   * cases a creation hook misses: workspaces that existed before skills did, and
+   * a built-in shipped in a later release.
    */
   list: orgProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db
-      .select({
-        id: skill.id,
-        name: skill.name,
-        description: skill.description,
-        instructions: skill.instructions,
-        loading: skill.loading,
-        enabled: skill.enabled,
-        updatedAt: skill.updatedAt,
-      })
-      .from(skill)
-      .where(eq(skill.organizationId, ctx.organizationId))
-      .orderBy(asc(skill.name));
+    const read = () =>
+      ctx.db
+        .select(SELECTION)
+        .from(skill)
+        .leftJoin(user, eq(user.id, skill.createdBy))
+        .where(eq(skill.organizationId, ctx.organizationId))
+        .orderBy(asc(skill.name));
 
-    return [
-      ...BUILT_IN_SKILLS.map((entry) => ({
-        id: `built-in:${entry.name}`,
-        name: entry.name,
-        description: entry.description,
-        instructions: entry.instructions,
-        loading: entry.loading,
-        enabled: true,
-        updatedAt: null as Date | null,
-        builtIn: true as const,
-      })),
-      ...rows.map((row) => ({ ...row, builtIn: false as const })),
-    ];
+    let rows = await read();
+    // Passing what was just read means a workspace with nothing missing does no
+    // write and no second query.
+    const seeded = await ensureBuiltInSkills(
+      ctx.db,
+      ctx.organizationId,
+      rows.map((row) => row.builtInId),
+    );
+    if (seeded) rows = await read();
+
+    return rows
+      .map((row) => ({
+        ...row,
+        author: row.builtInId ? "Onirix" : (row.author ?? "Unknown"),
+        builtIn: row.builtInId !== null,
+      }))
+      // Built-ins first: they are the product's own answer to "how does this
+      // thing behave", which reads better as a block than alphabetised among a
+      // workspace's own.
+      .sort((a, b) => Number(b.builtIn) - Number(a.builtIn));
   }),
 
   create: permissionProcedure("skill", "create")
-    .input(skillInput)
+    .input(skillFields.extend({ name: skillName, loading: z.enum(["always", "on_demand"]) }))
     .mutation(async ({ ctx, input }) => {
-      assertNameAvailable(input.name);
-
       const id = randomUUID();
       try {
         await ctx.db.insert(skill).values({
@@ -153,24 +161,37 @@ export const skillRouter = router({
     }),
 
   update: permissionProcedure("skill", "update")
-    .input(skillInput.extend({ id: z.string() }))
+    .input(
+      skillFields.extend({
+        id: z.string(),
+        /** Ignored for a seeded skill, whose name is how it is identified. */
+        name: skillName.optional(),
+        /** Ignored for a seeded skill: "applied by default" is what it is. */
+        loading: z.enum(["always", "on_demand"]).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const existing = await requireOwnSkill(ctx.db, input.id, ctx.organizationId);
-
-      // Only when it actually changes: re-checking an unchanged name would
-      // reject a built-in's own row, which cannot exist, but would also reject
-      // a rename that merely keeps the name it already holds.
-      if (input.name !== existing.name) assertNameAvailable(input.name);
+      const seeded = existing.builtInId !== null;
 
       try {
         await ctx.db
           .update(skill)
           .set({
-            name: input.name,
             description: input.description,
             instructions: input.instructions,
-            loading: input.loading,
             enabled: input.enabled,
+            // A seeded skill keeps the name it is seeded under, since that is
+            // what `reset` matches on and what the model was told to ask for.
+            // It also keeps its loading mode: `grounding` reaching the model
+            // only when the model thinks to request it is not a setting anyone
+            // wants to arrive at by accident.
+            ...(seeded
+              ? {}
+              : {
+                  ...(input.name ? { name: input.name } : {}),
+                  ...(input.loading ? { loading: input.loading } : {}),
+                }),
           })
           .where(eq(skill.id, input.id));
       } catch (error) {
@@ -192,10 +213,35 @@ export const skillRouter = router({
       return { id: input.id };
     }),
 
+  /** Restores a seeded skill to the text it shipped with. */
+  reset: permissionProcedure("skill", "update")
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await requireOwnSkill(ctx.db, input.id, ctx.organizationId);
+      if (!existing.builtInId || !builtInSkillSeed(existing.builtInId)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Only a built-in skill has a default to return to.",
+        });
+      }
+      await resetBuiltInSkill(ctx.db, ctx.organizationId, existing.builtInId);
+      return { id: input.id };
+    }),
+
   delete: permissionProcedure("skill", "delete")
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      await requireOwnSkill(ctx.db, input.id, ctx.organizationId);
+      const existing = await requireOwnSkill(ctx.db, input.id, ctx.organizationId);
+      if (existing.builtInId) {
+        // Deleting would only make it come back: the next read reseeds anything
+        // missing. Disabling is the operation that actually holds.
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "A built-in skill cannot be deleted. Turn it off to stop using it, " +
+            "or reset it to its default.",
+        });
+      }
       await ctx.db.delete(skill).where(eq(skill.id, input.id));
       return { id: input.id };
     }),

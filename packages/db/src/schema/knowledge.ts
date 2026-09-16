@@ -244,14 +244,16 @@ export const skillLoading = pgEnum("skill_loading", ["always", "on_demand"]);
 /**
  * A named capability the answering model can reach for.
  *
- * Skills are how instructions stop being code. Everything here used to be a
- * string constant in `@onirix/llm`, which meant a deploy to change how the
- * product answers and a system prompt that grew for every capability whether or
- * not the question needed it.
+ * Skills are how instructions stop being code. Grounding, citations, response
+ * style and chart guidance were all string constants in `@onirix/llm`, which
+ * meant a deploy to change how the product answers and a system prompt that grew
+ * for every capability whether or not the question needed it.
  *
- * Built-in skills are not rows: they are code constants in `@onirix/llm`,
- * merged with these at read time. A built-in cannot be deleted, needs no
- * migration, and versions with the deploy that relies on it.
+ * Every skill is a row here, including the ones that ship with the product —
+ * nothing about how an answer is written is read from code at answer time. The
+ * built-ins are *seeded* from definitions in `@onirix/db/skills`, and a seeded
+ * row is an ordinary row from that moment on: editable, disablable, and marked
+ * by `builtInId` only so it can be put back the way it came.
  */
 export const skill = pgTable(
   "skill",
@@ -282,6 +284,25 @@ export const skill = pgTable(
     /** Off keeps a skill out of the prompt without losing the text. */
     enabled: boolean("enabled").notNull().default(true),
 
+    /**
+     * Set on a row seeded from the product's own defaults, to the id of the
+     * definition it came from. Null on a skill someone wrote here.
+     *
+     * The row is the skill — nothing reads the seed text at answer time. This
+     * only records where the row started, which is what lets the Skills page
+     * offer "reset to default" and what stops a built-in from being deleted
+     * outright.
+     */
+    builtInId: text("built_in_id"),
+    /**
+     * Only send this skill when documents were actually retrieved.
+     *
+     * A column rather than something derived from `builtInId`, so a row
+     * describes its own behaviour completely and the answering path never has
+     * to look anything up in code.
+     */
+    requiresContext: boolean("requires_context").notNull().default(false),
+
     createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -294,6 +315,10 @@ export const skill = pgTable(
     // workspace cannot share one. Collisions with built-in names are rejected
     // in the router, since those live in code and Postgres cannot see them.
     uniqueIndex("skill_org_name_uidx").on(table.organizationId, table.name),
+    // Seeding is an upsert on this: one row per built-in per workspace, so
+    // re-running the seed never duplicates and a workspace that predates a
+    // newly shipped built-in picks it up on the next read.
+    uniqueIndex("skill_org_built_in_uidx").on(table.organizationId, table.builtInId),
   ],
 );
 

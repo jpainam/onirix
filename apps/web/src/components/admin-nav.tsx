@@ -56,7 +56,7 @@ const ADMIN_SECTIONS = [
     label: "Organization",
     items: [
       { title: "General", url: "/admin/organization", icon: BuildingIcon },
-      { title: "Appearance & Theming", url: "/admin/appearance", icon: PaletteIcon },
+      { title: "Appearance", url: "/admin/appearance", icon: PaletteIcon },
       { title: "Security", icon: LockIcon },
     ],
   },

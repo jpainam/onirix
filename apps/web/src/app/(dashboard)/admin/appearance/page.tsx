@@ -11,7 +11,7 @@ export default async function AppearancePage() {
     <Page>
       <PageHeader
         icon={PaletteIcon}
-        title="Appearance & Theming"
+        title="Appearance"
         description="How Onirix looks for you."
       />
 

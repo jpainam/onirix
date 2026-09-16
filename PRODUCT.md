@@ -1,290 +1,85 @@
 # Onirix
 
-## Product definition
+**Onirix is a private AI workspace that turns company documents into answers and charts people can check against the source.**
 
-**Onirix is a private AI workspace that turns company documents into answers, analysis, and interactive charts that people can verify at the source.**
-
-The product is built for organizations that want the usefulness of generative AI without giving up control of their knowledge, model provider, deployment, or internal access rules.
-
-> **Ask your company. See the evidence.**
-
-Onirix is not a generic chatbot and not a low-level AI development platform. It is the trusted interface between a team and the knowledge the team already owns.
-
----
-
-## The distinctive capability
-
-Most enterprise AI tools make one of two compromises: they are easy to use but opaque, or private but difficult to operate. Onirix is designed around a different combination:
-
-1. **An answer is never a dead end.** Company-specific claims carry inline citations. A reader can open the exact supporting passage beside the answer and, when available, return to the original document.
-2. **Analysis stays connected to evidence.** Onirix can turn numbers found in company files into interactive charts. Each plotted series can cite the document it came from, and the reader can inspect or copy the underlying data instead of trusting a static image.
-3. **The organization chooses the intelligence.** A workspace can connect OpenAI, Anthropic, Google, xAI, and self-hosted Ollama models, enable more than one provider, and choose its default. Onirix uses credentials supplied by that workspace.
-4. **Permissions are part of retrieval.** Organization, team, and private visibility are applied before content reaches the model. An administrator does not silently become a universal reader of restricted team knowledge.
-5. **Private can mean local.** The full application stack is self-hostable, and Ollama allows a deployment to answer and embed without sending document content to an external model API.
-
-That combination is the center of the product:
-
-> **Private company intelligence with evidence built into every answer and every visual.**
-
----
+> Ask your company. See the evidence.
 
 ## The problem
 
-Useful company knowledge is scattered across policies, reports, spreadsheets, technical documents, and individual teams. Finding an answer usually means knowing where to look, opening several files, and deciding which version to trust.
+Company knowledge sits in policies, reports, spreadsheets, and team folders. Finding an answer means knowing where to look, opening several files, and guessing which version is current.
 
-Generic AI can summarize text, but it often cannot show which internal evidence supports an answer. It may also force an organization into one model vendor or flatten access controls once content is indexed.
+Generic AI summarizes text but usually cannot show which internal document backs a claim. It also tends to lock an organization into one model vendor and to flatten access rules once content is indexed.
 
-Onirix gives the organization one place to ask, search, analyze, and verify—without separating convenience from control.
+## What makes it different
 
----
+1. **Answers carry citations.** Company-specific claims link to the passage behind them, opened beside the answer, with a link to the original file when one exists.
+2. **Charts stay tied to evidence.** Numbers found in company files become bar, line, area, pie, or scatter charts. Each series can cite its document, and the reader can open the table or copy the data.
+3. **You pick the model.** Connect OpenAI, Anthropic, Google, xAI, or self-hosted Ollama, enable several at once, and set the default. Onirix uses your credentials.
+4. **Permissions apply before retrieval.** Organization, team, and private visibility are enforced in the query, not after. An admin does not silently become a reader of every team's knowledge.
+5. **Private can mean local.** The stack is self-hostable, and Ollama lets a deployment answer and embed without sending document text to an external API.
 
-## The product experience
+## How it works
 
-### 1. Bring your own AI
+**Connect a provider.** The workspace owner picks a provider and models during setup. More can be added later, and chat and embedding providers can differ.
 
-During setup, the workspace owner connects a model provider and selects the models the organization wants to use. Additional providers can be connected later, and the default chat model can be changed without rebuilding the application.
+**Upload documents.** Onirix keeps the original, extracts text, preserves page and sheet anchors, chunks it, embeds it, and indexes it in the background. Supported today: PDF, `.docx`, `.xlsx`, `.xls`, CSV, Markdown, HTML, JSON, and `text/*`. Limit is 50 MB per file. PowerPoint, images, and third-party connectors are not in the pipeline yet.
 
-For maximum control, an organization can point Onirix at a self-hosted Ollama endpoint. Chat and embedding providers can also be selected separately when needed.
+**Ask a question.** Retrieval combines semantic and keyword search, reranks for relevance and freshness, and passes a bounded set of the strongest passages to the model. Follow-ups are rewritten into standalone queries, so "what about contractors?" keeps its context. Answers stream, and a refreshed browser reconnects to the stream in progress.
 
-### 2. Add company knowledge
+**Check the sources.** Citation markers open a panel with the cited passage, title, source type, update date, and link. Only sources actually cited are stored, and passages are snapshotted with the conversation so an old answer stays auditable after reindexing.
 
-Users can upload common business documents. Onirix stores the original, extracts its text, preserves useful page or sheet anchors, divides it into meaningful sections, creates embeddings, and indexes it in the background.
-
-Supported uploaded content currently includes:
-
-- PDF
-- Word (`.docx`)
-- Excel (`.xlsx` and `.xls`)
-- CSV
-- Markdown
-- HTML
-- plain text and other `text/*` formats
-- JSON
-
-Uploads are limited to 50 MB per file. PowerPoint, images, and third-party source connectors are not part of the current upload pipeline.
-
-### 3. Ask in natural language
-
-Onirix searches with both semantic similarity and exact keywords, reranks results for relevance and freshness, and gives the model a bounded set of the strongest passages. Follow-up questions are rewritten into standalone search queries so a phrase such as “what about contractors?” keeps the context of the conversation.
-
-The answer streams into the conversation as it is generated. If the browser refreshes or the network drops, a saved conversation can reconnect to the active stream and continue from the same answer.
-
-### 4. Inspect the evidence
-
-Inline citation markers open a side-by-side source panel containing the cited passage, document title, source type, update date, and original link when one exists. Only sources actually cited in the answer are saved as citations.
-
-Cited passages are snapshotted with the conversation, keeping a historical answer auditable even after its source is reindexed or changed.
-
-### 5. Turn internal data into a visual answer
-
-When company knowledge contains comparable values, trends, or parts of a whole, Onirix can render a bar, line, area, pie, or scatter chart directly inside the answer.
-
-The chart is generated as validated data rather than executable code or an image. This makes it possible to:
-
-- trace chart series back to cited documents;
-- reveal the same values as a table;
-- copy the underlying data;
-- show targets or thresholds as reference lines; and
-- keep visuals consistent without executing model-written code against private data.
-
-Spreadsheet headers are preserved across indexed chunks, helping the model retain the meaning of rows and columns when it analyzes larger sheets.
-
----
+**Chart the numbers.** Charts are generated as validated data, not as code or images, so nothing model-written executes against private data. Spreadsheet headers are preserved across chunks so rows and columns keep their meaning in large sheets.
 
 ## Trust and control
 
-### Evidence-native answers
+Every document belongs to an organization and is visible to the whole organization, to selected teams plus the uploader, or to the uploader alone. The same rule runs in the metadata query and in the OpenSearch filter.
 
-Onirix instructs the model to prefer company sources for company questions, distinguish sourced facts from inference or general knowledge, acknowledge missing evidence, and surface disagreements between documents rather than quietly selecting one.
+Owner, admin, and member roles govern administrative actions, and custom roles can grant narrower abilities over members, teams, sources, knowledge, roles, or models. Document access is separate and follows teams and visibility.
 
-### Permission-aware knowledge
+Organizations are hard tenant boundaries across documents, search, chats, and membership. Conversations are private to their author.
 
-Every document belongs to an organization and has one of three audiences:
+The model is told to prefer company sources for company questions, separate sourced facts from inference, say when evidence is missing, and surface disagreement between documents instead of picking one quietly.
 
-- **Organization:** available to everyone in the workspace.
-- **Teams:** available only to selected teams and the uploader.
-- **Private:** available only to the uploader.
+## What ships today
 
-The same rule is enforced in document metadata queries and in the OpenSearch retrieval filter. Content that a principal cannot retrieve is not provided to the model.
+**Chat:** grounded answers, inspectable citations, cited charts, automatic titles, saved history with rename and delete, resumable streams, upload from chat.
 
-### Roles for administration, teams for knowledge access
+**Knowledge:** hybrid retrieval, fast keyword document search, recency-aware reranking, one best passage per document for source diversity, background indexing with status, failures, and retry, PDF page and spreadsheet sheet anchors, collections that group documents without changing access.
 
-Owner, admin, and member roles control administrative actions. Custom roles can grant specific abilities such as managing members, teams, sources, knowledge, roles, or models. Document access is separate: it follows the user’s team and document visibility rather than assuming that every administrator may read everything.
+**Administration:** onboarding, email/password, magic link, optional Google sign-in, verification and password reset, invitations, teams, built-in and custom roles, document visibility, multiple providers with a selectable default, light and dark themes.
 
-### Tenant isolation
+**Operations:** Docker self-hosting on PostgreSQL, OpenSearch, Redis, and MinIO or another S3-compatible store, with indexing jobs that recover after a worker restart.
 
-Organizations are explicit tenant boundaries across documents, search, chats, and membership. Conversations are private to their author in the current product.
+## Where it fits
 
-### Deployment and model control
+- "What is our international remote-work policy, and which exceptions need approval?"
+- "Show quarterly attainment by account executive and mark the 85% target."
+- "How does authentication work, and where are organization permissions enforced?"
+- "Compare the renewal terms in these agreements and call out conflicts."
 
-Onirix ships as a self-hostable Docker stack using PostgreSQL, OpenSearch, Redis, and S3-compatible object storage. Organizations control the infrastructure and provider credentials used by their workspace. A fully local model path is available through Ollama.
+Best for organizations with knowledge spread across many documents, team-restricted or sensitive material, a preference for self-hosting, and a need for answers employees can verify. Early teams tend to be operations, HR, legal, engineering, sales enablement, and research.
 
----
+## Not yet shipped
 
-## Available product capabilities
+Connectors for Drive, SharePoint, OneDrive, Notion, Slack, Confluence, GitHub, and websites. Scheduled sync. Specialist agents and actions in external systems. Shared conversations and generated reports. Conversation-only attachments. PowerPoint and image extraction. A production mobile client. Managed hosting.
 
-### Chat and analysis
+Do not claim any of these. Precise language for the current product: uploaded business documents, grounded answers, cited charts, permission-aware access, provider choice, self-hosting.
 
-- source-grounded conversational answers;
-- inline, inspectable citations;
-- interactive, cited charts inside answers;
-- automatic conversation titles;
-- saved conversation history with rename and delete;
-- resumable answer streams after refresh or connection loss;
-- file upload from chat;
-- explicit handling of absent or conflicting evidence.
+Direction: **Know → Answer → Analyze → Assist → Act**, expanded only while knowledge stays controlled, access follows the user, and output stays connected to evidence.
 
-### Search and knowledge
+## Messaging
 
-- hybrid vector and keyword retrieval for answers;
-- fast keyword search for finding documents directly;
-- recency-aware reranking;
-- one best passage per document in the final context, increasing source diversity;
-- background extraction, chunking, embedding, and indexing;
-- document indexing status, progress, failures, and manual retry;
-- page-level PDF anchors and sheet-level spreadsheet anchors;
-- logical knowledge collections that group documents by subject without changing their access rules.
+**Headline:** Ask your company. See the evidence.
 
-### Administration
+**Subhead:** Onirix turns private company documents into cited answers and interactive, source-backed charts, using the AI models and infrastructure your organization chooses.
 
-- organization onboarding;
-- email/password, magic-link, and optional Google sign-in;
-- email verification and password reset;
-- member invitations;
-- teams;
-- built-in and custom roles;
-- organization, team, or private document visibility;
-- multiple model-provider connections and a selectable default model;
-- light and dark appearance settings.
+**Proof points:**
+- Verify every answer. Open the passage behind a claim and go to the original file.
+- See the story in your data. Spreadsheets and reports become interactive charts with citations on the numbers.
+- Keep control. Self-host the stack, choose a provider, or run locally with Ollama.
 
-### Operations
+**Short description:** Onirix is a private AI workspace for company knowledge. Upload documents, ask questions, and get answers grounded in the sources your team is allowed to see. Inspect the cited passages, chart internal data, and run the cloud or self-hosted models that fit your organization.
 
-- Docker-based self-hosting;
-- PostgreSQL for relational metadata;
-- OpenSearch for the hybrid knowledge index;
-- Redis for indexing jobs and resumable chat streams;
-- MinIO or compatible S3 storage for originals;
-- recoverable in-flight indexing jobs after a worker restart.
+**Call to action:** Turn company knowledge into answers your team can trust.
 
----
-
-## High-value use cases
-
-### Policy and operations
-
-Ask: “What is our international remote-work policy, and which exceptions require approval?”
-
-Onirix answers from the organization’s policy documents and exposes the exact passages behind the response.
-
-### Spreadsheet analysis
-
-Ask: “Show quarterly attainment by account executive and mark the 85% target.”
-
-Onirix can read uploaded spreadsheet data, produce an interactive chart with a target line, and attach source citations to the plotted series.
-
-### Engineering knowledge
-
-Ask: “How does authentication work, and where are organization permissions enforced?”
-
-Onirix retrieves across technical documents and presents the answer with evidence rather than forcing the reader to search each file manually.
-
-### Cross-document comparison
-
-Ask: “Compare the renewal terms in these agreements and call out conflicts.”
-
-Onirix brings together the most relevant documents, cites each claim, and explicitly surfaces disagreement in the source material.
-
----
-
-## Ideal customer profile
-
-Onirix is best suited to organizations that:
-
-- have valuable internal knowledge spread across many documents;
-- need answers that employees can verify, not merely plausible prose;
-- handle team-restricted or sensitive material;
-- want freedom to choose cloud or locally hosted AI models;
-- prefer self-hosted infrastructure or a clear path to data residency; and
-- need reports and spreadsheet data turned into understandable, traceable analysis.
-
-Likely early teams include operations, HR, legal, engineering, sales enablement, research, and leadership.
-
----
-
-## Product boundaries and roadmap
-
-The current product is centered on uploaded files, grounded chat, search, administration, and model choice. The following ideas remain product direction and must not be presented as shipping flyer claims:
-
-- Google Drive, SharePoint, OneDrive, Notion, Slack, Confluence, GitHub, and website connectors;
-- scheduled or continuous connector synchronization;
-- configurable specialist agents;
-- agent actions in external business systems;
-- shared conversations and generated reports;
-- temporary, conversation-only file attachments;
-- PowerPoint and image extraction;
-- a production-ready mobile client; and
-- managed cloud or dedicated-hosting commercial offerings.
-
-The intended progression remains:
-
-**Know → Answer → Analyze → Assist → Act**
-
-Onirix should expand only while preserving its core promise: knowledge stays controlled, access follows the user, and outputs remain connected to evidence.
-
----
-
-## Flyer messaging kit
-
-### Primary headline
-
-> **Ask your company. See the evidence.**
-
-### Primary subhead
-
-> Onirix turns private company documents into cited answers and interactive, source-backed charts—using the AI models and infrastructure your organization chooses.
-
-### Alternate headlines
-
-- **Your company knowledge, ready to answer.**
-- **Private AI. Verifiable answers.**
-- **From internal documents to decisions you can defend.**
-- **Answers and charts that lead back to the source.**
-- **One private AI workspace. Your knowledge. Your models. Your control.**
-
-### Three proof points
-
-- **Verify every answer.** Open the exact passage behind a claim and return to the original source.
-- **See the story in your data.** Turn spreadsheets and reports into interactive charts with citations attached to the numbers.
-- **Keep control.** Self-host the stack, choose from leading model providers, or run locally with Ollama.
-
-### Short product description
-
-> Onirix is a private AI workspace for organizational knowledge. Upload company documents, ask questions naturally, and receive concise answers grounded in the sources your team is allowed to access. Inspect cited passages, visualize internal data, and choose the cloud or self-hosted AI models that fit your organization.
-
-### One-sentence description
-
-> Onirix gives every organization a private, permission-aware AI that answers from company knowledge and shows the evidence behind its words and charts.
-
-### Call to action
-
-> **Turn company knowledge into answers your team can trust.**
-
-### Recommended flyer hierarchy
-
-1. Lead with “Ask your company. See the evidence.”
-2. Show an answer with inline citation chips and the cited-passage panel.
-3. Show an interactive chart generated from an uploaded spreadsheet.
-4. Support the visual with three short claims: permission-aware, model-independent, self-hostable.
-5. End with the call to action, not with infrastructure details.
-
-### Claims to avoid until the roadmap ships
-
-Do not say “connect all your apps,” “continuous synchronization,” “AI agents that take action,” “mobile access,” or “supports every file type.” Use precise language: uploaded business documents, grounded answers, cited charts, permission-aware access, provider choice, and self-hosting.
-
----
-
-## Product north star
-
-A person should be able to ask the organization a question, understand the answer, inspect the evidence, and act with confidence—without needing to know where the information was stored or which model produced the prose.
-
-> **Onirix makes company knowledge useful without making it opaque or giving up control.**
+**Flyer order:** headline, an answer with citation chips and the passage panel, a chart built from an uploaded spreadsheet, three claims (permission-aware, model-independent, self-hostable), then the call to action. Infrastructure detail does not close the page.
