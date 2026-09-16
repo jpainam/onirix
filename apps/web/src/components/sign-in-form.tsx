@@ -81,7 +81,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
   return (
     <AuthCard
       title="Welcome to Onirix"
-      subtitle="Your open source AI platform for work"
+      subtitle="Chat with your organization&apos;s knowledge."
       footer={
         <>
           New to Onirix?{" "}

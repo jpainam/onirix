@@ -92,7 +92,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
       <PageHeader
         icon={UsersIcon}
         title="Users & Teams"
-        description="Invite colleagues, and group them into the departments that decide which knowledge they can reach."
+        description="Manage members and department access."
         action={
           canManage ? (
             <Button onClick={() => setInviting(true)}>
@@ -106,7 +106,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
       <div className="flex flex-col gap-10">
         <Section
           title="Departments"
-          description="A document restricted to a department is retrievable only by its members — including in chat, and including for admins who are not in it."
+          description="Only department members can access its documents."
           action={
             canManage ? (
               <Button variant="outline" size="sm" onClick={() => setCreatingTeam(true)}>
@@ -128,8 +128,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
                 </EmptyMedia>
                 <EmptyTitle>No departments yet</EmptyTitle>
                 <EmptyDescription>
-                  Until you create one, every document stays visible to the whole
-                  organization.
+                  Documents are shared with everyone until you create one.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -164,7 +163,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
           )}
         </Section>
 
-        <Section title="Members" description="Everyone with access to this workspace.">
+        <Section title="Members">
           {members.isPending ? (
             <div className="flex justify-center py-8">
               <Spinner />
@@ -253,10 +252,7 @@ export function TeamView({ canManage }: { canManage: boolean }) {
         </Section>
 
         {canManage && (invitations.data?.length ?? 0) > 0 ? (
-          <Section
-            title="Pending invitations"
-            description="Invitations that have been sent but not yet accepted."
-          >
+          <Section title="Pending invitations">
             <div className="flex flex-col gap-2">
               {invitations.data?.map((invite) => (
                 <Row
@@ -439,10 +435,7 @@ function InviteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Invite to your workspace</DialogTitle>
-          <DialogDescription>
-            They will receive an email invitation. It can only be accepted from the
-            address you enter here.
-          </DialogDescription>
+          <DialogDescription>We&apos;ll send a link to this address.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -493,8 +486,7 @@ function InviteDialog({
 
           <p className="text-ink-03 flex items-start gap-2 text-xs leading-4">
             <ShieldIcon className="mt-0.5 size-3.5 shrink-0" />
-            An admin manages sources, members and departments. It does not let them read
-            documents restricted to a department they are not in.
+            Admin access does not override department membership.
           </p>
         </div>
 
@@ -540,10 +532,7 @@ function CreateTeamDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New department</DialogTitle>
-          <DialogDescription>
-            Departments mirror how your organization already divides
-            information — Engineering, Sales, Human Resources, Finance, Leadership.
-          </DialogDescription>
+          <DialogDescription>Group document access by department.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-1.5">

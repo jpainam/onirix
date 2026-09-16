@@ -14,18 +14,15 @@ export default async function OrganizationPage() {
       <PageHeader
         icon={BuildingIcon}
         title="Organization"
-        description="Who this workspace belongs to and where its data lives."
+        description="Workspace details and data privacy."
       />
 
       <div className="flex flex-col gap-10">
-        <Section
-          title="Workspace"
-          description="Everyone who signs in with an invite joins this workspace."
-        >
+        <Section title="Workspace">
           <Row
             icon={<BuildingIcon />}
             title={workspace.organizationName}
-            description={`You are signed in as ${user.email}`}
+            description={`Signed in as ${user.email}`}
             action={<Badge variant="secondary">{roleLabel}</Badge>}
           />
         </Section>
@@ -34,7 +31,7 @@ export default async function OrganizationPage() {
           <Row
             icon={<ShieldIcon />}
             title="Your data stays in this deployment"
-            description="Documents are indexed into your own search cluster; only prompts reach the model provider."
+            description="Documents stay in your search cluster. Only prompts reach your model provider."
           />
         </Section>
       </div>

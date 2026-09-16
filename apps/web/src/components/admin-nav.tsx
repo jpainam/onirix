@@ -86,7 +86,7 @@ export function AdminNav({ pathname }: { pathname: string }) {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     aria-disabled
-                    tooltip={`${item.title} — coming soon`}
+                    tooltip={`${item.title}: coming soon`}
                     className="cursor-default"
                   >
                     <item.icon />

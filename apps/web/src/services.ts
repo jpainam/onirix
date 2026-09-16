@@ -39,6 +39,19 @@ export function getQueue(): Redis {
 }
 
 /**
+ * Everything these connections carry is in service of recovering an answer, so
+ * they are configured to fail rather than wait.
+ *
+ * ioredis queues commands while it reconnects, which is right for work that has
+ * to happen eventually and wrong here: it would let a Redis outage hang the
+ * very answers resumability exists to protect. The timeout is generous enough
+ * to cover a cold start — the first request after boot races the initial
+ * connection — and short enough that an outage degrades in a couple of seconds
+ * to a chat that simply cannot be resumed.
+ */
+const STREAM_REDIS_OPTIONS = { commandTimeout: 2_000 };
+
+/**
  * Redis handle for the bookkeeping around resumable answer streams.
  *
  * Separate from the queue client, which is configured for blocking reads, and
@@ -46,7 +59,7 @@ export function getQueue(): Redis {
  * cannot issue ordinary commands.
  */
 export function getStreamRedis(): Redis {
-  return (cache.streamCommands ??= new Redis(env.REDIS_URL));
+  return (cache.streamCommands ??= new Redis(env.REDIS_URL, STREAM_REDIS_OPTIONS));
 }
 
 /**
@@ -72,7 +85,10 @@ export function getResumableStreamContext(): ResumableStreamContext {
       }
     },
     publisher: getStreamRedis(),
-    subscriber: (cache.streamSubscriber ??= new Redis(env.REDIS_URL)),
+    subscriber: (cache.streamSubscriber ??= new Redis(
+      env.REDIS_URL,
+      STREAM_REDIS_OPTIONS,
+    )),
   }));
 }
 

@@ -20,7 +20,7 @@ export default async function KnowledgePage() {
       <PageHeader
         icon={BookOpenIcon}
         title="Knowledge"
-        description="Documents grouped into collections, like Engineering or HR."
+        description="Group documents into collections."
         action={
           <Button disabled>
             <FolderPlusIcon />
@@ -34,9 +34,7 @@ export default async function KnowledgePage() {
             <BookOpenIcon />
           </EmptyMedia>
           <EmptyTitle>No collections yet</EmptyTitle>
-          <EmptyDescription>
-            Connect a source to start building your knowledge base.
-          </EmptyDescription>
+          <EmptyDescription>Connect a source to get started.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Page>

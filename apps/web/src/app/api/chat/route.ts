@@ -235,16 +235,10 @@ export async function POST(request: Request) {
         // has already been delivered.
         console.error("Failed to persist chat turn", error);
       }
-      try {
-        // The turn has landed, so a reader arriving now should be served the
-        // stored conversation rather than sent to re-attach to a stream with
-        // nothing left to give.
-        await clearActiveStream(conversation.id);
-      } catch (error) {
-        // The pointer expires on its own; a stale one only costs a reader one
-        // request that comes back empty.
-        console.error("Failed to clear active chat stream", error);
-      }
+      // The turn has landed, so a reader arriving now should be served the
+      // stored conversation rather than sent to re-attach to a stream with
+      // nothing left to give.
+      await clearActiveStream(conversation.id);
     },
   });
 
@@ -266,10 +260,15 @@ export async function POST(request: Request) {
       // context reads its copy to the end whether or not anyone is still
       // listening to the other one — so a disconnect costs the reader their
       // connection, not their answer.
-      void getResumableStreamContext().createNewResumableStream(
-        streamId,
-        () => sseStream,
-      );
+      getResumableStreamContext()
+        .createNewResumableStream(streamId, () => sseStream)
+        // Registering the stream is what makes it recoverable, not what makes
+        // it run: the response already holds its own copy. A failure here —
+        // Redis unreachable — must be reported and dropped rather than left to
+        // surface as an unhandled rejection.
+        .catch((error: unknown) => {
+          console.error("Failed to register a resumable chat stream", error);
+        });
     },
   });
 }

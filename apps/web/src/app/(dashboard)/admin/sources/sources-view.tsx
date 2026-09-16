@@ -151,7 +151,7 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
       <PageHeader
         icon={DatabaseIcon}
         title="Sources"
-        description="Everything Onirix indexes, and where it came from."
+        description="Manage indexed documents."
         action={
           <Button onClick={() => fileInput.current?.click()} disabled={uploading}>
             {uploading ? <Spinner /> : <UploadIcon />}
@@ -185,10 +185,7 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
           />
         </Section>
 
-        <Section
-          title="Documents"
-          description="Everything Onirix currently knows about."
-        >
+        <Section title="Documents">
           {documents.isPending ? (
             <div className="flex justify-center py-12">
               <Spinner />
@@ -200,9 +197,7 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
                   <FileTextIcon />
                 </EmptyMedia>
                 <EmptyTitle>No documents yet</EmptyTitle>
-                <EmptyDescription>
-                  Upload a file to give Onirix something to learn from.
-                </EmptyDescription>
+                <EmptyDescription>Upload a file to get started.</EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
@@ -268,7 +263,7 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
           )}
           {documents.data && documents.data.length > 0 ? (
             <p className="font-figure text-ink-02">
-              Showing 1~{documents.data.length} of {documents.data.length} documents
+              {documents.data.length} documents
             </p>
           ) : null}
         </Section>

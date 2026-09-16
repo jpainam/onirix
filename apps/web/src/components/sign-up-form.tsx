@@ -66,7 +66,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
   return (
     <AuthCard
       title="Create an Account"
-      subtitle="Get started with your open source AI platform for work"
+      subtitle="Chat with your organization&apos;s knowledge."
       footer={
         <>
           Already have an account?{" "}

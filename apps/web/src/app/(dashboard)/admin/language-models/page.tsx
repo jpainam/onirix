@@ -15,7 +15,7 @@ export default async function LanguageModelsPage() {
       <PageHeader
         icon={CpuIcon}
         title="Language Models"
-        description="Chosen during setup. Answers never leave the provider you pick here."
+        description="Models used for chat and search."
       />
 
       <div className="flex flex-col gap-10">
@@ -47,14 +47,13 @@ export default async function LanguageModelsPage() {
             />
           </div>
           <p className="text-ink-02 text-xs">
-            Changing the embedding model means re-indexing every document, so it is not
-            editable here yet.
+            Changing the embedding model requires re-indexing all documents.
           </p>
         </Section>
 
         <Section
           title="Danger zone"
-          description="Start setup over without touching what the workspace has learned."
+          description="Restart model setup without deleting workspace data."
         >
           <ResetSettings />
         </Section>

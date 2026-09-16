@@ -36,7 +36,7 @@ export function ResetSettings() {
     trpc.onboarding.reset.mutationOptions({
       onSuccess: () => {
         setOpen(false);
-        toast.success("Model configuration cleared. Pick a provider to start again.");
+        toast.success("Model settings cleared.");
         router.push("/onboarding");
         router.refresh();
       },
@@ -49,7 +49,7 @@ export function ResetSettings() {
       <Row
         icon={<RotateCcwIcon />}
         title="Reset all settings"
-        description="Clears the connected provider and models, and takes you back to setup."
+        description="Clear model settings and return to setup."
         action={
           <Button variant="destructive" onClick={() => setOpen(true)}>
             Reset
@@ -64,8 +64,8 @@ export function ResetSettings() {
             {/* Reindexing is the one consequence that is not obvious from the
                 action, so it is the one thing the dialog spends words on. */}
             <AlertDialogDescription>
-              Clears your provider and models. Chats and documents stay, but
-              switching embedding model later means re-uploading them.
+              Chats and documents stay. A new embedding model requires re-uploading
+              documents.
             </AlertDialogDescription>
           </AlertDialogHeader>
 

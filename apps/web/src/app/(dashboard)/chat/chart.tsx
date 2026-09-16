@@ -91,7 +91,7 @@ export function ChartMessagePart({
       // The model produced something the schema rejects. Say so rather than
       // drawing a guess: a wrong chart is worse than no chart.
       <figure className="bg-card text-ink-03 my-4 rounded-xl border px-4 py-6 text-center text-xs">
-        This chart could not be drawn — the data behind it was incomplete.
+        The chart data was incomplete.
       </figure>
     );
   }
@@ -584,7 +584,7 @@ function csvCell(value: unknown): string {
 }
 
 function formatValue(value: unknown, suffix?: string): string {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "N/A";
   if (typeof value !== "number") return String(value);
   // Clean numbers on the axis and in the table: thousands separated, and no
   // long float tail from a division the model did in its head.

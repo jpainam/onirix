@@ -38,7 +38,7 @@ function ResetPasswordForm() {
         { newPassword: value.password, token },
         {
           onSuccess: () => {
-            toast.success("Password updated — sign in with your new password.");
+            toast.success("Password updated. Sign in with your new password.");
             router.push("/login");
           },
           onError: (error) => {

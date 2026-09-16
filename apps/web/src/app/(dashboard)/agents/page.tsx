@@ -20,7 +20,7 @@ export default async function AgentsPage() {
       <PageHeader
         icon={BotIcon}
         title="Explore Agents"
-        description="Specialized assistants scoped to a subset of your knowledge."
+        description="Assistants focused on selected knowledge."
         action={
           <Button disabled>
             <PlusIcon />
@@ -34,10 +34,7 @@ export default async function AgentsPage() {
             <BotIcon />
           </EmptyMedia>
           <EmptyTitle>No agents yet</EmptyTitle>
-          <EmptyDescription>
-            An agent pairs a prompt with a slice of your knowledge, so answers stay in
-            one domain. This area is not built yet.
-          </EmptyDescription>
+          <EmptyDescription>Agent setup is coming soon.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Page>
