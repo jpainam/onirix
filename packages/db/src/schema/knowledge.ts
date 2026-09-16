@@ -48,6 +48,12 @@ export const sourceType = pgEnum("source_type", [
   "confluence",
   "github",
   "website",
+  /**
+   * A live PostgreSQL database the model may query, rather than a system whose
+   * documents are indexed. Its `config` is a `PostgresSourceConfig`, it never
+   * produces documents, and `default_visibility` decides who may query it.
+   */
+  "postgres",
 ]);
 
 export const syncStatus = pgEnum("sync_status", [
@@ -330,6 +336,60 @@ export const skillRelations = relations(skill, ({ one }) => ({
   author: one(user, { fields: [skill.createdBy], references: [user.id] }),
 }));
 
+/**
+ * A query an admin wrote for the model to run by name against a `postgres`
+ * source in `saved` mode.
+ *
+ * The strict way to open a database to the assistant. The model chooses a
+ * query and supplies parameter values; the SQL that runs is the text stored
+ * here, with `$1..$n` bound server-side in the order of `parameters`. Nothing
+ * the model writes is ever executed, which is the property a system of record
+ * needs and a read-only transaction alone cannot promise.
+ */
+export const savedQuery = pgTable(
+  "saved_query",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    sourceId: text("source_id")
+      .notNull()
+      .references(() => source.id, { onDelete: "cascade" }),
+    /** What the model writes into `run_saved_query`. A slug, like a skill's name. */
+    name: text("name").notNull(),
+    /** When to use it, for the model; the one line it decides from. */
+    description: text("description").notNull(),
+    /** A single SELECT using `$1..$n` for its parameters. */
+    sql: text("sql").notNull(),
+    /**
+     * Ordered declarations of `$1..$n`: name, type and a description. A
+     * `SavedQueryParameter[]` from `@onirix/llm/database`.
+     */
+    parameters: jsonb("parameters")
+      .$type<{ name: string; type: string; description: string | null }[]>()
+      .default([])
+      .notNull(),
+
+    createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    // The model resolves a name within one database, so two queries on the
+    // same source cannot share one.
+    uniqueIndex("saved_query_source_name_uidx").on(table.sourceId, table.name),
+  ],
+);
+
+export const savedQueryRelations = relations(savedQuery, ({ one }) => ({
+  source: one(source, { fields: [savedQuery.sourceId], references: [source.id] }),
+  author: one(user, { fields: [savedQuery.createdBy], references: [user.id] }),
+}));
+
 export const sourceRelations = relations(source, ({ one, many }) => ({
   organization: one(organization, {
     fields: [source.organizationId],
@@ -337,6 +397,7 @@ export const sourceRelations = relations(source, ({ one, many }) => ({
   }),
   documents: many(document),
   defaultTeams: many(sourceDefaultTeam),
+  savedQueries: many(savedQuery),
 }));
 
 export const sourceDefaultTeamRelations = relations(sourceDefaultTeam, ({ one }) => ({

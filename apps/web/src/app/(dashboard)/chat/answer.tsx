@@ -16,12 +16,15 @@ import {
   getMessageText,
   getRetrievedSources,
   isChartPart,
+  isDatabaseQueryPart,
   type ChartPart,
   type CitedSource,
+  type DatabaseQueryPart,
   type OnirixUIMessage,
 } from "@/lib/chat-message";
 
 import { ChartMessagePart } from "./chart";
+import { DatabaseQueryMessagePart } from "./database-query";
 import { CITATION_ATTRIBUTE, remarkCitations } from "./citations";
 
 /**
@@ -58,6 +61,7 @@ export function AnswerWithCitations({
     const out: (
       | { kind: "text"; text: string }
       | { kind: "chart"; part: ChartPart }
+      | { kind: "query"; part: DatabaseQueryPart }
     )[] = [];
 
     for (const part of message.parts) {
@@ -67,6 +71,10 @@ export function AnswerWithCitations({
         else out.push({ kind: "text", text: part.text });
       } else if (isChartPart(part)) {
         out.push({ kind: "chart", part });
+      } else if (isDatabaseQueryPart(part)) {
+        // A query sits where the model ran it, ahead of the prose that reads
+        // its result: it is the provenance of the figures that follow.
+        out.push({ kind: "query", part });
       }
     }
     return out;
@@ -118,6 +126,11 @@ export function AnswerWithCitations({
             part={block.part}
             sources={retrieved}
             onSelectSource={onSelectSource}
+          />
+        ) : block.kind === "query" ? (
+          <DatabaseQueryMessagePart
+            key={`query-${block.part.toolCallId}`}
+            part={block.part}
           />
         ) : (
           <Prose

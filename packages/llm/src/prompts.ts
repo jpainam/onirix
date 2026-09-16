@@ -31,6 +31,8 @@ export type AnswerPromptOptions = {
   inlinedSkills?: string;
   /** Names and descriptions of the skills the model may fetch on demand. */
   skillCatalog?: string;
+  /** The databases the caller may query, from `buildDatabaseSection`. */
+  databaseCatalog?: string;
   now?: Date;
 };
 
@@ -48,6 +50,7 @@ truthful, precise, and concise.`,
     // admin can read, edit and add to without a deploy.
     options.inlinedSkills ?? "",
     options.skillCatalog ?? "",
+    options.databaseCatalog ?? "",
     options.agentInstructions
       ? `# Additional instructions\n${options.agentInstructions}`
       : "",

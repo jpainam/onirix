@@ -26,6 +26,8 @@ import {
   getMessageText,
   getRetrievedSources,
   isChartPart,
+  isDatabaseQueryPart,
+  isDescribeTablesPart,
   isSkillPart,
   type CitedSource,
   type OnirixUIMessage,
@@ -69,6 +71,11 @@ function retrievalProgress(
   // A chart draws its own skeleton while it streams, so a label beside it would
   // be saying twice what the page already shows once.
   if (latest.parts.some(isChartPart)) return null;
+  // A query draws its own "Querying…" line while it runs.
+  if (latest.parts.some(isDatabaseQueryPart)) return null;
+
+  // Reading a schema is a round trip with nothing to render, like a skill.
+  if (latest.parts.some(isDescribeTablesPart)) return "Reading the database schema…";
 
   // Loading a skill is a whole round trip with nothing to render, so it is the
   // one step that would otherwise leave the reader watching an empty screen.

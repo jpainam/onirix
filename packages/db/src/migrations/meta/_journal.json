@@ -71,6 +71,20 @@
       "when": 1789529166083,
       "tag": "0009_careless_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789577485842,
+      "tag": "0010_postgres_source_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789579109891,
+      "tag": "0011_saved_query",
+      "breakpoints": true
     }
   ]
 }

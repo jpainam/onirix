@@ -1,5 +1,6 @@
 import { publicProcedure, router } from "../index";
 import { chatRouter } from "./chat";
+import { databaseRouter } from "./database";
 import { historyRouter } from "./history";
 import { knowledgeRouter } from "./knowledge";
 import { modelsRouter } from "./models";
@@ -16,6 +17,7 @@ export const appRouter = router({
   models: modelsRouter,
   knowledge: knowledgeRouter,
   chat: chatRouter,
+  database: databaseRouter,
   history: historyRouter,
   search: searchRouter,
   security: securityRouter,

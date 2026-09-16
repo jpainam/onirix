@@ -1,0 +1,20 @@
+{
+  "name": "@onirix/datasource",
+  "type": "module",
+  "exports": {
+    ".": { "default": "./src/index.ts" },
+    "./*": { "default": "./src/*.ts" }
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@onirix/llm": "workspace:*",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@onirix/config": "workspace:*",
+    "@types/pg": "catalog:",
+    "typescript": "^6.0.3"
+  }
+}

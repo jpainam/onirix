@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@onirix/auth": "workspace:*",
+    "@onirix/datasource": "workspace:*",
     "@onirix/db": "workspace:*",
     "@onirix/ingestion": "workspace:*",
     "@onirix/jobs": "workspace:*",

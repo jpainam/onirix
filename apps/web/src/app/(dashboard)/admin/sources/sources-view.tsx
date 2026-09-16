@@ -41,6 +41,8 @@ import {
 import { Page, PageHeader, Row, Section } from "@/components/page";
 import { trpc } from "@/utils/trpc";
 
+import { DatabasesSection } from "./databases-section";
+
 /** Indexing state reads as a tinted pill, one colour per outcome. */
 const STATUS_VARIANT = {
   indexed: "success",
@@ -151,7 +153,7 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
       <PageHeader
         icon={DatabaseIcon}
         title="Sources"
-        description="Manage indexed documents."
+        description="Manage indexed documents and connected databases."
         action={
           <Button onClick={() => fileInput.current?.click()} disabled={uploading}>
             {uploading ? <Spinner /> : <UploadIcon />}
@@ -184,6 +186,8 @@ export function SourcesView({ canManage }: { canManage: boolean }) {
             }
           />
         </Section>
+
+        <DatabasesSection canManage={canManage} />
 
         <Section title="Documents">
           {documents.isPending ? (

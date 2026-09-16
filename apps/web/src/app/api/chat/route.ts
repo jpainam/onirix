@@ -25,6 +25,8 @@ import {
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
+import { createPostgresExecutor } from "@onirix/datasource";
+import { listAccessibleDatabases } from "@onirix/db/datasources";
 import { chat, citation, message, skill } from "@onirix/db/schema";
 import { ensureBuiltInSkills } from "@onirix/db/skills";
 import {
@@ -35,14 +37,21 @@ import {
 import {
   CHART_TOOL_NAME,
   CHAT_TITLE_PROMPT,
+  DATABASE_TOOL_NAME,
+  DESCRIBE_TABLES_TOOL_NAME,
   QUERY_REWRITE_PROMPT,
+  SAVED_QUERY_TOOL_NAME,
   SKILL_TOOL_NAME,
   buildContextBlock,
+  buildDatabaseSection,
   buildSkillSections,
   buildSystemPrompt,
   chartTool,
   createChatModel,
+  createDescribeTablesTool,
   createLoadSkillTool,
+  createQueryDatabaseTool,
+  createRunSavedQueryTool,
   modelReasons,
   reasoningEffortOptions,
   type ProviderCredentials,
@@ -51,7 +60,7 @@ import {
 } from "@onirix/llm";
 import type { SearchHit } from "@onirix/search";
 
-import { isChartPart } from "@/lib/chat-message";
+import { isChartPart, isDatabaseQueryPart } from "@/lib/chat-message";
 import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
 import { clearActiveStream, markStreamActive } from "@/lib/chat-stream";
 import { fallbackTitle, sanitizeTitle } from "@/lib/chat-title";
@@ -71,8 +80,12 @@ export const maxDuration = 300;
  * Steps a single answer may take, a step being one round trip that either calls
  * tools or writes. The last one is forced to be prose, so the usable tool budget
  * is one less than this.
+ *
+ * Eight, since databases: a turn against a large schema describes tables,
+ * queries, fixes the query once, and charts the result before it writes — and
+ * may have loaded a skill first.
  */
-const MAX_ANSWER_STEPS = 6;
+const MAX_ANSWER_STEPS = 8;
 
 export async function POST(request: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -107,6 +120,11 @@ export async function POST(request: Request) {
   // before the first token. It is deliberately not part of `loadWorkspace`:
   // that runs on every dashboard page, and this is wanted on one route.
   const skillsLoaded = loadSkills(db, workspace.organizationId);
+  // Likewise. Which databases this caller may query is decided here, from the
+  // same access tokens that filter retrieval, and nothing about the model's
+  // later choice of database can widen it: a database the caller cannot see is
+  // one the tool has never heard of.
+  const databasesLoaded = loadDatabases(db, workspace.organizationId, workspace.accessControlList);
 
   // Keys belong to the connected provider, not to the default model, and they
   // are the workspace's own: nothing here reads the deployment environment.
@@ -237,6 +255,27 @@ export async function POST(request: Request) {
     hasContext: context.length > 0,
   });
 
+  const databases = await databasesLoaded;
+  const connectedDatabases = databases.map((entry) => ({
+    name: entry.name,
+    description: entry.config.description,
+    schema: entry.config.schema,
+    mode: entry.config.mode,
+    savedQueries: entry.savedQueries,
+  }));
+  // Each tool is offered only when some database takes it: a saved-mode
+  // database never gets `query_database`, and a workspace with no saved
+  // queries never sees `run_saved_query`.
+  const takesSql = connectedDatabases.some((entry) => entry.mode === "adhoc");
+  const hasSavedQueries = connectedDatabases.some(
+    (entry) => entry.mode === "saved" && entry.savedQueries.length > 0,
+  );
+  // The connection strings stay on this side of the tool boundary: the model is
+  // handed names and schemas, the executor resolves a name back to a connection.
+  const queryDatabase = createPostgresExecutor(
+    new Map(databases.map((entry) => [entry.name, entry.config.connectionUrl])),
+  );
+
   // Retrieved context goes in the system field, not as a system-role message:
   // the AI SDK rejects system messages inside `messages`. The prompt is rebuilt
   // from fresh retrieval each turn, so nothing accumulates in history.
@@ -245,6 +284,7 @@ export async function POST(request: Request) {
       organizationName: workspace.organizationName,
       hasContext: context.length > 0,
       ...skillSections,
+      databaseCatalog: buildDatabaseSection(connectedDatabases),
     }),
     contextBlock,
   ]
@@ -285,6 +325,26 @@ export async function POST(request: Request) {
           tools: {
             [CHART_TOOL_NAME]: chartTool,
             [SKILL_TOOL_NAME]: createLoadSkillTool(skills),
+            // Only offered when there is something to query. A tool the prompt
+            // never mentions is one the model may still reach for, and every
+            // call to it would fail the same way.
+            ...(takesSql
+              ? {
+                  [DATABASE_TOOL_NAME]: createQueryDatabaseTool(
+                    connectedDatabases,
+                    queryDatabase,
+                  ),
+                  [DESCRIBE_TABLES_TOOL_NAME]: createDescribeTablesTool(connectedDatabases),
+                }
+              : {}),
+            ...(hasSavedQueries
+              ? {
+                  [SAVED_QUERY_TOOL_NAME]: createRunSavedQueryTool(
+                    connectedDatabases,
+                    queryDatabase,
+                  ),
+                }
+              : {}),
           },
           providerOptions: answerReasoning,
           // Every tool call with a result costs a step, and a turn can now spend
@@ -419,6 +479,26 @@ async function loadSkills(
     // and `buildSystemPrompt` still states who the assistant is and what it is
     // answering from.
     console.error("Failed to load workspace skills", error);
+    return [];
+  }
+}
+
+/**
+ * The databases this caller may query, with their connections.
+ *
+ * Degrades to none rather than failing the turn, for the same reason skills
+ * do: an answer without live data is worse than one with it, and far better
+ * than no answer.
+ */
+async function loadDatabases(
+  db: ReturnType<typeof getDb>,
+  organizationId: string,
+  accessControlList: string[],
+) {
+  try {
+    return await listAccessibleDatabases(db, organizationId, accessControlList);
+  } catch (error) {
+    console.error("Failed to load connected databases", error);
     return [];
   }
 }
@@ -566,6 +646,13 @@ function storableParts(answer: OnirixUIMessage): OnirixUIMessage["parts"] {
     if (part.type === "data-sources") return false;
     if (part.type === "text") return part.text.trim().length > 0;
     if (isChartPart(part)) return part.state === "output-available";
+    // A query is kept with its rows: it is the provenance of the figures in
+    // the prose, and the model reads it back on the next turn to answer a
+    // follow-up without asking the database again.
+    if (isDatabaseQueryPart(part)) return part.state === "output-available";
+    // Reading a schema is machinery, like loading a skill: the model can read
+    // it again from the catalogue on the next turn.
+    if (part.type === `tool-${DESCRIBE_TABLES_TOOL_NAME}`) return false;
     // Loading a skill is machinery, not something the reader saw, and the body
     // it returned is rebuilt from the workspace's skills on the next turn
     // anyway. Named rather than left to the fallthrough, so the next tool that

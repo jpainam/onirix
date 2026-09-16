@@ -10,8 +10,18 @@ import { and, asc, eq } from "drizzle-orm";
 
 import { chat, citation, message } from "@onirix/db/schema";
 import { chartSpecSchema } from "@onirix/llm/chart";
+import {
+  databaseQueryInputSchema,
+  databaseQueryOutputSchema,
+  savedQueryInputSchema,
+} from "@onirix/llm/database";
 
-import { isChartPart, type ChartPart } from "@/lib/chat-message";
+import {
+  isChartPart,
+  isDatabaseQueryPart,
+  type ChartPart,
+  type DatabaseQueryPart,
+} from "@/lib/chat-message";
 import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
 import { getDb } from "@/services";
 
@@ -98,6 +108,37 @@ function restoreParts(raw: unknown[] | null): OnirixUIMessage["parts"] {
   return raw.flatMap<OnirixUIMessage["parts"][number]>((candidate) => {
     const part = candidate as OnirixUIMessage["parts"][number];
     if (part?.type === "text" && typeof part.text === "string") return [part];
+
+    if (isDatabaseQueryPart(part)) {
+      // Both halves have to parse: the input is what the reader sees as the
+      // query's purpose and SQL, the output is the rows. A query that lost
+      // either is dropped, and the prose that read from it still stands.
+      const output = databaseQueryOutputSchema.safeParse(part.output);
+      if (!output.success) return [];
+      if (part.type === "tool-run_saved_query") {
+        const input = savedQueryInputSchema.safeParse(part.input);
+        if (!input.success) return [];
+        const restored: DatabaseQueryPart = {
+          type: "tool-run_saved_query",
+          toolCallId: part.toolCallId,
+          state: "output-available",
+          input: input.data,
+          output: output.data,
+        };
+        return [restored];
+      }
+      const input = databaseQueryInputSchema.safeParse(part.input);
+      if (!input.success) return [];
+      const restored: DatabaseQueryPart = {
+        type: "tool-query_database",
+        toolCallId: part.toolCallId,
+        state: "output-available",
+        input: input.data,
+        output: output.data,
+      };
+      return [restored];
+    }
+
     if (!isChartPart(part)) return [];
 
     const spec = chartSpecSchema.safeParse(part.input);

@@ -8,6 +8,11 @@
 import type { InferUITools, UIMessage } from "ai";
 
 import type { chartTool } from "@onirix/llm/chart";
+import type {
+  createDescribeTablesTool,
+  createQueryDatabaseTool,
+  createRunSavedQueryTool,
+} from "@onirix/llm/database";
 import type { createLoadSkillTool } from "@onirix/llm/skills";
 
 export type CitedSource = {
@@ -40,7 +45,33 @@ export type ChatTools = InferUITools<{
   // The return type does not depend on the argument's value, so the inferred
   // part type is the same on every request — which is what the client needs.
   load_skill: ReturnType<typeof createLoadSkillTool>;
+  // Same shape on every request for the same reason: the databases vary, the
+  // tool's input and output types do not.
+  query_database: ReturnType<typeof createQueryDatabaseTool>;
+  describe_tables: ReturnType<typeof createDescribeTablesTool>;
+  run_saved_query: ReturnType<typeof createRunSavedQueryTool>;
 }>;
+
+/**
+ * The streamed part a database read arrives as: the model's own SQL, or a
+ * saved query it called by name. Both return the same output shape and the
+ * client draws them through one component.
+ */
+export type DatabaseQueryPart = Extract<
+  OnirixUIMessage["parts"][number],
+  { type: "tool-query_database" | "tool-run_saved_query" }
+>;
+
+export function isDatabaseQueryPart(
+  part: OnirixUIMessage["parts"][number],
+): part is DatabaseQueryPart {
+  return part.type === "tool-query_database" || part.type === "tool-run_saved_query";
+}
+
+/** The streamed part a `describe_tables` call arrives as. Machinery, never drawn. */
+export function isDescribeTablesPart(part: OnirixUIMessage["parts"][number]): boolean {
+  return part.type === "tool-describe_tables";
+}
 
 /** The streamed part a `load_skill` call arrives as. */
 export type SkillPart = Extract<
