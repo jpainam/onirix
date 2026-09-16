@@ -6,42 +6,29 @@
  * the user works through inside the app rather than behind a wizard.
  *
  * Each step is its own mutation so progress survives a reload, and connecting
- * a provider again later is the same call as connecting it the first time.
+ * a provider here is the same call the Language Models page makes later, so a
+ * workspace's first provider and its fifth take exactly one code path.
  */
 import { TRPCError } from "@trpc/server";
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { llmConfig, member, organization as organizationTable } from "@onirix/db/schema";
-import { resolvePrincipal } from "@onirix/db/principal";
+import type { Database } from "@onirix/db";
 import {
-  PROVIDERS,
-  type ProviderId,
-  findEmbeddingModel,
-  providerIdSchema,
-  providersWithServerKey,
-} from "@onirix/llm";
-import { getIndexName } from "@onirix/search";
+  invitation,
+  llmConfig,
+  llmProvider,
+  member,
+  organization as organizationTable,
+  session as sessionTable,
+  user as userTable,
+} from "@onirix/db/schema";
+import { resolvePrincipal } from "@onirix/db/principal";
+import { PROVIDERS } from "@onirix/llm";
 
 import { orgProcedure, protectedProcedure, router } from "../index";
-
-const connectInput = z.object({
-  provider: providerIdSchema,
-  /** Every model the workspace is enabling; the first is the default. */
-  models: z.array(z.string().min(1)).min(1),
-  apiKey: z.string().nullable(),
-  baseUrl: z.string().url().nullable(),
-  autoUpdateModels: z.boolean().default(true),
-  /**
-   * Only supplied when the chat provider serves no embeddings and the
-   * deployment holds no key for one that does — the dialog asks then.
-   */
-  embedding: z
-    .object({ provider: providerIdSchema, model: z.string().min(1) })
-    .nullable()
-    .default(null),
-});
+import { connectInput, connectProvider } from "./models";
 
 function slugify(name: string): string {
   const base = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -50,50 +37,55 @@ function slugify(name: string): string {
 }
 
 /**
- * Picks the embedding half of the configuration.
+ * Live invitations waiting for an email address.
  *
- * Indexing needs an embedding model, but the setup dialog is about chat, so
- * this infers one wherever it honestly can: the chat provider's own embedding
- * model first, then any provider the deployment already holds a key for. Only
- * when neither applies does the caller have to choose.
+ * Signing in puts a user on one of two paths: they were invited into an
+ * existing workspace, or they are starting one. This is what tells them apart,
+ * so it backs both the query the onboarding screen renders and the guard that
+ * stops an invitee creating a second workspace by accident.
+ *
+ * Better Auth only marks an invitation expired when someone tries to use it, so
+ * a row can sit at "pending" long past its date — the expiry is filtered here
+ * rather than trusted from the status. Addresses are compared case-insensitively
+ * because the inviter types the address by hand and the invitee's own is
+ * whatever they signed up with.
  */
-function resolveEmbedding(
-  chatProvider: ProviderId,
-  explicit: { provider: ProviderId; model: string } | null,
-  serverKeys: Set<ProviderId>,
-): { provider: ProviderId; model: string } {
-  if (explicit) return explicit;
-
-  const own = PROVIDERS[chatProvider].embeddingModels[0];
-  if (own) return { provider: chatProvider, model: own.id };
-
-  for (const id of serverKeys) {
-    const model = PROVIDERS[id].embeddingModels[0];
-    if (model) return { provider: id, model: model.id };
-  }
-
-  throw new TRPCError({
-    code: "BAD_REQUEST",
-    message: `${PROVIDERS[chatProvider].label} serves no embedding model. Choose one from another provider so Onirix can index your documents.`,
-  });
+function pendingInvitationsFor(db: Database, email: string) {
+  return db
+    .select({
+      id: invitation.id,
+      organizationId: invitation.organizationId,
+      organizationName: organizationTable.name,
+      role: invitation.role,
+      expiresAt: invitation.expiresAt,
+      inviterName: userTable.name,
+      inviterEmail: userTable.email,
+    })
+    .from(invitation)
+    .innerJoin(organizationTable, eq(organizationTable.id, invitation.organizationId))
+    .innerJoin(userTable, eq(userTable.id, invitation.inviterId))
+    .where(
+      and(
+        sql`lower(${invitation.email}) = ${email.toLowerCase()}`,
+        eq(invitation.status, "pending"),
+        gt(invitation.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(asc(invitation.createdAt));
 }
 
 export const onboardingRouter = router({
   /**
-   * Model catalog for the picker.
-   *
-   * Reports whether the deployment already holds a key for each provider, so
-   * the UI can skip the credential field. Never returns a key itself.
+   * Model catalog for the picker: every provider Onirix can talk to, and what
+   * connecting one asks for. Credentials are not part of it — they are the
+   * workspace's own, pasted into the dialog.
    */
-  providers: protectedProcedure.query(({ ctx }) => {
-    const serverKeys = providersWithServerKey(ctx.env);
-
+  providers: protectedProcedure.query(() => {
     return Object.values(PROVIDERS).map((provider) => ({
       id: provider.id,
       label: provider.label,
       description: provider.description,
       requiresApiKey: provider.requiresApiKey,
-      hasServerKey: serverKeys.has(provider.id),
       selfHosted: provider.selfHosted,
       defaultBaseUrl: provider.defaultBaseUrl ?? null,
       selfHostedLabel: provider.selfHostedLabel ?? null,
@@ -116,7 +108,7 @@ export const onboardingRouter = router({
     const organization = principal
       ? await ctx.db.query.organization.findFirst({
           where: eq(organizationTable.id, principal.organizationId),
-          with: { llmConfig: true },
+          with: { llmConfig: true, llmProviders: true },
         })
       : null;
 
@@ -127,8 +119,22 @@ export const onboardingRouter = router({
       hasModelConfig: Boolean(config),
       organizationName: organization?.name ?? null,
       connectedProvider: config?.chatProvider ?? null,
-      connectedModels: config?.chatModels ?? [],
+      connectedModels:
+        organization?.llmProviders.flatMap((row) => row.chatModels) ?? [],
     };
+  }),
+
+  /**
+   * Invitations waiting for the signed-in user.
+   *
+   * Onboarding asks this before offering to create anything: an invited user
+   * has a workspace already and should join it, not start a second one that
+   * their colleagues cannot see. Scoped to the caller's own address, so it
+   * reveals nothing about who else has been invited anywhere.
+   */
+  myInvitations: protectedProcedure.query(async ({ ctx }) => {
+    const rows = await pendingInvitationsFor(ctx.db, ctx.session!.user.email);
+    return rows.map((row) => ({ ...row, role: row.role ?? "member" }));
   }),
 
   /** Step one: name the workspace. The creator owns it. */
@@ -147,6 +153,19 @@ export const onboardingRouter = router({
         });
       }
 
+      // An invited user belongs somewhere already. Letting them name a
+      // workspace here would strand the invitation and split the customer
+      // across two tenants that cannot see each other's knowledge — the same
+      // reason `allowUserToCreateOrganization` is off in the auth config. The
+      // UI does not offer the choice; this is what makes it true of the API.
+      const invited = await pendingInvitationsFor(ctx.db, ctx.session!.user.email);
+      if (invited.length > 0) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: `You have been invited to ${invited[0]!.organizationName}. Accept that invitation instead of creating a new workspace.`,
+        });
+      }
+
       const organizationId = randomUUID();
 
       await ctx.db.transaction(async (tx) => {
@@ -162,6 +181,21 @@ export const onboardingRouter = router({
           userId,
           role: "owner",
         });
+
+        // The session predates the membership — it was minted at signup, when
+        // there was nothing to point it at — so Better Auth's session hook
+        // could not stamp it. Without this the owner can use the workspace but
+        // every organization endpoint (create a department, invite a member)
+        // fails with "No active organization" until they sign in again.
+        //
+        // Only sessions with nothing set, so a second device already acting as
+        // another workspace is not yanked over to this one.
+        await tx
+          .update(sessionTable)
+          .set({ activeOrganizationId: organizationId })
+          .where(
+            and(eq(sessionTable.userId, userId), isNull(sessionTable.activeOrganizationId)),
+          );
       });
 
       return { organizationId };
@@ -170,80 +204,12 @@ export const onboardingRouter = router({
   /**
    * Step two: connect a provider and enable models on it.
    *
-   * Replaces whatever was configured before, so reconnecting after a reset —
-   * or switching provider outright — is the same call.
+   * The same mutation the Language Models page uses, so reconnecting after a
+   * reset — or adding a second provider later — is this call again.
    */
-  connect: orgProcedure.input(connectInput).mutation(async ({ ctx, input }) => {
-    const { organizationId } = ctx;
-    const spec = PROVIDERS[input.provider];
-    const serverKeys = providersWithServerKey(ctx.env);
-
-    // Every enabled model has to be one we know how to call.
-    const known = new Set(spec.chatModels.map((model) => model.id));
-    const unknown = input.models.filter((model) => !known.has(model));
-    if (unknown.length > 0) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: `${spec.label} does not serve ${unknown.join(", ")}.`,
-      });
-    }
-
-    // Reject a missing credential here rather than letting the first request
-    // fail with a confusing error much later. A self-hosted provider needs an
-    // endpoint instead; a key stands in for one when it points at the cloud.
-    if (spec.selfHosted) {
-      if (!input.baseUrl && !input.apiKey) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `${spec.label} needs either an endpoint to reach or a cloud API key.`,
-        });
-      }
-    } else if (spec.requiresApiKey && !input.apiKey && !serverKeys.has(input.provider)) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: `${spec.label} requires an API key.`,
-      });
-    }
-
-    const embedding = resolveEmbedding(input.provider, input.embedding, serverKeys);
-    const embeddingSpec = findEmbeddingModel(embedding.provider, embedding.model);
-    if (!embeddingSpec) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: `Unknown embedding model "${embedding.model}".`,
-      });
-    }
-
-    // Embeddings reuse the chat credential only when they run on the same
-    // provider; otherwise the deployment's own key is the only one we have.
-    const sameProvider = embedding.provider === input.provider;
-    const values = {
-      organizationId,
-      chatProvider: input.provider,
-      chatModel: input.models[0]!,
-      chatModels: input.models,
-      autoUpdateModels: input.autoUpdateModels,
-      chatApiKey: input.apiKey,
-      chatBaseUrl: input.baseUrl,
-      embeddingProvider: embedding.provider,
-      embeddingModel: embedding.model,
-      embeddingApiKey: sameProvider ? input.apiKey : null,
-      embeddingBaseUrl: sameProvider ? input.baseUrl : null,
-      embeddingDimension: String(embeddingSpec.dimension),
-      indexName: getIndexName(embedding.model),
-    };
-
-    await ctx.db
-      .insert(llmConfig)
-      .values({ id: randomUUID(), ...values })
-      .onConflictDoUpdate({ target: llmConfig.organizationId, set: values });
-
-    // Create the index up front so the first upload does not pay for it.
-    const index = ctx.getDocumentIndex(embedding.model, embeddingSpec.dimension);
-    await index.ensureReady();
-
-    return { organizationId };
-  }),
+  connect: orgProcedure
+    .input(connectInput)
+    .mutation(({ ctx, input }) => connectProvider(ctx, input)),
 
   /**
    * Drops the workspace's model configuration, sending the owner back to the
@@ -255,7 +221,12 @@ export const onboardingRouter = router({
    */
   reset: orgProcedure.mutation(async ({ ctx }) => {
     const { organizationId } = ctx;
-    await ctx.db.delete(llmConfig).where(eq(llmConfig.organizationId, organizationId));
+    await ctx.db.transaction(async (tx) => {
+      await tx.delete(llmConfig).where(eq(llmConfig.organizationId, organizationId));
+      await tx
+        .delete(llmProvider)
+        .where(eq(llmProvider.organizationId, organizationId));
+    });
     return { organizationId };
   }),
 });

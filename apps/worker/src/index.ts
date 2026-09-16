@@ -24,7 +24,7 @@ import {
   reserve,
   type Job,
 } from "@onirix/jobs";
-import { resolveCredentials, type ProviderCredentials } from "@onirix/llm";
+import type { ProviderCredentials } from "@onirix/llm";
 import { DocumentIndex, createSearchClient, getIndexName } from "@onirix/search";
 
 import { ENV as env } from "./env";
@@ -153,16 +153,13 @@ async function indexOneDocument(job: Job): Promise<void> {
 
   const buffer = await getFile(storage, env.S3_BUCKET, doc.fileKey);
 
-  // A workspace using a deployment-provided key stores null; fill it in from
-  // the environment so the secret lives in one place.
-  const embeddingCredentials: ProviderCredentials = resolveCredentials(
-    {
-      provider: config.embeddingProvider as ProviderCredentials["provider"],
-      apiKey: config.embeddingApiKey,
-      baseUrl: config.embeddingBaseUrl,
-    },
-    env as unknown as Record<string, string | undefined>,
-  );
+  // The workspace's own key, pasted into the dashboard; the worker holds no
+  // credentials of its own.
+  const embeddingCredentials: ProviderCredentials = {
+    provider: config.embeddingProvider as ProviderCredentials["provider"],
+    apiKey: config.embeddingApiKey,
+    baseUrl: config.embeddingBaseUrl,
+  };
 
   const { chunkCount } = await indexDocument(
     {

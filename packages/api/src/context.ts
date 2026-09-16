@@ -9,8 +9,6 @@ export type Session = Awaited<
 
 export type Context = {
   db: Database;
-  /** Deployment environment, consulted for server-provided model keys. */
-  env: Record<string, string | undefined>;
   session: Session;
   queue: Redis;
   /** Built per-request from the workspace's embedding configuration. */

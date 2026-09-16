@@ -2,9 +2,9 @@
  * Supported model providers.
  *
  * Onirix is positioned as private-by-design and self-hostable, so no provider
- * is privileged: the workspace owner picks one during onboarding and it can be
- * changed later. Ollama is included so a deployment can run with no outbound
- * calls at all.
+ * is privileged: a workspace connects as many as it likes from the admin
+ * dashboard, each with a key its own admin pasted. Ollama is included so a
+ * deployment can run with no outbound calls at all.
  */
 import { z } from "zod";
 
@@ -150,29 +150,4 @@ export function findEmbeddingModel(
   modelId: string,
 ): EmbeddingModelSpec | undefined {
   return PROVIDERS[provider].embeddingModels.find((m) => m.id === modelId);
-}
-
-/**
- * Environment variable holding a server-provided key for each provider, if any.
- *
- * When the deployment supplies a key, onboarding offers the provider without
- * asking the user to paste one, and nothing is copied into the database — the
- * key is read from the environment at call time instead.
- */
-export const PROVIDER_ENV_KEY: Record<ProviderId, string | null> = {
-  openai: "OPENAI_API_KEY",
-  anthropic: "ANTHROPIC_API_KEY",
-  google: "GEMINI_API_KEY",
-  xai: "XAI_API_KEY",
-  ollama: null,
-};
-
-/** Providers the deployment can offer without the user supplying a key. */
-export function providersWithServerKey(env: Record<string, string | undefined>): Set<ProviderId> {
-  const available = new Set<ProviderId>();
-  for (const id of PROVIDER_IDS) {
-    const envKey = PROVIDER_ENV_KEY[id];
-    if (envKey && env[envKey]) available.add(id);
-  }
-  return available;
 }

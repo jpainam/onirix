@@ -93,6 +93,39 @@ export function createAuth(env: AuthConfig, database: Database) {
         trustedProviders: ["google", "email-password"],
       },
     },
+    databaseHooks: {
+      session: {
+        create: {
+          /**
+           * Stamp the session with the organization it is acting as.
+           *
+           * Better Auth's own organization endpoints — creating a department,
+           * inviting a member, changing a role — read `activeOrganizationId`
+           * off the session and reject the call with "No active organization"
+           * when it is null. Nothing else sets it: workspaces are created
+           * directly in onboarding rather than through `organization.create`,
+           * and only `acceptInvitation` calls `setActiveOrganization`. So a
+           * session that is never stamped here can read the workspace (the
+           * app's own scoping falls back to the oldest membership) but cannot
+           * administer it.
+           *
+           * Oldest membership, matching `resolvePrincipal`, so the session and
+           * every request made with it agree on which workspace is in scope.
+           */
+          before: async (sessionData) => {
+            const membership = await database.query.member.findFirst({
+              where: (table, { eq }) => eq(table.userId, sessionData.userId),
+              orderBy: (table, { asc }) => asc(table.createdAt),
+            });
+            if (!membership) return;
+
+            return {
+              data: { ...sessionData, activeOrganizationId: membership.organizationId },
+            };
+          },
+        },
+      },
+    },
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     // nextCookies must come last: plugins with `hooks.after` that run after it

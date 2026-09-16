@@ -148,11 +148,57 @@ export const teamMember = pgTable(
 );
 
 /**
- * The workspace's chosen models, set during onboarding.
+ * A provider the workspace has connected, with the models enabled on it.
  *
- * `embeddingModel` and `embeddingDimension` determine the OpenSearch index
- * name and mapping. Changing them requires a reindex, so they are recorded
- * alongside the index name actually in use.
+ * A workspace holds as many of these as it likes — Onyx-style, the admin adds
+ * OpenAI and Anthropic side by side and picks a default across them — which is
+ * why credentials live here rather than on the single `llm_config` row: a key
+ * belongs to the provider it opens, not to the workspace's current default.
+ */
+export const llmProvider = pgTable(
+  "llm_provider",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+
+    /** A `ProviderId` from the `@onirix/llm` catalog. */
+    provider: text("provider").notNull(),
+    /** Null when the deployment's own environment key covers this provider. */
+    apiKey: text("api_key"),
+    /** Set for self-hosted endpoints and cloud proxies. */
+    baseUrl: text("base_url"),
+
+    /** Chat models the workspace has enabled on this provider. */
+    chatModels: jsonb("chat_models").$type<string[]>().notNull().default([]),
+    /**
+     * Track the built-in catalog: when Onirix ships support for new models
+     * from this provider, enable them without the admin revisiting setup.
+     */
+    autoUpdateModels: boolean("auto_update_models").notNull().default(true),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("llm_provider_org_provider_uidx").on(table.organizationId, table.provider),
+    index("llm_provider_org_idx").on(table.organizationId),
+  ],
+);
+
+/**
+ * The workspace's default chat model and its one embedding model.
+ *
+ * `chatProvider` and `chatModel` point at a model enabled on one of the
+ * connected `llm_provider` rows; the credentials to reach it come from that
+ * row. Embeddings are the exception that stays here: `embeddingModel` and
+ * `embeddingDimension` determine the OpenSearch index name and mapping, so
+ * changing them requires a reindex rather than a hot swap, and they are
+ * recorded alongside the index name actually in use.
  */
 export const llmConfig = pgTable(
   "llm_config",
@@ -162,22 +208,10 @@ export const llmConfig = pgTable(
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
 
+    /** Provider of the default chat model; a connected `llm_provider`. */
     chatProvider: text("chat_provider").notNull(),
     /** The model answers are generated with unless the caller picks another. */
     chatModel: text("chat_model").notNull(),
-    /**
-     * Every model the workspace has enabled for this provider. `chatModel` is
-     * the default among them.
-     */
-    chatModels: jsonb("chat_models").$type<string[]>().notNull().default([]),
-    /**
-     * Track the built-in catalog: when Onirix ships support for new models
-     * from this provider, enable them without the admin revisiting setup.
-     */
-    autoUpdateModels: boolean("auto_update_models").notNull().default(true),
-    // Null for self-hosted providers that need no credential.
-    chatApiKey: text("chat_api_key"),
-    chatBaseUrl: text("chat_base_url"),
 
     embeddingProvider: text("embedding_provider").notNull(),
     embeddingModel: text("embedding_model").notNull(),
@@ -202,6 +236,7 @@ export const organizationRelations = relations(organization, ({ many, one }) => 
   invitations: many(invitation),
   teams: many(team),
   llmConfig: one(llmConfig),
+  llmProviders: many(llmProvider),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
@@ -237,6 +272,13 @@ export const teamMemberRelations = relations(teamMember, ({ one }) => ({
 export const llmConfigRelations = relations(llmConfig, ({ one }) => ({
   organization: one(organization, {
     fields: [llmConfig.organizationId],
+    references: [organization.id],
+  }),
+}));
+
+export const llmProviderRelations = relations(llmProvider, ({ one }) => ({
+  organization: one(organization, {
+    fields: [llmProvider.organizationId],
     references: [organization.id],
   }),
 }));

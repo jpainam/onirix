@@ -11,8 +11,12 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createXai } from "@ai-sdk/xai";
 import type { EmbeddingModel, LanguageModel } from "ai";
 
-import { PROVIDER_ENV_KEY, PROVIDERS, type ProviderId } from "./catalog";
+import { PROVIDERS, type ProviderId } from "./catalog";
 
+/**
+ * How to reach one provider. Keys are always the workspace's own — Onirix
+ * holds no deployment-wide credentials, so there is nowhere else to look.
+ */
 export type ProviderCredentials = {
   provider: ProviderId;
   apiKey: string | null;
@@ -98,21 +102,4 @@ export function createEmbeddingModel(
           "Configure a separate embedding provider.",
       );
   }
-}
-
-/**
- * Fills in a missing API key from the environment.
- *
- * A workspace that chose a provider the deployment already has a key for stores
- * `null`, so the secret lives in one place and rotating it does not require a
- * database update.
- */
-export function resolveCredentials(
-  credentials: ProviderCredentials,
-  env: Record<string, string | undefined>,
-): ProviderCredentials {
-  if (credentials.apiKey) return credentials;
-
-  const envKey = PROVIDER_ENV_KEY[credentials.provider];
-  return envKey ? { ...credentials, apiKey: env[envKey] ?? null } : credentials;
 }

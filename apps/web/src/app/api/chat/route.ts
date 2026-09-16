@@ -39,17 +39,15 @@ import {
   buildSystemPrompt,
   chartTool,
   createChatModel,
-  resolveCredentials,
   type ProviderCredentials,
 } from "@onirix/llm";
 import type { SearchHit } from "@onirix/search";
 
-import { env } from "@/env.server";
 import { isChartPart } from "@/lib/chat-message";
 import type { CitedSource, OnirixUIMessage } from "@/lib/chat-message";
 import { clearActiveStream, markStreamActive } from "@/lib/chat-stream";
 import { fallbackTitle, sanitizeTitle } from "@/lib/chat-title";
-import { loadWorkspace } from "@/lib/workspace";
+import { loadWorkspace, providerCredentials } from "@/lib/workspace";
 import { auth, getDb, getDocumentIndex, getResumableStreamContext } from "@/services";
 
 export const maxDuration = 60;
@@ -82,25 +80,17 @@ export async function POST(request: Request) {
   const db = getDb();
   const config = workspace.llmConfig;
 
-  // A workspace using a deployment-provided key stores null; fill it in here so
-  // the secret stays in one place.
-  const serverEnv = env as unknown as Record<string, string | undefined>;
-  const chatCredentials: ProviderCredentials = resolveCredentials(
-    {
-      provider: config.chatProvider as ProviderCredentials["provider"],
-      apiKey: config.chatApiKey,
-      baseUrl: config.chatBaseUrl,
-    },
-    serverEnv,
-  );
-  const embeddingCredentials: ProviderCredentials = resolveCredentials(
-    {
-      provider: config.embeddingProvider as ProviderCredentials["provider"],
-      apiKey: config.embeddingApiKey,
-      baseUrl: config.embeddingBaseUrl,
-    },
-    serverEnv,
-  );
+  // Keys belong to the connected provider, not to the default model, and they
+  // are the workspace's own: nothing here reads the deployment environment.
+  const chatCredentials: ProviderCredentials = {
+    provider: config.chatProvider as ProviderCredentials["provider"],
+    ...providerCredentials(workspace, config.chatProvider),
+  };
+  const embeddingCredentials: ProviderCredentials = {
+    provider: config.embeddingProvider as ProviderCredentials["provider"],
+    apiKey: config.embeddingApiKey,
+    baseUrl: config.embeddingBaseUrl,
+  };
 
   const model = createChatModel(chatCredentials, config.chatModel);
   const latest = body.messages.at(-1);

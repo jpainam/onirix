@@ -14,17 +14,25 @@ import z from "zod";
 import { AuthCard, AuthDivider } from "@/components/auth-card";
 import { FieldError } from "@/components/field-error";
 import { GoogleButton } from "@/components/google-button";
-import { AFTER_SIGN_IN, authClient } from "@/lib/auth-client";
+import { authClient, resolveNext } from "@/lib/auth-client";
 
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm({
+  onSwitchToSignUp,
+  next,
+}: {
+  onSwitchToSignUp: () => void;
+  /** Where to go once signed in, when an invitation link asked for one. */
+  next?: string | null;
+}) {
   const router = useRouter();
+  const destination = resolveNext(next);
   const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
 
   const magicLinkForm = useForm({
     defaultValues: { email: "" },
     onSubmit: async ({ value }) => {
       await authClient.signIn.magicLink(
-        { email: value.email, callbackURL: AFTER_SIGN_IN },
+        { email: value.email, callbackURL: destination },
         {
           onSuccess: () => setMagicLinkSentTo(value.email),
           onError: (error) => {
@@ -44,7 +52,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
       await authClient.signIn.email(
         { email: value.email, password: value.password },
         {
-          onSuccess: () => router.push(AFTER_SIGN_IN),
+          onSuccess: () => router.push(destination),
           onError: (error) => {
             // A sign-in blocked on verification is expected rather than broken,
             // so point at the inbox instead of surfacing a raw auth error.
@@ -95,7 +103,7 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         </>
       }
     >
-      <GoogleButton label="Continue with Google" />
+      <GoogleButton label="Continue with Google" next={next} />
 
       <form
         onSubmit={(e) => {

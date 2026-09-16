@@ -4,6 +4,10 @@
  * Next.js re-evaluates modules on hot reload, so clients that hold connection
  * pools are cached on `globalThis` to avoid exhausting Postgres/Redis
  * connections during development.
+ *
+ * The cost is that the Drizzle client keeps the schema snapshot it was built
+ * from: adding a table or a relation needs the dev server restarted, or the
+ * next query using it fails inside drizzle with an undefined relation.
  */
 import { createAuth } from "@onirix/auth";
 import { type Database, createDb } from "@onirix/db";

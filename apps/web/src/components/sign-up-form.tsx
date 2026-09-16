@@ -12,9 +12,17 @@ import z from "zod";
 import { AuthCard, AuthDivider } from "@/components/auth-card";
 import { FieldError } from "@/components/field-error";
 import { GoogleButton } from "@/components/google-button";
-import { AFTER_SIGN_IN, authClient } from "@/lib/auth-client";
+import { authClient, resolveNext } from "@/lib/auth-client";
 
-export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
+export default function SignUpForm({
+  onSwitchToSignIn,
+  next,
+}: {
+  onSwitchToSignIn: () => void;
+  /** Where to go once signed in, when an invitation link asked for one. */
+  next?: string | null;
+}) {
+  const destination = resolveNext(next);
   const [verifySentTo, setVerifySentTo] = useState<string | null>(null);
 
   const form = useForm({
@@ -25,7 +33,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
           name: value.name,
           email: value.email,
           password: value.password,
-          callbackURL: AFTER_SIGN_IN,
+          callbackURL: destination,
         },
         {
           // Verification is required, so sign-up never yields a session. The
@@ -80,7 +88,7 @@ export default function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () 
         </>
       }
     >
-      <GoogleButton label="Sign up with Google" />
+      <GoogleButton label="Sign up with Google" next={next} />
 
       <AuthDivider />
 

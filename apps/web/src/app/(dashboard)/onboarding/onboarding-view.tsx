@@ -6,6 +6,7 @@ import {
   CheckCircle2Icon,
   CircleDashedIcon,
   CpuIcon,
+  MailOpenIcon,
   RepeatIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -23,9 +24,8 @@ import { Separator } from "@onirix/ui/components/separator";
 import { Spinner } from "@onirix/ui/components/spinner";
 
 import { OnirixMark } from "@/components/onirix-mark";
+import { ProviderDialog, type Provider } from "@/components/provider-dialog";
 import { trpc } from "@/utils/trpc";
-
-import { ProviderDialog, type Provider } from "./provider-dialog";
 
 /** The lettered tile standing in for a provider logo. */
 function ProviderGlyph({ label }: { label: string }) {
@@ -51,6 +51,13 @@ export function OnboardingView({
 
   const providers = useQuery(trpc.onboarding.providers.queryOptions());
 
+  // Asked only while the caller has no workspace: someone who already belongs
+  // to one has taken their path, and an invitation cannot change it.
+  const invitations = useQuery({
+    ...trpc.onboarding.myInvitations.queryOptions(),
+    enabled: !organizationName,
+  });
+
   const createWorkspace = useMutation(
     trpc.onboarding.createWorkspace.mutationOptions({
       onSuccess: () => {
@@ -64,12 +71,56 @@ export function OnboardingView({
   const named = Boolean(organizationName);
   const step = named ? 2 : 1;
 
-  // The deployment's own keys can cover indexing, so a chat provider that
-  // serves no embeddings is still connectable on its own.
-  const embeddingFallback =
-    providers.data?.some(
-      (provider) => provider.hasServerKey && provider.embeddingModels.length > 0,
-    ) ?? false;
+  const invited = invitations.data ?? [];
+
+  // An invited user has a workspace waiting, so they are never asked to name
+  // one — creating a second tenant would strand the invitation and split their
+  // colleagues across two workspaces that cannot see each other. Acceptance
+  // itself lives on the invitation page, which is also what the emailed link
+  // opens, so there is one code path for joining however you arrived.
+  if (!named && invited.length > 0) {
+    return (
+      <div className="h-full min-h-0 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-3xl flex-col px-8 py-10">
+          <OnirixMark className="text-ink-04 mb-5 size-8" />
+          <h1 className="tracking-hero mb-2 text-3xl font-semibold">
+            You&apos;ve been invited.
+          </h1>
+          <p className="text-ink-03 mb-8 text-sm">
+            {invited.length === 1
+              ? "Accept to see what your colleagues have shared with you."
+              : "Accept one to get started; the others will keep waiting."}
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {invited.map((invitation) => (
+              <div
+                key={invitation.id}
+                className="bg-card flex items-center gap-3 rounded-xl border px-4 py-3"
+              >
+                <MailOpenIcon className="text-ink-04 size-5 shrink-0" />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-sm font-semibold">
+                    {invitation.organizationName}
+                  </span>
+                  <span className="text-ink-03 truncate text-xs">
+                    Invited by {invitation.inviterName} as {invitation.role}
+                  </span>
+                </span>
+                <Button
+                  className="shrink-0"
+                  onClick={() => router.push(`/accept-invitation/${invitation.id}`)}
+                >
+                  Join
+                  <ArrowRightIcon />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full min-h-0 overflow-y-auto">
@@ -102,6 +153,10 @@ export function OnboardingView({
               </span>
               <CheckCircle2Icon className="text-success size-5 shrink-0" />
             </>
+          ) : invitations.isPending ? (
+            <div className="flex w-full justify-center py-1">
+              <Spinner />
+            </div>
           ) : (
             <>
               <span className="bg-tint-02 text-ink-04 flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold">
@@ -202,7 +257,7 @@ export function OnboardingView({
       {openProvider ? (
         <ProviderDialog
           provider={openProvider}
-          embeddingFallbackAvailable={embeddingFallback}
+          settlesEmbedding
           embeddingProviders={(providers.data ?? []).filter(
             (candidate) => candidate.embeddingModels.length > 0,
           )}

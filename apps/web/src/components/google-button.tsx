@@ -5,9 +5,9 @@ import Image from "next/image";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { AFTER_SIGN_IN, authClient } from "@/lib/auth-client";
+import { authClient, resolveNext } from "@/lib/auth-client";
 
-export function GoogleButton({ label }: { label: string }) {
+export function GoogleButton({ label, next }: { label: string; next?: string | null }) {
   const [isPending, setIsPending] = useState(false);
 
   return (
@@ -21,7 +21,7 @@ export function GoogleButton({ label }: { label: string }) {
         // On success the browser navigates to Google, so `isPending` is only
         // ever cleared on the error path.
         await authClient.signIn.social(
-          { provider: "google", callbackURL: AFTER_SIGN_IN },
+          { provider: "google", callbackURL: resolveNext(next) },
           {
             onError: (error) => {
               setIsPending(false);

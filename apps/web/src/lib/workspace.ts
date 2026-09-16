@@ -27,8 +27,6 @@ export type Workspace = {
   llmConfig: {
     chatProvider: string;
     chatModel: string;
-    chatApiKey: string | null;
-    chatBaseUrl: string | null;
     embeddingProvider: string;
     embeddingModel: string;
     embeddingApiKey: string | null;
@@ -36,7 +34,28 @@ export type Workspace = {
     embeddingDimension: string;
     indexName: string;
   } | null;
+  /** Providers the workspace has connected, with the models enabled on each. */
+  llmProviders: {
+    provider: string;
+    apiKey: string | null;
+    baseUrl: string | null;
+    chatModels: string[];
+  }[];
 };
+
+/**
+ * Credentials for reaching one of the workspace's providers.
+ *
+ * Keys live on the provider row rather than on the model configuration, so
+ * anything that wants to call a model looks the provider up here first.
+ */
+export function providerCredentials(
+  workspace: Workspace,
+  provider: string,
+): { apiKey: string | null; baseUrl: string | null } {
+  const row = workspace.llmProviders.find((candidate) => candidate.provider === provider);
+  return { apiKey: row?.apiKey ?? null, baseUrl: row?.baseUrl ?? null };
+}
 
 export async function loadWorkspace(
   userId: string,
@@ -48,7 +67,7 @@ export async function loadWorkspace(
 
   const org = await db.query.organization.findFirst({
     where: eq(organization.id, principal.organizationId),
-    with: { llmConfig: true },
+    with: { llmConfig: true, llmProviders: true },
   });
   if (!org) return null;
 
@@ -59,6 +78,7 @@ export async function loadWorkspace(
     teamIds: principal.teamIds,
     accessControlList: principal.accessControlList,
     llmConfig: org.llmConfig ?? null,
+    llmProviders: org.llmProviders,
   };
 }
 
