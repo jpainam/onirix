@@ -10,6 +10,7 @@ const COLUMNS = [
       { href: "/#how-it-works", label: "How it works" },
       { href: "/#providers", label: "Model providers" },
       { href: "/#self-host", label: "Self-hosting" },
+      { href: "/download", label: "Desktop app" },
     ],
   },
   {

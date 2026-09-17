@@ -367,3 +367,44 @@
     linear-gradient(to bottom, color-mix(in srgb, var(--tint-03) 70%, transparent) 1px, transparent 1px);
   background-size: 56px 56px;
 }
+
+/* The desktop shell (apps/desktop) hides the macOS title bar and lets the
+   product run to the top of the window, so the window controls float over the
+   sidebar's top-left corner. Its preload puts these classes on <html>; in a
+   browser none of this applies.
+
+   The sidebar header drops below the controls and becomes the handle the
+   window is dragged by. A drag region swallows clicks, so everything
+   interactive inside one opts back out. */
+html.onirix-desktop-darwin {
+  [data-slot="sidebar-header"] {
+    padding-top: 2.75rem;
+    -webkit-app-region: drag;
+
+    :is(a, button, input) {
+      -webkit-app-region: no-drag;
+    }
+  }
+
+  /* A strip along the top edge keeps the window draggable past the sidebar.
+     Thin where the product is, since it sits above whatever is under it; as
+     tall as a title bar on the pages that have no sidebar to grab. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 100;
+    height: 0.75rem;
+    -webkit-app-region: drag;
+  }
+
+  body:not(:has([data-slot="sidebar-wrapper"]))::before {
+    height: 2.5rem;
+  }
+}
+
+/* An app's frame is not a document: dragging across it should not paint a
+   selection. Content people copy from stays selectable. */
+html.onirix-desktop [data-slot="sidebar"] {
+  user-select: none;
+}

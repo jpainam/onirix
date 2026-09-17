@@ -25,6 +25,12 @@ export type ChatModelSpec = {
    * is `reasoningEffortOptions`'s job in `factory.ts`.
    */
   reasons?: boolean;
+  /**
+   * Approximate size on disk of the default tag, in GB. Only set where the
+   * model is something a user downloads, so the desktop app can say what a
+   * click costs before it starts. The real figure arrives with the download.
+   */
+  downloadGb?: number;
 };
 
 export type EmbeddingModelSpec = {
@@ -35,6 +41,8 @@ export type EmbeddingModelSpec = {
    * changing the embedding model requires reindexing rather than a hot swap.
    */
   dimension: number;
+  /** As on `ChatModelSpec`. */
+  downloadGb?: number;
 };
 
 export type ProviderSpec = {
@@ -138,20 +146,20 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     // first three are the ones a new connection starts with; the rest are
     // opt-in, since a self-hosted box only serves what has been pulled.
     chatModels: [
-      { id: "llama3.3", label: "Llama 3.3" },
-      { id: "qwen2.5", label: "Qwen 2.5" },
-      { id: "mistral", label: "Mistral" },
-      { id: "gpt-oss:20b", label: "gpt-oss 20B", reasons: true },
-      { id: "gpt-oss:120b", label: "gpt-oss 120B", reasons: true },
-      { id: "qwen3", label: "Qwen 3", reasons: true },
-      { id: "deepseek-r1", label: "DeepSeek R1", reasons: true },
-      { id: "gemma3", label: "Gemma 3" },
-      { id: "phi4", label: "Phi-4" },
-      { id: "mistral-small3.2", label: "Mistral Small 3.2" },
+      { id: "llama3.3", label: "Llama 3.3", downloadGb: 43 },
+      { id: "qwen2.5", label: "Qwen 2.5", downloadGb: 4.7 },
+      { id: "mistral", label: "Mistral", downloadGb: 4.4 },
+      { id: "gpt-oss:20b", label: "gpt-oss 20B", reasons: true, downloadGb: 14 },
+      { id: "gpt-oss:120b", label: "gpt-oss 120B", reasons: true, downloadGb: 65 },
+      { id: "qwen3", label: "Qwen 3", reasons: true, downloadGb: 5.2 },
+      { id: "deepseek-r1", label: "DeepSeek R1", reasons: true, downloadGb: 5.2 },
+      { id: "gemma3", label: "Gemma 3", downloadGb: 3.3 },
+      { id: "phi4", label: "Phi-4", downloadGb: 9.1 },
+      { id: "mistral-small3.2", label: "Mistral Small 3.2", downloadGb: 15 },
     ],
     embeddingModels: [
-      { id: "nomic-embed-text", label: "Nomic Embed Text", dimension: 768 },
-      { id: "mxbai-embed-large", label: "MxBai Embed Large", dimension: 1024 },
+      { id: "nomic-embed-text", label: "Nomic Embed Text", dimension: 768, downloadGb: 0.3 },
+      { id: "mxbai-embed-large", label: "MxBai Embed Large", dimension: 1024, downloadGb: 0.7 },
     ],
   },
 };

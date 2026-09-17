@@ -1,0 +1,59 @@
+appId: com.logestalabs.onirix
+productName: Onirix
+copyright: Copyright © Logesta Labs
+
+# `build/` and `dist/` are gitignored repo-wide, so resources and output live
+# under their own names.
+directories:
+  buildResources: resources
+  output: release
+
+# Everything the app runs is bundled into dist/ by esbuild, so no node_modules
+# ship. Without the exclusion the workspace root's own dependencies ride along.
+files:
+  - dist/**
+  - package.json
+  - "!node_modules"
+
+# No version in the file name: the public download page links to
+# releases/latest/download/<name>, which only works when the name is stable.
+artifactName: Onirix-${os}-${arch}.${ext}
+
+mac:
+  category: public.app-category.productivity
+  icon: resources/icon.png
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  # Signing and notarization switch on when the CSC_* and APPLE_* variables
+  # are present (see .github/workflows/desktop.yml). Without them the build is
+  # unsigned, which is fine locally and not fine for the public.
+
+win:
+  icon: resources/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: true
+  perMachine: false
+
+linux:
+  # AppImage spells the architecture x86_64; pin the name the site links to.
+  artifactName: Onirix-linux-x64.${ext}
+  icon: resources/icon.png
+  category: Office
+  target:
+    - target: AppImage
+      arch: [x64]
+
+# Installers are attached to GitHub releases of this repository, which is
+# public, so the download page can link to them directly.
+publish:
+  provider: github
+  owner: jpainam
+  repo: onirix
+  releaseType: release

@@ -12,6 +12,8 @@
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "dev:native": "turbo run dev -F native --",
+    "dev:desktop": "pnpm --filter desktop start",
+    "desktop:dist": "pnpm --filter desktop dist",
     "dev:web": "pnpm infra:up && turbo run dev -F web --",
     "db:push": "turbo run db:push -F @onirix/db --",
     "db:studio": "turbo run db:studio -F @onirix/db --",

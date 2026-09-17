@@ -1,0 +1,90 @@
+name: Desktop release
+
+# Builds the desktop installers and attaches them to a GitHub release of this
+# repository, which is where the download page links. Tag `desktop-v1.2.3` to release 1.2.3;
+# a manual run builds the installers as workflow artifacts without publishing.
+on:
+  push:
+    tags: ["desktop-v*"]
+  workflow_dispatch:
+
+# Creating a release and uploading its assets.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: macOS, os: macos-latest }
+          - { name: Windows, os: windows-latest }
+          - { name: Linux, os: ubuntu-latest }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # Only the desktop package, and no lifecycle scripts: the root
+      # postinstall generates env types for the server apps, which this job
+      # has neither the variables nor the need for.
+      - name: Install
+        run: pnpm install --frozen-lockfile --filter desktop... --ignore-scripts
+
+      - name: Typecheck
+        run: pnpm --filter desktop check-types
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/desktop-v* ]]; then
+            echo "value=${GITHUB_REF#refs/tags/desktop-v}" >> "$GITHUB_OUTPUT"
+            echo "publish=always" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=0.0.0-dev.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "publish=never" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build installers
+        working-directory: apps/desktop
+        run: |
+          node scripts/bundle.mjs
+          pnpm exec electron-builder \
+            --publish ${{ steps.version.outputs.publish }} \
+            -c.extraMetadata.version=${{ steps.version.outputs.value }}
+        env:
+          # The server a fresh install suggests on its connect screen.
+          ONIRIX_DEFAULT_SERVER: ${{ vars.ONIRIX_DEFAULT_SERVER }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS signing and notarization. Without these the build is
+          # unsigned, and Gatekeeper will refuse to open it for the public.
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows signing, when a certificate exists.
+          WIN_CSC_LINK: ${{ secrets.WIN_CERTIFICATE_PFX_BASE64 }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onirix-desktop-${{ matrix.name }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+          if-no-files-found: error

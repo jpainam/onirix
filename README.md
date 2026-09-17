@@ -18,6 +18,11 @@ See [PRODUCT.md](./PRODUCT.md) for the product definition.
 | `web` | Next.js application |
 | `worker` | Background indexing, connector syncs and their schedule; replaces Onyx's Celery workers |
 
+There is also a desktop client, `apps/desktop`: an Electron window around the
+web app that can install Ollama and download open models onto the user's
+computer. It is a client of the stack above, not a copy of it. See
+[apps/desktop/README.md](apps/desktop/README.md).
+
 The OpenSearch index mapping, hybrid query shape, and scoring constants in
 `packages/search` are ported from Onyx so their retrieval-quality work carries
 over.
@@ -132,6 +137,8 @@ Add more with `npx shadcn@latest add <component> -c packages/ui`, then import as
 | `pnpm run dev` | Run all apps in development |
 | `pnpm run dev:web` | Web only |
 | `pnpm run dev:worker` | Indexing worker only |
+| `pnpm run dev:desktop` | Desktop shell, attached to a running server |
+| `pnpm run desktop:dist` | Build desktop installers into `apps/desktop/release` |
 | `pnpm run check-types` | Typecheck the monorepo |
 | `pnpm run infra:up` | Start backing services only |
 | `pnpm run db:generate` | Generate a migration |

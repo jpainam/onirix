@@ -1,0 +1,28 @@
+{
+  "name": "desktop",
+  "productName": "Onirix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Onirix desktop client",
+  "author": "Logesta Labs <contact@logestalabs.com>",
+  "homepage": "https://github.com/jpainam/onirix",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "bundle": "node scripts/bundle.mjs",
+    "start": "node scripts/bundle.mjs && electron .",
+    "check-types": "tsc --noEmit",
+    "icon": "node scripts/icon.mjs",
+    "pack": "node scripts/bundle.mjs && electron-builder --dir",
+    "dist": "node scripts/bundle.mjs && electron-builder --publish never",
+    "release": "node scripts/bundle.mjs && electron-builder --publish always"
+  },
+  "devDependencies": {
+    "@onirix/config": "workspace:*",
+    "@types/node": "catalog:",
+    "electron": "^44.4.1",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "sharp": "^0.34.5",
+    "typescript": "^6.0.3"
+  }
+}

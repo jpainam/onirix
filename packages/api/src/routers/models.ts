@@ -292,6 +292,50 @@ export const modelsRouter = router({
     .input(connectInput)
     .mutation(({ ctx, input }) => connectProvider(ctx, input)),
 
+  /**
+   * Asks an OpenAI-compatible endpoint what it serves, from where the server
+   * stands.
+   *
+   * The vantage point is the point. A self-hosted endpoint is called by this
+   * server, not by the admin's browser, so "it works on my machine" says
+   * nothing: `localhost` inside a container is the container. The dialog uses
+   * this to test an address before saving it, and the desktop app uses it to
+   * find which of the host's names this server can reach a local runtime by.
+   *
+   * Only model ids parsed from a well-formed listing are returned, never the
+   * response itself, so this cannot be used to read arbitrary internal URLs.
+   */
+  probe: permissionProcedure("model", "update")
+    .input(z.object({ baseUrl: z.string().url() }))
+    .mutation(async ({ input }) => {
+      const unreachable = { reachable: false, models: [] as string[] };
+
+      let url: URL;
+      try {
+        url = new URL(`${input.baseUrl.replace(/\/+$/, "")}/models`);
+      } catch {
+        return unreachable;
+      }
+      if (url.protocol !== "http:" && url.protocol !== "https:") return unreachable;
+
+      try {
+        const response = await fetch(url, { signal: AbortSignal.timeout(4000) });
+        if (!response.ok) return unreachable;
+        const body = (await response.json()) as { data?: { id?: unknown }[] };
+        if (!Array.isArray(body.data)) return unreachable;
+        return {
+          reachable: true,
+          // Ollama lists `qwen2.5:latest`; the catalog calls it `qwen2.5`.
+          models: body.data
+            .map((model) => model.id)
+            .filter((id): id is string => typeof id === "string")
+            .map((id) => id.replace(/:latest$/, "")),
+        };
+      } catch {
+        return unreachable;
+      }
+    }),
+
   /** Point the workspace at a different default chat model. */
   setDefault: permissionProcedure("model", "update")
     .input(z.object({ provider: providerIdSchema, model: z.string().min(1) }))

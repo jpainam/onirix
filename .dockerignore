@@ -1,6 +1,10 @@
 **/node_modules
 .git
 
+# The desktop shell is built and released on its own; the server images never
+# need Electron in their dependency tree.
+apps/desktop
+
 **/dist
 **/build
 **/.next

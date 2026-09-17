@@ -31,8 +31,15 @@ import { Spinner } from "@onirix/ui/components/spinner";
 import { Switch } from "@onirix/ui/components/switch";
 import { cn } from "@onirix/ui/lib/utils";
 
+import {
+  LocalDownload,
+  LocalModelRow,
+  LocalRuntimeStatus,
+} from "@/components/local-runtime";
 import { OnirixMark } from "@/components/onirix-mark";
 import { ProviderLogo } from "@/components/provider-logo";
+import { useLocalRuntime } from "@/hooks/use-local-runtime";
+import { getDesktopBridge, localRuntimeCandidates } from "@/lib/desktop";
 import { trpc } from "@/utils/trpc";
 
 export type Provider = inferRouterOutputs<AppRouter>["onboarding"]["providers"][number];
@@ -45,6 +52,13 @@ export type ConnectedProvider = {
   hasApiKey: boolean;
   baseUrl: string | null;
 };
+
+/**
+ * How a provider is reached. `local` exists only in the desktop app, which can
+ * install a runtime and download models onto the computer it runs on; the
+ * other two are the same in a browser.
+ */
+type Mode = "local" | "self-hosted" | "cloud";
 
 /** Models beyond this many are folded behind "More models". */
 const VISIBLE_MODELS = 3;
@@ -81,12 +95,23 @@ export function ProviderDialog({
   // A provider offered in both shapes starts on the self-hosted one: someone
   // running Ollama locally is the reason it is in the list at all. An existing
   // connection starts on whichever shape it was saved with.
-  const [mode, setMode] = useState<"self-hosted" | "cloud">(() => {
-    if (connected && provider.cloud) {
-      return connected.baseUrl === provider.cloud.baseUrl ? "cloud" : "self-hosted";
+  //
+  // In the desktop app there is a third shape, and it leads when it can work:
+  // a server on this same machine can use a model the app serves here.
+  const desktop = provider.selfHosted ? getDesktopBridge() : null;
+  const [mode, setMode] = useState<Mode>(() => {
+    const localUrls = desktop ? localRuntimeCandidates(desktop.server.origin) : [];
+    if (connected) {
+      if (provider.cloud && connected.baseUrl === provider.cloud.baseUrl) return "cloud";
+      return localUrls.includes(connected.baseUrl ?? "") ? "local" : "self-hosted";
     }
+    if (localUrls.length > 0) return "local";
     return provider.selfHosted ? "self-hosted" : "cloud";
   });
+  const local = mode === "local";
+  const runtime = useLocalRuntime(local);
+  /** Downloading the embedding model on the way to connecting. */
+  const [preparing, setPreparing] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState(
     connected?.baseUrl ?? provider.defaultBaseUrl ?? "",
@@ -132,10 +157,36 @@ export function ProviderDialog({
     }),
   );
 
+  // Asks the server, not this browser, whether an address answers: it is the
+  // server that will be calling it.
+  const test = useMutation(
+    trpc.models.probe.mutationOptions({
+      onSuccess: (result) => {
+        if (!result.reachable) return;
+        // What the endpoint actually serves is a better starting selection
+        // than a guess, when it serves anything the catalog knows.
+        const served = provider.chatModels
+          .map((model) => model.id)
+          .filter((id) => result.models.includes(id));
+        if (served.length > 0) {
+          setSelected(served);
+          setShowAll(true);
+        }
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+
   const selfHosted = provider.selfHosted && mode === "self-hosted";
-  const keyNeeded = !selfHosted && provider.requiresApiKey && !connected?.hasApiKey;
+  const keyNeeded =
+    !selfHosted && !local && provider.requiresApiKey && !connected?.hasApiKey;
+  // On this computer, a model can only be enabled once it is on disk.
+  const enabled = local
+    ? selected.filter((id) => runtime.downloaded.has(id))
+    : selected;
   const canConnect =
-    selected.length > 0 &&
+    enabled.length > 0 &&
+    (!local || runtime.reach.state === "reachable") &&
     (!keyNeeded || apiKey.trim().length > 0) &&
     (!selfHosted || baseUrl.trim().length > 0) &&
     (!needsEmbeddingChoice || Boolean(embeddingProvider && embeddingModel)) &&
@@ -157,14 +208,43 @@ export function ProviderDialog({
     );
   }
 
-  function submit() {
+  async function download(modelId: string) {
+    const done = await runtime.pull(modelId);
+    // Downloading a model is asking for it; tick it rather than ask twice.
+    if (done) {
+      setSelected((current) =>
+        provider.chatModels
+          .map((model) => model.id)
+          .filter((id) => id === modelId || current.includes(id)),
+      );
+    }
+  }
+
+  // The first provider also indexes the workspace's documents, and the server
+  // picks this provider's first embedding model for that. Locally that model
+  // has to be on disk like any other, so connecting fetches it when missing.
+  const localEmbedding = local && settlesEmbedding ? provider.embeddingModels[0] : undefined;
+
+  async function submit() {
+    if (localEmbedding && !runtime.downloaded.has(localEmbedding.id)) {
+      setPreparing(true);
+      const done = await runtime.pull(localEmbedding.id);
+      setPreparing(false);
+      if (!done) return;
+    }
+
     connect.mutate({
       provider: provider.id,
-      models: selected,
+      models: enabled,
       // Blank means "keep the key on file", or fall back to the deployment's
       // own key when there is nothing on file.
       apiKey: apiKey.trim() || null,
-      baseUrl: selfHosted ? baseUrl.trim() : (provider.cloud?.baseUrl ?? null),
+      baseUrl:
+        local && runtime.reach.state === "reachable"
+          ? runtime.reach.baseUrl
+          : selfHosted
+            ? baseUrl.trim()
+            : (provider.cloud?.baseUrl ?? null),
       autoUpdateModels: autoUpdate,
       embedding: needsEmbeddingChoice
         ? {
@@ -200,10 +280,19 @@ export function ProviderDialog({
         <div className="bg-tint-01 flex flex-col gap-4 border-y px-5 py-4">
           {/* Two ways to reach the same models: your box, or theirs. */}
           {provider.cloud ? (
-            <div className="bg-tint-02 grid grid-cols-2 gap-1 rounded-xl p-1">
+            <div
+              className={cn(
+                "bg-tint-02 grid gap-1 rounded-xl p-1",
+                desktop ? "grid-cols-3" : "grid-cols-2",
+              )}
+            >
               {(
                 [
-                  ["self-hosted", provider.selfHostedLabel ?? "Self-hosted"],
+                  ...(desktop ? ([["local", "This computer"]] as const) : []),
+                  [
+                    "self-hosted",
+                    desktop ? "Remote server" : (provider.selfHostedLabel ?? "Self-hosted"),
+                  ],
                   ["cloud", provider.cloud.label],
                 ] as const
               ).map(([value, label]) => (
@@ -225,15 +314,46 @@ export function ProviderDialog({
             </div>
           ) : null}
 
-          {selfHosted ? (
+          {local && desktop ? (
+            <LocalRuntimeStatus
+              runtime={runtime}
+              serverHost={new URL(desktop.server.origin).host}
+              installSize={desktop.platform === "darwin" ? "about 150 MB" : "about 1.4 GB"}
+            />
+          ) : selfHosted ? (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="baseUrl">API Base URL</Label>
-              <Input
-                id="baseUrl"
-                value={baseUrl}
-                onChange={(event) => setBaseUrl(event.target.value)}
-                placeholder="http://host.docker.internal:11434/v1"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="baseUrl"
+                  value={baseUrl}
+                  onChange={(event) => {
+                    setBaseUrl(event.target.value);
+                    test.reset();
+                  }}
+                  placeholder="http://host.docker.internal:11434/v1"
+                />
+                <Button
+                  variant="outline"
+                  disabled={baseUrl.trim().length === 0 || test.isPending}
+                  onClick={() => test.mutate({ baseUrl: baseUrl.trim() })}
+                >
+                  {test.isPending ? <Spinner /> : null}
+                  Test
+                </Button>
+              </div>
+              {test.data ? (
+                <p
+                  className={cn(
+                    "text-xs leading-4",
+                    test.data.reachable ? "text-success" : "text-destructive",
+                  )}
+                >
+                  {test.data.reachable
+                    ? `Onirix reached it. It serves ${test.data.models.length} ${test.data.models.length === 1 ? "model" : "models"}.`
+                    : "Onirix could not reach this address from where it runs."}
+                </p>
+              ) : null}
               <p className="text-ink-03 text-xs leading-4">
                 The base URL for your {provider.label} instance. With Onirix running in
                 a container, use{" "}
@@ -271,24 +391,40 @@ export function ProviderDialog({
             <div className="flex flex-col">
               <h3 className="text-sm font-semibold">Models</h3>
               <p className="text-ink-03 text-xs leading-4">
-                {selfHosted
-                  ? "Select the models you have pulled on this instance."
-                  : "Select models to make available for this provider."}
+                {local
+                  ? "Download a model, then tick it to make it available."
+                  : selfHosted
+                    ? "Select the models you have pulled on this instance."
+                    : "Select models to make available for this provider."}
               </p>
             </div>
-            <Button
-              variant="link"
-              size="sm"
-              disabled={selected.length === provider.chatModels.length}
-              onClick={() => setSelected(provider.chatModels.map((model) => model.id))}
-            >
-              Select all
-            </Button>
+            {local ? null : (
+              <Button
+                variant="link"
+                size="sm"
+                disabled={selected.length === provider.chatModels.length}
+                onClick={() => setSelected(provider.chatModels.map((model) => model.id))}
+              >
+                Select all
+              </Button>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
             {visible.map((model) => {
-              const checked = selected.includes(model.id);
+              const checked = enabled.includes(model.id);
+              if (local) {
+                return (
+                  <LocalModelRow
+                    key={model.id}
+                    model={model}
+                    runtime={runtime}
+                    checked={checked}
+                    onToggle={() => toggle(model.id)}
+                    onDownload={() => void download(model.id)}
+                  />
+                );
+              }
               return (
                 <label
                   key={model.id}
@@ -318,6 +454,17 @@ export function ProviderDialog({
               <ChevronDownIcon />
               More models ({hidden})
             </Button>
+          ) : null}
+
+          {localEmbedding && !runtime.downloaded.has(localEmbedding.id) ? (
+            <p className="text-ink-03 text-xs leading-4">
+              Connecting also downloads {localEmbedding.label}
+              {localEmbedding.downloadGb ? ` (about ${localEmbedding.downloadGb} GB)` : ""}, which
+              indexes your documents on this computer.
+            </p>
+          ) : null}
+          {localEmbedding && runtime.progress[localEmbedding.id] ? (
+            <LocalDownload progress={runtime.progress[localEmbedding.id]!} />
           ) : null}
 
           {needsEmbeddingChoice ? (
@@ -423,9 +570,12 @@ export function ProviderDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={!canConnect || connect.isPending} onClick={submit}>
-            {connect.isPending ? <Spinner /> : null}
-            {connected ? "Save changes" : "Connect"}
+          <Button
+            disabled={!canConnect || connect.isPending || preparing}
+            onClick={() => void submit()}
+          >
+            {connect.isPending || preparing ? <Spinner /> : null}
+            {preparing ? "Downloading" : connected ? "Save changes" : "Connect"}
           </Button>
         </DialogFooter>
       </DialogContent>
