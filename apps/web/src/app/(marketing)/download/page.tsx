@@ -26,8 +26,10 @@ export const metadata: Metadata = {
     "The Onirix desktop app for macOS, Windows, and Linux. Your workspace in its own window, with open models that run on your computer.",
 };
 
-// The availability check is cached for an hour; the page follows it.
-export const revalidate = 3600;
+// The availability check in desktop-downloads.ts keeps its own answer; the
+// page re-renders often enough to pick up a release within a minute of it
+// landing.
+export const revalidate = 60;
 
 /**
  * The desktop download page.

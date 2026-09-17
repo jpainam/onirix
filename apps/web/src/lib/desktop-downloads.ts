@@ -56,14 +56,34 @@ export function desktopDownloads(): DesktopDownload[] {
   return FILES.map((entry) => ({ ...entry, href: `${base}/${entry.file}` }));
 }
 
+const PUBLISHED_TTL_MS = 60 * 60 * 1000;
+const UNPUBLISHED_TTL_MS = 60 * 1000;
+
+let probe: { published: boolean; expiresAt: number } | undefined;
+
 /**
  * Whether the installers are actually there to download.
  *
  * A fresh deployment, or one whose release job has not run yet, would
  * otherwise put four buttons on a public page that all lead to a 404. One
- * HEAD request, cached for an hour, is what it costs to not do that.
+ * HEAD request is what it costs to not do that.
+ *
+ * A release, once there, stays there, so a positive answer is kept for an
+ * hour. A negative one is kept for a minute: the page is most often looked at
+ * right after a release job starts, and it must not say "coming soon" for an
+ * hour after the installers land.
  */
 export async function desktopDownloadsPublished(): Promise<boolean> {
+  if (probe && probe.expiresAt > Date.now()) return probe.published;
+  const published = await installersReachable();
+  probe = {
+    published,
+    expiresAt: Date.now() + (published ? PUBLISHED_TTL_MS : UNPUBLISHED_TTL_MS),
+  };
+  return published;
+}
+
+async function installersReachable(): Promise<boolean> {
   const [first] = desktopDownloads();
   if (!first) return false;
   try {
@@ -71,7 +91,7 @@ export async function desktopDownloadsPublished(): Promise<boolean> {
       method: "HEAD",
       redirect: "follow",
       signal: AbortSignal.timeout(5000),
-      next: { revalidate: 3600 },
+      cache: "no-store",
     });
     return response.ok;
   } catch {
