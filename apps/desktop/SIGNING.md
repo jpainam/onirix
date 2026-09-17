@@ -118,9 +118,12 @@ the prompt, so a trailing note becomes extra arguments and `gh` answers
 `accepts at most 1 arg(s)`.
 
 Or paste them under **Settings → Secrets and variables → Actions**.
-`.github/workflows/desktop.yml` hands them to electron-builder as `CSC_LINK`,
-`CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and
-`APPLE_TEAM_ID`. Nothing else in the repository changes: `hardenedRuntime` is
+`.github/workflows/desktop.yml` imports the certificate into a temporary
+keychain on the runner and points electron-builder at it with `CSC_KEYCHAIN`;
+the three Apple values go to it as they are. (It does not use electron-builder's
+own `CSC_LINK` import: version 26.15 unlocks its keychain with the wrong
+password and fails with "SecKeychainUnlock: the passphrase you entered is not
+correct".) Nothing else in the repository changes: `hardenedRuntime` is
 already on in `electron-builder.yml`, and the default entitlements
 electron-builder applies are the ones Electron needs.
 
@@ -174,8 +177,9 @@ from the Internet" confirmation.
 
 | Symptom | Cause |
 | --- | --- |
-| `skipped macOS application code signing` | No identity found. `CSC_LINK` is empty or not valid base64, or the keychain has no Developer ID Application certificate. |
-| `MAC verification failed` / wrong password | `MAC_CERTIFICATE_PASSWORD` does not match the `.p12`. |
+| `skipped macOS application code signing` | No identity found. `MAC_CERTIFICATE_P12_BASE64` is empty, or the `.p12` holds no Developer ID Application certificate. The import step prints the identities it found. |
+| `MAC verification failed` in the import step | `MAC_CERTIFICATE_PASSWORD` does not match the `.p12`. |
+| `base64: invalid input` in the import step | The secret was pasted rather than piped; set it again with `base64 -i … \| gh secret set …`. |
 | Notarization `Invalid` | Run the `xcrun notarytool log <id> …` command the error prints. Usually a binary inside the app that is unsigned or lacks the hardened runtime. |
 | `HTTP 401` / `403` from notarytool | Wrong app-specific password, wrong Team ID, or a new Apple agreement waiting to be accepted at developer.apple.com. |
 | Signed and notarized, still "damaged" | The `.dmg` was modified after stapling, or the file was re-zipped by something that drops extended attributes. Ship the file electron-builder produced. |

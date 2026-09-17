@@ -24,6 +24,9 @@ jobs:
           - { name: macOS, os: macos-latest }
           - { name: Windows, os: windows-latest }
           - { name: Linux, os: ubuntu-latest }
+    env:
+      # Secrets cannot be read in a step's `if`, so the question is asked here.
+      HAS_MAC_CERTIFICATE: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 != '' }}
     defaults:
       run:
         shell: bash
@@ -58,6 +61,38 @@ jobs:
             echo "publish=never" >> "$GITHUB_OUTPUT"
           fi
 
+      # electron-builder can import the certificate by itself (CSC_LINK), but
+      # 26.15 unlocks the keychain it creates with the certificate's password
+      # rather than the keychain's, and fails with "SecKeychainUnlock: the
+      # passphrase you entered is not correct". Importing it here, the way
+      # GitHub documents, sidesteps that and fails on the right line when a
+      # secret really is wrong. electron-builder then finds the identity in the
+      # keychain named by CSC_KEYCHAIN.
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS' && env.HAS_MAC_CERTIFICATE == 'true'
+        env:
+          P12_BASE64: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/onirix-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          P12="$RUNNER_TEMP/developer-id.p12"
+
+          echo "$P12_BASE64" | base64 --decode > "$P12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$P12" -P "$P12_PASSWORD" -f pkcs12 -k "$KEYCHAIN" \
+            -T /usr/bin/codesign -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" \
+            $(security list-keychains -d user | tr -d '"')
+          rm -f "$P12"
+
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          echo "CSC_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
       - name: Build installers
         working-directory: apps/desktop
         run: |
@@ -69,10 +104,9 @@ jobs:
           # The server a fresh install suggests on its connect screen.
           ONIRIX_DEFAULT_SERVER: ${{ vars.ONIRIX_DEFAULT_SERVER }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # macOS signing and notarization. Without these the build is
-          # unsigned, and Gatekeeper will refuse to open it for the public.
-          CSC_LINK: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          # macOS notarization. The signing identity comes from the keychain
+          # prepared above; without it the build is unsigned, and Gatekeeper
+          # will refuse to open it for the public.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
