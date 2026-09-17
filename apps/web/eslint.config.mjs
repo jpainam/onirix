@@ -27,6 +27,15 @@ export default defineConfig([
             // CardContent owns the card's padding, but arranging its own
             // children is the page's call. Gap only -- padding stays closed.
             { pattern: "^CardContent$", allow: ["layout", "gap-*"] },
+            // The chat column sets its own reading rhythm: wider gutters and
+            // a tighter message gap than the ai-elements default.
+            {
+              pattern: "^ConversationContent$",
+              allow: ["layout", "gap-*", "px-*", "py-*"],
+            },
+            // The footer sits flush against the rail's bottom edge when the
+            // user menu is its last child.
+            { pattern: "^SidebarFooter$", allow: ["layout", "pb-*"] },
           ],
         },
       ],

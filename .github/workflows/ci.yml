@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Placeholders, not secrets. Varlock validates the schema during install and
+# `next build`, so the values only have to satisfy apps/web/.env.schema. Nothing
+# here connects to a real service.
+env:
+  CI: true
+  TURBO_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
+  BETTER_AUTH_SECRET: ci-placeholder-ci-placeholder-ci-0000
+  BETTER_AUTH_URL: http://localhost:3001
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  SECRETS_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+  OPENSEARCH_ADMIN_PASSWORD: ci-placeholder
+  S3_ACCESS_KEY_ID: ci-placeholder
+  S3_SECRET_ACCESS_KEY: ci-placeholder
+  RETRANSMIT_API_KEY: rt_ci_placeholder
+  EXPO_PUBLIC_SERVER_URL: http://localhost:3001
+
+jobs:
+  check:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore Turborepo and Next.js caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            .turbo/cache
+            apps/web/.next/cache
+          key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            build-${{ runner.os }}-
+
+      - name: Lint
+        run: pnpm exec turbo run lint --ui=stream
+
+      - name: Typecheck
+        run: pnpm exec turbo run check-types --ui=stream
+
+      - name: Build
+        run: pnpm exec turbo run build --ui=stream
+        env:
+          NODE_ENV: production
