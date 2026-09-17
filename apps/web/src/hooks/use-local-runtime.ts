@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   type LocalProgress,
   type LocalRuntimeStatus,
+  type LocalSharing,
   getDesktopBridge,
   localRuntimeCandidates,
 } from "@/lib/desktop";
@@ -44,7 +45,8 @@ export function useLocalRuntime(enabled: boolean) {
   const [status, setStatus] = useState<LocalRuntimeStatus | null>(null);
   const [downloaded, setDownloaded] = useState<Map<string, number>>(new Map());
   const [progress, setProgress] = useState<Record<string, LocalProgress>>({});
-  const [busy, setBusy] = useState<"install" | "start" | null>(null);
+  const [sharing, setSharingState] = useState<LocalSharing | null>(null);
+  const [busy, setBusy] = useState<"install" | "start" | "sharing" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reach, setReach] = useState<Reachability>({
     state: candidates.length === 0 ? "remote" : "unknown",
@@ -61,6 +63,7 @@ export function useLocalRuntime(enabled: boolean) {
     if (!bridge) return;
     const next = await bridge.runtime.status();
     setStatus(next);
+    setSharingState(await bridge.runtime.sharing());
     if (next.state !== "running") return;
 
     const models = await bridge.runtime.models();
@@ -119,6 +122,25 @@ export function useLocalRuntime(enabled: boolean) {
     [bridge, refresh],
   );
 
+  // Changing the listening address restarts Ollama, which takes a few seconds
+  // and drops any download in flight, so it counts as busy like a start does.
+  const setSharing = useCallback(
+    async (patch: Partial<Pick<LocalSharing, "shareOnNetwork" | "keepRunning">>) => {
+      if (!bridge) return;
+      setBusy("sharing");
+      setError(null);
+      try {
+        setSharingState(await bridge.runtime.setSharing(patch));
+        await refresh();
+      } catch (failure) {
+        setError(readable(failure));
+      } finally {
+        setBusy(null);
+      }
+    },
+    [bridge, refresh],
+  );
+
   /** Resolves true when the model is on disk, false if it failed or was cancelled. */
   const pull = useCallback(
     async (model: string): Promise<boolean> => {
@@ -157,6 +179,8 @@ export function useLocalRuntime(enabled: boolean) {
     busy,
     error,
     reach,
+    sharing,
+    setSharing,
     install: () => act("install"),
     start: () => act("start"),
     pull,

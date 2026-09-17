@@ -36,7 +36,23 @@ asks the server which address it can reach the runtime by.
 The Onirix server makes the model calls, not the window. A model served on the
 user's computer is therefore only usable when the server runs on that same
 computer (Docker or `pnpm dev`). Attached to a remote server, the dialog says
-so and points at "Remote server" instead. Ollama stays bound to loopback.
+so and points at "Remote server" instead.
+
+### Serving models to other computers
+
+By default Ollama answers on loopback and stops when the app quits. Two
+switches in the same dialog turn one machine into the team's model host:
+
+- **Share on the network** rebinds Ollama to every interface and prints the
+  address to use (`http://192.168.x.x:11434/v1`). On any other install, that
+  address goes into the "Remote server" tab, with Test to confirm it answers.
+  Ollama has no sign-in: anyone who can reach the port can use it, so this is
+  for a trusted network, not the internet.
+- **Keep serving in the background** leaves Ollama up after the window closes
+  and reopens the app at login (macOS and Windows), which starts it again.
+
+The shell only rebinds an Ollama it started. One started by Ollama's own app
+or a system service is left alone, and the dialog says how to share that one.
 
 ## Build installers
 
@@ -58,6 +74,7 @@ or point `DESKTOP_DOWNLOAD_URL` somewhere else. Repository secrets:
 
 - `MAC_CERTIFICATE_P12_BASE64`, `MAC_CERTIFICATE_PASSWORD`, `APPLE_ID`,
   `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`: Developer ID signing and
-  notarization. Without them the macOS build is unsigned and Gatekeeper blocks it.
+  notarization. Without them the macOS build is unsigned and Gatekeeper blocks
+  it. [SIGNING.md](SIGNING.md) walks through getting each one.
 - `WIN_CERTIFICATE_PFX_BASE64`, `WIN_CERTIFICATE_PASSWORD`: optional. Unsigned
   Windows installers run after a SmartScreen warning.

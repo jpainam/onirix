@@ -25,6 +25,27 @@ export type LocalRuntimeStatus = {
   managed: boolean;
 };
 
+/**
+ * How far the runtime on this computer is offered.
+ *
+ * By default it answers on loopback only and stops with the app, which is
+ * right for a laptop. A machine that serves a team wants the opposite on both
+ * counts: reachable from the network, and still up when the window is closed.
+ */
+export type LocalSharing = {
+  /** Listen on every interface rather than loopback. Ollama has no login. */
+  shareOnNetwork: boolean;
+  /** Leave the runtime up when the app quits, and bring both back at login. */
+  keepRunning: boolean;
+  /**
+   * False when something other than the shell started Ollama (its own app, a
+   * system service). The shell cannot rebind a process it does not own.
+   */
+  controllable: boolean;
+  /** Base URLs another machine would use, one per network address. */
+  addresses: string[];
+};
+
 export type LocalModel = {
   /** The Ollama tag with `:latest` dropped, so it compares against the catalog. */
   name: string;
@@ -59,6 +80,11 @@ export type DesktopBridge = {
     pull: (model: string) => Promise<void>;
     cancel: (model: string) => Promise<void>;
     remove: (model: string) => Promise<void>;
+    sharing: () => Promise<LocalSharing>;
+    /** Restarts the runtime when the change needs a new listening address. */
+    setSharing: (
+      patch: Partial<Pick<LocalSharing, "shareOnNetwork" | "keepRunning">>,
+    ) => Promise<LocalSharing>;
     /** Returns the unsubscribe function. */
     onProgress: (listener: (progress: LocalProgress) => void) => () => void;
   };

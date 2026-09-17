@@ -281,6 +281,14 @@ function registerIpc(): void {
   handle("runtime:pull", (model: string) => runtime.pull(String(model), progress));
   handle("runtime:cancel", (model: string) => runtime.cancel(String(model)));
   handle("runtime:remove", (model: string) => runtime.remove(String(model)));
+  handle("runtime:sharing", () => runtime.sharing());
+  handle("runtime:setSharing", async (patch: unknown) => {
+    const result = await runtime.setSharing(
+      typeof patch === "object" && patch !== null ? patch : {},
+    );
+    syncLoginItem();
+    return result;
+  });
   handle("server:change", () => openConnect());
 
   // The connect page is a local file the shell ships, and it can do one thing.
@@ -293,6 +301,16 @@ function registerIpc(): void {
     openWorkspace(origin);
     connect.close();
   });
+}
+
+/**
+ * A machine that keeps serving should come back serving after a reboot, which
+ * means the app has to come back too. Linux has no login-item API; there the
+ * user adds the app to their session's autostart themselves.
+ */
+function syncLoginItem(): void {
+  if (process.platform === "linux" || !app.isPackaged) return;
+  app.setLoginItemSettings({ openAtLogin: readSettings().runtime.keepRunning });
 }
 
 function buildMenu(): void {
@@ -364,6 +382,8 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     registerIpc();
     buildMenu();
+    syncLoginItem();
+    void runtime.resume();
     launch();
 
     app.on("activate", () => {
@@ -375,6 +395,5 @@ if (!app.requestSingleInstanceLock()) {
     if (!isMac) app.quit();
   });
 
-  // A runtime the shell started goes down with it; one it found stays up.
-  app.on("before-quit", () => runtime.stopOwned());
+  app.on("before-quit", () => runtime.stopOnQuit());
 }

@@ -35,6 +35,7 @@ import {
   LocalDownload,
   LocalModelRow,
   LocalRuntimeStatus,
+  LocalSharingControls,
 } from "@/components/local-runtime";
 import { OnirixMark } from "@/components/onirix-mark";
 import { ProviderLogo } from "@/components/provider-logo";
@@ -538,6 +539,13 @@ export function ProviderDialog({
                   </div>
                 ) : null}
               </div>
+            </>
+          ) : null}
+
+          {local && runtime.sharing && runtime.reach.state !== "remote" ? (
+            <>
+              <Separator />
+              <LocalSharingControls runtime={runtime} />
             </>
           ) : null}
 

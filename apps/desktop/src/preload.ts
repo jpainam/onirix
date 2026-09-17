@@ -38,6 +38,8 @@ if (origin && window.location.origin === origin) {
       pull: (model) => ipcRenderer.invoke("runtime:pull", model),
       cancel: (model) => ipcRenderer.invoke("runtime:cancel", model),
       remove: (model) => ipcRenderer.invoke("runtime:remove", model),
+      sharing: () => ipcRenderer.invoke("runtime:sharing"),
+      setSharing: (patch) => ipcRenderer.invoke("runtime:setSharing", patch),
       onProgress: (listener) => {
         const forward = (_event: unknown, progress: LocalProgress) => listener(progress);
         ipcRenderer.on("runtime:progress", forward);

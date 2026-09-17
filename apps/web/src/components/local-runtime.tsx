@@ -6,6 +6,7 @@ import { Button } from "@onirix/ui/components/button";
 import { Checkbox } from "@onirix/ui/components/checkbox";
 import { Progress } from "@onirix/ui/components/progress";
 import { Spinner } from "@onirix/ui/components/spinner";
+import { Switch } from "@onirix/ui/components/switch";
 import { cn } from "@onirix/ui/lib/utils";
 
 import type { useLocalRuntime } from "@/hooks/use-local-runtime";
@@ -83,7 +84,7 @@ export function LocalRuntimeStatus({
             {reach.state === "reachable"
               ? `Onirix reaches it at ${reach.baseUrl}. Models stay available while this app is open.`
               : reach.state === "unreachable"
-                ? "Onirix could not reach it. If Onirix runs in Docker on Linux, start Ollama with OLLAMA_HOST=0.0.0.0 and reopen this dialog."
+                ? "Onirix could not reach it. If Onirix runs in Docker on Linux, turn on Share on the network below."
                 : "Checking that Onirix can reach it"}
           </p>
         </div>
@@ -107,6 +108,83 @@ export function LocalRuntimeStatus({
 
       {progress.runtime ? <LocalDownload progress={progress.runtime} /> : null}
       {error ? <p className="text-destructive text-xs leading-4">{error}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * The two switches that turn a laptop's runtime into a team's.
+ *
+ * Off, Ollama answers this computer only and stops with the app. On, other
+ * machines can use it, and the address they need is printed right here,
+ * because the person flipping the switch is about to go and type it somewhere.
+ * Ollama has no login of its own, and the copy says so rather than implying a
+ * protection that is not there.
+ */
+export function LocalSharingControls({ runtime }: { runtime: Runtime }) {
+  const { sharing, busy } = runtime;
+  if (!sharing || runtime.reach.state === "remote") return null;
+
+  if (!sharing.controllable) {
+    return (
+      <p className="text-ink-03 text-xs leading-4">
+        Ollama was started outside Onirix, so Onirix cannot change how it is shared. To
+        serve other computers, set OLLAMA_HOST=0.0.0.0 where Ollama is started.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <h3 className="text-sm font-semibold">Share on the network</h3>
+          <p className="text-ink-03 text-xs leading-4">
+            Other computers can use these models. Ollama has no sign-in, so anyone on
+            your network can too.
+          </p>
+        </div>
+        <Switch
+          checked={sharing.shareOnNetwork}
+          disabled={busy !== null}
+          onCheckedChange={(checked) => void runtime.setSharing({ shareOnNetwork: checked })}
+          aria-label="Share on the network"
+        />
+      </div>
+
+      {sharing.shareOnNetwork ? (
+        <div className="bg-tint-02 flex flex-col gap-1 rounded-lg px-3 py-2">
+          <p className="text-ink-03 text-xs leading-4">
+            {busy === "sharing"
+              ? "Restarting Ollama"
+              : sharing.addresses.length > 0
+                ? "On another computer, choose Remote server and enter:"
+                : "This computer has no network address yet."}
+          </p>
+          {busy === "sharing"
+            ? null
+            : sharing.addresses.map((address) => (
+                <code key={address} className="text-ink-05 font-mono text-xs select-all">
+                  {address}
+                </code>
+              ))}
+        </div>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col">
+          <h3 className="text-sm font-semibold">Keep serving in the background</h3>
+          <p className="text-ink-03 text-xs leading-4">
+            Models stay up after this app closes, and come back when you log in.
+          </p>
+        </div>
+        <Switch
+          checked={sharing.keepRunning}
+          disabled={busy !== null}
+          onCheckedChange={(checked) => void runtime.setSharing({ keepRunning: checked })}
+          aria-label="Keep serving in the background"
+        />
+      </div>
     </div>
   );
 }

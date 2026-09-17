@@ -18,8 +18,10 @@ const shared = {
   sourcemap: true,
   logLevel: "info",
   define: {
+    // `||`, not `??`: CI passes an unset repository variable as an empty
+    // string, which would otherwise ship a connect screen with a blank address.
     "process.env.ONIRIX_DEFAULT_SERVER": JSON.stringify(
-      process.env.ONIRIX_DEFAULT_SERVER ?? "http://localhost:3001",
+      process.env.ONIRIX_DEFAULT_SERVER || "http://localhost:3001",
     ),
   },
 };

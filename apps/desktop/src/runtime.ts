@@ -8,14 +8,16 @@
  * shell looks for a running server first, then a binary on the machine, and
  * only downloads its own copy when there is neither.
  *
- * Everything binds to loopback. Nothing here opens a port to the network.
+ * It binds to loopback unless the user turns on sharing, which is how one
+ * machine serves models to a team. The shell itself always talks to it over
+ * loopback either way.
  */
 import { app } from "electron";
 import { type ChildProcess, execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { closeSync, createWriteStream, existsSync, openSync } from "node:fs";
 import { chmod, mkdir, rm } from "node:fs/promises";
-import { homedir } from "node:os";
+import { homedir, networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -23,12 +25,15 @@ import type {
   LocalModel,
   LocalProgress,
   LocalRuntimeStatus,
+  LocalSharing,
 } from "../../web/src/lib/desktop";
+
+import { readSettings, writeSettings } from "./settings";
 
 const run = promisify(execFile);
 
-const HOST = "127.0.0.1:11434";
-const API = `http://${HOST}`;
+const PORT = 11434;
+const API = `http://127.0.0.1:${PORT}`;
 const RELEASES = "https://github.com/ollama/ollama/releases/latest/download";
 
 /** Ollama tags: a name, optionally namespaced, optionally `:tagged`. */
@@ -96,7 +101,7 @@ export async function status(): Promise<LocalRuntimeStatus> {
   const version = await ping();
   const binary = findBinary();
   if (version) {
-    return { state: "running", version, managed: Boolean(binary?.managed && child) };
+    return { state: "running", version, managed: Boolean(binary?.managed) };
   }
   return {
     state: binary ? "stopped" : "missing",
@@ -105,8 +110,41 @@ export async function status(): Promise<LocalRuntimeStatus> {
   };
 }
 
-/** The server we spawned, if any. One we merely found running is not ours to stop. */
+/** The server spawned by this launch of the app, if any. */
 let child: ChildProcess | null = null;
+
+/**
+ * Whether a pid is an Ollama process.
+ *
+ * A runtime left serving after the app quit is recognised on the next launch
+ * by the pid written to settings. Pids are reused, so before anything is
+ * signalled the process is checked to be what the settings say it was.
+ */
+async function isOllama(pid: number): Promise<boolean> {
+  try {
+    const { stdout } =
+      process.platform === "win32"
+        ? await run("tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"])
+        : await run("ps", ["-p", String(pid), "-o", "comm="]);
+    return /ollama/i.test(stdout);
+  } catch {
+    return false;
+  }
+}
+
+/** The pid of the Ollama this app started, this launch or an earlier one. */
+async function ownedPid(): Promise<number | null> {
+  if (child?.pid) return child.pid;
+  const { pid } = readSettings().runtime;
+  inherited = pid && (await isOllama(pid)) ? pid : null;
+  return inherited;
+}
+
+/**
+ * A runtime inherited from an earlier launch, once verified. Quitting is
+ * synchronous and cannot stop to check a pid, so the check is done ahead.
+ */
+let inherited: number | null = null;
 
 export async function start(): Promise<LocalRuntimeStatus> {
   if (await ping()) return status();
@@ -114,16 +152,23 @@ export async function start(): Promise<LocalRuntimeStatus> {
   const binary = findBinary();
   if (!binary) throw new Error("Ollama is not installed on this computer.");
 
+  const settings = readSettings().runtime;
+  const bind = settings.shareOnNetwork ? "0.0.0.0" : "127.0.0.1";
+
   // Ollama's own log, kept beside the settings: when a model will not load,
   // this is the file that says why.
   const log = openSync(join(app.getPath("userData"), "ollama.log"), "a");
   const spawned = spawn(binary.path, ["serve"], {
-    env: { ...process.env, OLLAMA_HOST: HOST },
+    env: { ...process.env, OLLAMA_HOST: `${bind}:${PORT}` },
     stdio: ["ignore", log, log],
     windowsHide: true,
+    // Its own process group, so it can outlive the app when asked to.
+    detached: true,
   });
   closeSync(log);
+  spawned.unref();
   child = spawned;
+  writeSettings({ runtime: { ...settings, pid: spawned.pid ?? null } });
 
   let failure: string | null = null;
   spawned.once("error", (error) => {
@@ -150,9 +195,93 @@ export async function start(): Promise<LocalRuntimeStatus> {
   );
 }
 
-export function stopOwned(): void {
-  child?.kill();
+async function stop(): Promise<void> {
+  const pid = await ownedPid();
+  if (!pid) return;
+  try {
+    process.kill(pid);
+  } catch {
+    // Already gone.
+  }
   child = null;
+  writeSettings({ runtime: { ...readSettings().runtime, pid: null } });
+
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline && (await ping())) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
+/**
+ * Called as the app quits. A runtime the app started goes down with it unless
+ * the user asked for it to keep serving; one it merely found is never touched.
+ */
+export function stopOnQuit(): void {
+  if (readSettings().runtime.keepRunning) return;
+  const pid = child?.pid ?? inherited;
+  if (!pid) return;
+  try {
+    process.kill(pid);
+  } catch {
+    // Already gone.
+  }
+  child = null;
+  inherited = null;
+}
+
+/** Brings the runtime up at launch on a machine set to keep serving. */
+export async function resume(): Promise<void> {
+  // Recognise a runtime left up by an earlier launch before anything else, so
+  // turning "keep serving" off later still stops it when the app quits.
+  await ownedPid();
+  if (!readSettings().runtime.keepRunning || !findBinary()) return;
+  await start().catch(() => {
+    // The dialog reports a runtime that will not start; launch should not.
+  });
+}
+
+function lanAddresses(): string[] {
+  const found: string[] = [];
+  for (const addresses of Object.values(networkInterfaces())) {
+    for (const address of addresses ?? []) {
+      if (address.family === "IPv4" && !address.internal) {
+        found.push(`http://${address.address}:${PORT}/v1`);
+      }
+    }
+  }
+  return found;
+}
+
+export async function sharing(): Promise<LocalSharing> {
+  const { shareOnNetwork, keepRunning } = readSettings().runtime;
+  const running = (await ping()) !== null;
+  return {
+    shareOnNetwork,
+    keepRunning,
+    // Nothing running yet is as controllable as it gets: the next start is ours.
+    controllable: !running || (await ownedPid()) !== null,
+    addresses: shareOnNetwork ? lanAddresses() : [],
+  };
+}
+
+export async function setSharing(
+  patch: Partial<Pick<LocalSharing, "shareOnNetwork" | "keepRunning">>,
+): Promise<LocalSharing> {
+  const before = readSettings().runtime;
+  const next = {
+    ...before,
+    ...(typeof patch.shareOnNetwork === "boolean" ? { shareOnNetwork: patch.shareOnNetwork } : {}),
+    ...(typeof patch.keepRunning === "boolean" ? { keepRunning: patch.keepRunning } : {}),
+  };
+  writeSettings({ runtime: next });
+
+  // The listening address is fixed when Ollama starts, so changing it means
+  // starting again. Models on disk are untouched; one mid-answer is cut off.
+  if (next.shareOnNetwork !== before.shareOnNetwork && (await ownedPid())) {
+    await stop();
+    await start();
+  }
+  return sharing();
 }
 
 function releaseAsset(): string {

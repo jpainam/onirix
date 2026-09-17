@@ -10,9 +10,19 @@ import { dirname, join } from "node:path";
 export type Settings = {
   serverUrl: string | null;
   bounds: { x?: number; y?: number; width: number; height: number } | null;
+  runtime: {
+    shareOnNetwork: boolean;
+    keepRunning: boolean;
+    /** The Ollama this app started, so a later launch knows it is its own. */
+    pid: number | null;
+  };
 };
 
-const DEFAULTS: Settings = { serverUrl: null, bounds: null };
+const DEFAULTS: Settings = {
+  serverUrl: null,
+  bounds: null,
+  runtime: { shareOnNetwork: false, keepRunning: false, pid: null },
+};
 
 function file(): string {
   return join(app.getPath("userData"), "settings.json");
@@ -23,7 +33,12 @@ let cache: Settings | null = null;
 export function readSettings(): Settings {
   if (cache) return cache;
   try {
-    cache = { ...DEFAULTS, ...(JSON.parse(readFileSync(file(), "utf8")) as Partial<Settings>) };
+    const stored = JSON.parse(readFileSync(file(), "utf8")) as Partial<Settings>;
+    cache = {
+      ...DEFAULTS,
+      ...stored,
+      runtime: { ...DEFAULTS.runtime, ...stored.runtime },
+    };
   } catch {
     // First launch, or a file someone hand-edited into invalid JSON. Either
     // way the connect screen is the right place to land.
