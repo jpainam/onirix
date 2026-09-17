@@ -8,8 +8,6 @@ See [PRODUCT.md](./PRODUCT.md) for the product definition.
 
 ## Architecture
 
-Onirix is a TypeScript rebuild of [Onyx](https://github.com/onyx-dot-app/onyx)
-and mirrors its infrastructure choices:
 
 | Service | Role |
 | --- | --- |
