@@ -134,10 +134,20 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
       label: "Ollama Cloud",
       baseUrl: "https://ollama.com/v1",
     },
+    // Ids are Ollama library tags, so each is what `ollama pull` takes. The
+    // first three are the ones a new connection starts with; the rest are
+    // opt-in, since a self-hosted box only serves what has been pulled.
     chatModels: [
       { id: "llama3.3", label: "Llama 3.3" },
       { id: "qwen2.5", label: "Qwen 2.5" },
       { id: "mistral", label: "Mistral" },
+      { id: "gpt-oss:20b", label: "gpt-oss 20B", reasons: true },
+      { id: "gpt-oss:120b", label: "gpt-oss 120B", reasons: true },
+      { id: "qwen3", label: "Qwen 3", reasons: true },
+      { id: "deepseek-r1", label: "DeepSeek R1", reasons: true },
+      { id: "gemma3", label: "Gemma 3" },
+      { id: "phi4", label: "Phi-4" },
+      { id: "mistral-small3.2", label: "Mistral Small 3.2" },
     ],
     embeddingModels: [
       { id: "nomic-embed-text", label: "Nomic Embed Text", dimension: 768 },

@@ -91,8 +91,15 @@ export function ProviderDialog({
   const [baseUrl, setBaseUrl] = useState(
     connected?.baseUrl ?? provider.defaultBaseUrl ?? "",
   );
+  // A hosted API serves its whole catalog to any key, so everything starts
+  // enabled. A self-hosted box serves only what has been pulled, so it starts
+  // with the models in view and leaves the rest to be ticked deliberately.
   const [selected, setSelected] = useState<string[]>(
-    connected?.models ?? provider.chatModels.map((model) => model.id),
+    connected?.models ??
+      (provider.selfHosted
+        ? provider.chatModels.slice(0, VISIBLE_MODELS)
+        : provider.chatModels
+      ).map((model) => model.id),
   );
   const [autoUpdate, setAutoUpdate] = useState(connected?.autoUpdateModels ?? true);
   const [showAll, setShowAll] = useState(
@@ -264,7 +271,9 @@ export function ProviderDialog({
             <div className="flex flex-col">
               <h3 className="text-sm font-semibold">Models</h3>
               <p className="text-ink-03 text-xs leading-4">
-                Select models to make available for this provider.
+                {selfHosted
+                  ? "Select the models you have pulled on this instance."
+                  : "Select models to make available for this provider."}
               </p>
             </div>
             <Button
