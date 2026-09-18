@@ -1,13 +1,6 @@
 "use client";
 
 import { Button } from "@onirix/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@onirix/ui/components/card";
 import { Input } from "@onirix/ui/components/input";
 import { Label } from "@onirix/ui/components/label";
 import { useForm } from "@tanstack/react-form";
@@ -16,9 +9,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
-import { FieldSeparator } from "@onirix/ui/components/field";
+import { Field, FieldGroup, FieldSeparator } from "@onirix/ui/components/field";
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { AuthLayout } from "@/components/auth-layout";
 import { FieldError } from "@/components/field-error";
 import { GoogleButton } from "@/components/google-button";
 import { isCancelled, useDesktopHandoff } from "@/hooks/use-desktop-handoff";
@@ -87,136 +80,119 @@ export default function SignUpForm({
 
   if (verifySentTo) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-        <Card className="w-full max-w-104">
-          <CardHeader>
-            <div className="mb-3">
-              <OnirixWordmark />
-            </div>
-            <CardTitle role="heading" aria-level={1}>
-              Verify your email
-            </CardTitle>
-            <CardDescription>{`We sent a confirmation link to ${verifySentTo}.`}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6">
-            <p className="text-muted-foreground text-sm">
-              Click the link in that email to finish setting up your account. The link expires in
-              an hour.
-              {handoff
-                ? " It opens in your browser; confirm there and this app signs in by itself."
-                : ""}
-            </p>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                handoff?.cancel();
-                onSwitchToSignIn();
-              }}
-            >
-              Back to sign in
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthLayout
+        title="Verify your email"
+        description={`We sent a confirmation link to ${verifySentTo}.`}
+      >
+        <p className="text-muted-foreground text-sm">
+          Click the link in that email to finish setting up your account. The
+          link expires in an hour.
+          {handoff
+            ? " It opens in your browser; confirm there and this app signs in by itself."
+            : ""}
+        </p>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            handoff?.cancel();
+            onSwitchToSignIn();
+          }}
+        >
+          Back to sign in
+        </Button>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-      <Card className="w-full max-w-104">
-        <CardHeader>
-          <div className="mb-3">
-            <OnirixWordmark />
-          </div>
-          <CardTitle role="heading" aria-level={1}>
-            Create an Account
-          </CardTitle>
-          <CardDescription>Chat with your organization&apos;s knowledge.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <GoogleButton label="Sign up with Google" next={next} />
+    <AuthLayout
+      title="Create your account"
+      description="Chat with your organization's knowledge."
+    >
+      <GoogleButton label="Sign up with Google" next={next} />
 
-          <FieldSeparator>or</FieldSeparator>
+      <FieldSeparator>or continue with email</FieldSeparator>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              form.handleSubmit();
-            }}
-            className="space-y-4"
-          >
-            <form.Field name="name">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Name</Label>
-                  <Input
-                    id="signup-name"
-                    name={field.name}
-                    autoComplete="name"
-                    placeholder="Ada Lovelace"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  <FieldError errors={field.state.meta.errors} />
-                </div>
-              )}
-            </form.Field>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          form.handleSubmit();
+        }}
+        className="flex flex-col gap-5"
+      >
+        <FieldGroup>
+          <form.Field name="name">
+            {(field) => (
+              <Field data-invalid={field.state.meta.errors.length > 0}>
+                <Label htmlFor="signup-name">Name</Label>
+                <Input
+                  id="signup-name"
+                  name={field.name}
+                  autoComplete="name"
+                  placeholder="Ada Lovelace"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <FieldError errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </form.Field>
 
-            <form.Field name="email">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email Address</Label>
-                  <Input
-                    id="signup-email"
-                    name={field.name}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="email@yourcompany.com"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  <FieldError errors={field.state.meta.errors} />
-                </div>
-              )}
-            </form.Field>
+          <form.Field name="email">
+            {(field) => (
+              <Field data-invalid={field.state.meta.errors.length > 0}>
+                <Label htmlFor="signup-email">Email address</Label>
+                <Input
+                  id="signup-email"
+                  name={field.name}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="email@yourcompany.com"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <FieldError errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </form.Field>
 
-            <form.Field name="password">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password</Label>
-                  <Input
-                    id="signup-password"
-                    name={field.name}
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="At least 8 characters"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  <FieldError errors={field.state.meta.errors} />
-                </div>
-              )}
-            </form.Field>
+          <form.Field name="password">
+            {(field) => (
+              <Field data-invalid={field.state.meta.errors.length > 0}>
+                <Label htmlFor="signup-password">Password</Label>
+                <Input
+                  id="signup-password"
+                  name={field.name}
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <FieldError errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </form.Field>
 
-            <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Creating account..." : "Create Account"}
-                  <ArrowRight className="size-4" />
-                </Button>
-              )}
-            </form.Subscribe>
-          </form>
-        </CardContent>
-      </Card>
+          <form.Subscribe selector={(state) => state.isSubmitting}>
+            {(isSubmitting) => (
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Creating account..." : "Create account"}
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            )}
+          </form.Subscribe>
+        </FieldGroup>
+      </form>
+
       <div className="text-muted-foreground text-sm">
         <>
           Already have an account?{" "}
@@ -225,10 +201,10 @@ export default function SignUpForm({
             onClick={onSwitchToSignIn}
             className="text-foreground font-medium underline underline-offset-4"
           >
-            Sign In
+            Sign in
           </button>
         </>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

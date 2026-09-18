@@ -1,13 +1,6 @@
 "use client";
 
 import { Button } from "@onirix/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@onirix/ui/components/card";
 import { Input } from "@onirix/ui/components/input";
 import { Label } from "@onirix/ui/components/label";
 import { useForm } from "@tanstack/react-form";
@@ -18,9 +11,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
-import { FieldSeparator } from "@onirix/ui/components/field";
+import { Field, FieldGroup, FieldSeparator } from "@onirix/ui/components/field";
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { AuthLayout } from "@/components/auth-layout";
 import { FieldError } from "@/components/field-error";
 import { GoogleButton } from "@/components/google-button";
 import { isCancelled, useDesktopHandoff } from "@/hooks/use-desktop-handoff";
@@ -60,7 +53,10 @@ export default function SignInForm({
     onSubmit: async ({ value }) => {
       const attempt = handoff ? await handoff.begin(destination) : null;
       await authClient.signIn.magicLink(
-        { email: value.email, callbackURL: attempt?.callbackURL ?? destination },
+        {
+          email: value.email,
+          callbackURL: attempt?.callbackURL ?? destination,
+        },
         {
           onSuccess: () => {
             setMagicLinkSentTo(value.email);
@@ -88,7 +84,9 @@ export default function SignInForm({
             // A sign-in blocked on verification is expected rather than broken,
             // so point at the inbox instead of surfacing a raw auth error.
             if (error.error.code === "EMAIL_NOT_VERIFIED") {
-              toast.error("Verify your email first. We just sent you a new link.");
+              toast.error(
+                "Verify your email first. We just sent you a new link.",
+              );
               return;
             }
             toast.error(error.error.message || error.error.statusText);
@@ -106,162 +104,147 @@ export default function SignInForm({
 
   if (magicLinkSentTo) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-        <Card className="w-full max-w-104">
-          <CardHeader>
-            <div className="mb-3">
-              <OnirixWordmark />
-            </div>
-            <CardTitle role="heading" aria-level={1}>
-              Check your email
-            </CardTitle>
-            <CardDescription>{`We sent a sign-in link to ${magicLinkSentTo}.`}</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6">
-            <p className="text-muted-foreground text-sm">
-              The link expires in 5 minutes and can only be used once.
-              {handoff
-                ? " It opens in your browser; confirm there and this app signs in by itself."
-                : ""}
-            </p>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                handoff?.cancel();
-                setMagicLinkSentTo(null);
-              }}
-            >
-              Use a different email
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthLayout
+        title="Check your email"
+        description={`We sent a sign-in link to ${magicLinkSentTo}.`}
+      >
+        <p className="text-muted-foreground text-sm">
+          The link expires in 5 minutes and can only be used once.
+          {handoff
+            ? " It opens in your browser; confirm there and this app signs in by itself."
+            : ""}
+        </p>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            handoff?.cancel();
+            setMagicLinkSentTo(null);
+          }}
+        >
+          Use a different email
+        </Button>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-      <Card className="w-full max-w-104">
-        <CardHeader>
-          <div className="mb-3">
-            <OnirixWordmark />
-          </div>
-          <CardTitle role="heading" aria-level={1}>
-            Welcome to Onirix
-          </CardTitle>
-          <CardDescription>Chat with your organization&apos;s knowledge.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <GoogleButton label="Continue with Google" next={next} />
+    <AuthLayout
+      title="Welcome back"
+      description="Chat with your organization's knowledge."
+    >
+      <GoogleButton label="Continue with Google" next={next} />
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              magicLinkForm.handleSubmit();
-            }}
-            className="space-y-3"
-          >
-            <magicLinkForm.Field name="email">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="magic-link-email">Magic Link</Label>
-                  <Input
-                    id="magic-link-email"
-                    name={field.name}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="email@yourcompany.com"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  <FieldError errors={field.state.meta.errors} />
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          magicLinkForm.handleSubmit();
+        }}
+        className="flex flex-col gap-4"
+      >
+        <FieldGroup>
+          <magicLinkForm.Field name="email">
+            {(field) => (
+              <Field data-invalid={field.state.meta.errors.length > 0}>
+                <Label htmlFor="magic-link-email">Email address</Label>
+                <Input
+                  id="magic-link-email"
+                  name={field.name}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="email@yourcompany.com"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <FieldError errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </magicLinkForm.Field>
+
+          <magicLinkForm.Subscribe selector={(state) => state.isSubmitting}>
+            {(isSubmitting) => (
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Sending..." : "Email me a sign-in link"}
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            )}
+          </magicLinkForm.Subscribe>
+        </FieldGroup>
+      </form>
+
+      <FieldSeparator>or use your password</FieldSeparator>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          passwordForm.handleSubmit();
+        }}
+        className="flex flex-col gap-5"
+      >
+        <FieldGroup>
+          <passwordForm.Field name="email">
+            {(field) => (
+              <Field data-invalid={field.state.meta.errors.length > 0}>
+                <Label htmlFor="signin-email">Email address</Label>
+                <Input
+                  id="signin-email"
+                  name={field.name}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="email@yourcompany.com"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <FieldError errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </passwordForm.Field>
+
+          <passwordForm.Field name="password">
+            {(field) => (
+              <Field data-invalid={field.state.meta.errors.length > 0}>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="signin-password">Password</Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-muted-foreground text-sm underline underline-offset-4"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
-              )}
-            </magicLinkForm.Field>
+                <Input
+                  id="signin-password"
+                  name={field.name}
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Password"
+                  aria-invalid={field.state.meta.errors.length > 0}
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                />
+                <FieldError errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </passwordForm.Field>
 
-            <magicLinkForm.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Sending..." : "Continue"}
-                  <ArrowRight className="size-4" />
-                </Button>
-              )}
-            </magicLinkForm.Subscribe>
-          </form>
+          <passwordForm.Subscribe selector={(state) => state.isSubmitting}>
+            {(isSubmitting) => (
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? "Signing in..." : "Sign in"}
+                <ArrowRight data-icon="inline-end" />
+              </Button>
+            )}
+          </passwordForm.Subscribe>
+        </FieldGroup>
+      </form>
 
-          <FieldSeparator>or</FieldSeparator>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              passwordForm.handleSubmit();
-            }}
-            className="space-y-4"
-          >
-            <passwordForm.Field name="email">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="signin-email">Email Address</Label>
-                  <Input
-                    id="signin-email"
-                    name={field.name}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="email@yourcompany.com"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  <FieldError errors={field.state.meta.errors} />
-                </div>
-              )}
-            </passwordForm.Field>
-
-            <passwordForm.Field name="password">
-              {(field) => (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Link
-                      href="/forgot-password"
-                      className="text-muted-foreground text-sm underline underline-offset-4"
-                    >
-                      Forgot password?
-                    </Link>
-                  </div>
-                  <Input
-                    id="signin-password"
-                    name={field.name}
-                    type="password"
-                    autoComplete="current-password"
-                    placeholder="Password"
-                    aria-invalid={field.state.meta.errors.length > 0}
-                    value={field.state.value}
-                    onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  <FieldError errors={field.state.meta.errors} />
-                </div>
-              )}
-            </passwordForm.Field>
-
-            <passwordForm.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? "Signing in..." : "Sign In"}
-                  <ArrowRight className="size-4" />
-                </Button>
-              )}
-            </passwordForm.Subscribe>
-          </form>
-        </CardContent>
-      </Card>
       <div className="text-muted-foreground text-sm">
         <>
           New to Onirix?{" "}
@@ -270,10 +253,10 @@ export default function SignInForm({
             onClick={onSwitchToSignUp}
             className="text-foreground font-medium underline underline-offset-4"
           >
-            Create an Account
+            Create your account
           </button>
         </>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
