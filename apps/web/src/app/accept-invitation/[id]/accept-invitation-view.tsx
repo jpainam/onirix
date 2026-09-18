@@ -5,9 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button } from "@onirix/ui/components/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@onirix/ui/components/card";
 import { Spinner } from "@onirix/ui/components/spinner";
 
-import { AuthCard } from "@/components/auth-card";
+
+import { OnirixWordmark } from "@/components/onirix-mark";
 import { AFTER_SIGN_IN, authClient } from "@/lib/auth-client";
 
 type State =
@@ -89,71 +97,125 @@ export function AcceptInvitationView({ invitationId }: { invitationId: string })
 
   if (state.status === "loading") {
     return (
-      <AuthCard title="Checking your invitation" subtitle="One moment.">
-        <div className="flex justify-center py-6">
-          <Spinner />
-        </div>
-      </AuthCard>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+        <Card className="w-full max-w-104">
+          <CardHeader>
+            <div className="mb-3">
+              <OnirixWordmark />
+            </div>
+            <CardTitle role="heading" aria-level={1}>
+              Checking your invitation
+            </CardTitle>
+            <CardDescription>One moment.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <div className="flex justify-center py-6">
+              <Spinner />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (state.status === "signed-out") {
     return (
-      <AuthCard
-        title="Sign in to accept"
-        subtitle="Invitations are tied to an email address, so we need to know who you are first."
-      >
-        <Button className="w-full" onClick={() => router.push(loginHref)}>
-          Sign in
-        </Button>
-      </AuthCard>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+        <Card className="w-full max-w-104">
+          <CardHeader>
+            <div className="mb-3">
+              <OnirixWordmark />
+            </div>
+            <CardTitle role="heading" aria-level={1}>
+              Sign in to accept
+            </CardTitle>
+            <CardDescription>Invitations are tied to an email address, so we need to know who you are first.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <Button className="w-full" onClick={() => router.push(loginHref)}>
+              Sign in
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (state.status === "wrong-account") {
     return (
-      <AuthCard
-        title="Wrong account"
-        // The invited address stays unsaid: the server withholds it from
-        // everyone but the recipient, so repeating it here would tell whoever
-        // holds the link who was invited.
-        subtitle={`This invitation was sent to a different email address. You are signed in as ${state.signedInAs}. Sign out and sign in with the invited address to accept it.`}
-      >
-        <Button
-          className="w-full"
-          onClick={() =>
-            void authClient.signOut({
-              // Sign-out has to land before the redirect, or the invitation
-              // page reloads against the session we are trying to shed.
-              fetchOptions: { onSuccess: () => router.push(loginHref) },
-            })
-          }
-        >
-          Sign out and switch account
-        </Button>
-      </AuthCard>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+        <Card className="w-full max-w-104">
+          <CardHeader>
+            <div className="mb-3">
+              <OnirixWordmark />
+            </div>
+            <CardTitle role="heading" aria-level={1}>
+              Wrong account
+            </CardTitle>
+            {/* The server withholds the invited address from everyone but the recipient. */}
+          <CardDescription>{`This invitation was sent to a different email address. You are signed in as ${state.signedInAs}. Sign out and sign in with the invited address to accept it.`}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <Button
+              className="w-full"
+              onClick={() =>
+                void authClient.signOut({
+                  // Sign-out has to land before the redirect, or the invitation
+                  // page reloads against the session we are trying to shed.
+                  fetchOptions: { onSuccess: () => router.push(loginHref) },
+                })
+              }
+            >
+              Sign out and switch account
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (state.status === "error") {
     return (
-      <AuthCard title="Invitation unavailable" subtitle={state.message}>
-        <Button variant="outline" className="w-full" onClick={() => router.push("/login")}>
-          Back to sign in
-        </Button>
-      </AuthCard>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+        <Card className="w-full max-w-104">
+          <CardHeader>
+            <div className="mb-3">
+              <OnirixWordmark />
+            </div>
+            <CardTitle role="heading" aria-level={1}>
+              Invitation unavailable
+            </CardTitle>
+            <CardDescription>{state.message}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <Button variant="outline" className="w-full" onClick={() => router.push("/login")}>
+              Back to sign in
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <AuthCard
-      title={`Join ${state.organizationName}`}
-      subtitle={`You will see what ${state.organizationName} and your teams have shared with you.`}
-    >
-      <Button className="w-full" disabled={accepting} onClick={() => void accept()}>
-        {accepting ? <Spinner /> : null}
-        Accept invitation
-      </Button>
-    </AuthCard>
+    <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+      <Card className="w-full max-w-104">
+        <CardHeader>
+          <div className="mb-3">
+            <OnirixWordmark />
+          </div>
+          <CardTitle role="heading" aria-level={1}>
+            {`Join ${state.organizationName}`}
+          </CardTitle>
+          <CardDescription>{`You will see what ${state.organizationName} and your teams have shared with you.`}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-6">
+          <Button className="w-full" disabled={accepting} onClick={() => void accept()}>
+            {accepting ? <Spinner /> : null}
+            Accept invitation
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
