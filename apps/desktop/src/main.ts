@@ -29,8 +29,12 @@ const DEFAULT_SERVER = process.env.ONIRIX_DEFAULT_SERVER ?? "http://localhost:30
 const isMac = process.platform === "darwin";
 
 /**
- * Sign-in providers the workspace window may navigate to and come back from.
- * Anything else that tries to take over the window opens in the browser.
+ * Hosts the workspace window may navigate to and come back from.
+ *
+ * Signing in with Google no longer happens here: Google refuses OAuth to
+ * embedded browsers, so the web app hands that off to the real browser
+ * through `server:openInBrowser`. What still starts in this window is linking
+ * a Google account to an existing session, for the Drive connector.
  */
 const SIGN_IN_HOSTS = /(^|\.)(google\.com|youtube\.com|googleusercontent\.com)$/;
 
@@ -40,8 +44,9 @@ let connect: BrowserWindow | null = null;
 /** Origin of the attached server; IPC from any other origin is refused. */
 let serverOrigin: string | null = null;
 
-// Google refuses OAuth to user agents that announce an embedded browser. The
-// shell is a full Chromium, so it says so and drops the Electron token.
+// Sites that sniff for an embedded browser see a plain Chromium. This is not
+// enough for Google, which blocks OAuth from an app window however it
+// introduces itself; that is why sign-in hands off to the real browser.
 app.userAgentFallback = app.userAgentFallback
   .replace(/ Electron\/\S+/, "")
   .replace(new RegExp(` ${app.getName()}/\\S+`, "i"), "");
@@ -290,6 +295,17 @@ function registerIpc(): void {
     return result;
   });
   handle("server:change", () => openConnect());
+
+  // Sign-in that has to happen in a real browser. The page proposes a path,
+  // never a URL: the origin is the shell's to decide, so a page that has been
+  // navigated somewhere unexpected cannot use this to launch arbitrary links.
+  handle("server:openInBrowser", (path: string) => {
+    const origin = serverOrigin;
+    if (!origin) throw new Error("No server attached.");
+    const target = new URL(String(path), origin);
+    if (target.origin !== origin) throw new Error("Not a path on this server.");
+    void shell.openExternal(target.toString());
+  });
 
   // The connect page is a local file the shell ships, and it can do one thing.
   ipcMain.handle("connect:submit", async (event, input: unknown) => {

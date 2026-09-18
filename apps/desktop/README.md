@@ -31,6 +31,29 @@ Ollama setup dialog gains a "This computer" mode that installs Ollama (checksum
 verified, into the app's data directory), downloads models with progress, and
 asks the server which address it can reach the runtime by.
 
+### Signing in
+
+Google will not run OAuth inside an embedded browser, and this window is one.
+Announcing a plain Chromium user agent does not change that. So the app never
+signs in with Google itself: it hands the job to the real browser and waits.
+
+1. The window makes a one-time secret, keeps it, and sends its SHA-256 hash to
+   the browser through `server:openInBrowser`, which only ever opens paths on
+   the attached server.
+2. The browser signs in as usual and lands on `/desktop/handoff`, where the
+   user confirms. That records an approval against the hash.
+3. The window, polling `/api/auth/desktop/exchange` with the secret, trades it
+   for a session cookie and reloads.
+
+The hash travels in a URL anyone could read; the secret never leaves the
+window, so a copied link cannot become a session elsewhere, and each approval
+works once. Emailed links (magic link, email verification) open in the default
+browser too, so they take the same route. Password sign-in needs none of this
+and happens in the window.
+
+The server half is `desktopSignIn` in `packages/auth/src/desktop.ts`; the
+window half is `useDesktopHandoff` in the web app.
+
 ### The constraint worth knowing
 
 The Onirix server makes the model calls, not the window. A model served on the

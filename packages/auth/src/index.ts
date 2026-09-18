@@ -16,6 +16,7 @@ import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
 import { magicLink } from "better-auth/plugins/magic-link";
 
+import { desktopSignIn } from "./desktop";
 import { ac, MAXIMUM_ROLES_PER_ORGANIZATION, roles } from "./permissions";
 
 /**
@@ -178,6 +179,9 @@ export function createAuth(env: AuthConfig, database: Database) {
         },
       }),
       expo(),
+      // The desktop app cannot sign in with Google inside its own window, so
+      // it hands off to the browser and collects the result through these.
+      desktopSignIn(),
       nextCookies(),
     ],
   });

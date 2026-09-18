@@ -14,6 +14,7 @@ import z from "zod";
 import { AuthCard, AuthDivider } from "@/components/auth-card";
 import { FieldError } from "@/components/field-error";
 import { GoogleButton } from "@/components/google-button";
+import { isCancelled, useDesktopHandoff } from "@/hooks/use-desktop-handoff";
 import { authClient, resolveNext } from "@/lib/auth-client";
 
 export default function SignInForm({
@@ -28,13 +29,34 @@ export default function SignInForm({
   const destination = resolveNext(next);
   const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
 
+  // A magic link opens in the default browser, never in the desktop window,
+  // so in the app the link signs the browser in and hands the session back.
+  const handoff = useDesktopHandoff();
+
+  const waitForBrowser = async (verifier: string) => {
+    if (!handoff) return;
+    try {
+      await handoff.wait(verifier);
+      // A full load: the session cookie is new and every server component
+      // should read it from scratch.
+      window.location.assign(destination);
+    } catch (error) {
+      if (isCancelled(error)) return;
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const magicLinkForm = useForm({
     defaultValues: { email: "" },
     onSubmit: async ({ value }) => {
+      const attempt = handoff ? await handoff.begin() : null;
       await authClient.signIn.magicLink(
-        { email: value.email, callbackURL: destination },
+        { email: value.email, callbackURL: attempt?.callbackURL ?? destination },
         {
-          onSuccess: () => setMagicLinkSentTo(value.email),
+          onSuccess: () => {
+            setMagicLinkSentTo(value.email);
+            if (attempt) void waitForBrowser(attempt.verifier);
+          },
           onError: (error) => {
             toast.error(error.error.message || error.error.statusText);
           },
@@ -78,8 +100,18 @@ export default function SignInForm({
       <AuthCard title="Check your email" subtitle={`We sent a sign-in link to ${magicLinkSentTo}.`}>
         <p className="text-muted-foreground text-sm">
           The link expires in 5 minutes and can only be used once.
+          {handoff
+            ? " It opens in your browser; confirm there and this app signs in by itself."
+            : ""}
         </p>
-        <Button variant="outline" className="w-full" onClick={() => setMagicLinkSentTo(null)}>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            handoff?.cancel();
+            setMagicLinkSentTo(null);
+          }}
+        >
           Use a different email
         </Button>
       </AuthCard>

@@ -12,6 +12,7 @@ import z from "zod";
 import { AuthCard, AuthDivider } from "@/components/auth-card";
 import { FieldError } from "@/components/field-error";
 import { GoogleButton } from "@/components/google-button";
+import { isCancelled, useDesktopHandoff } from "@/hooks/use-desktop-handoff";
 import { authClient, resolveNext } from "@/lib/auth-client";
 
 export default function SignUpForm({
@@ -25,20 +26,41 @@ export default function SignUpForm({
   const destination = resolveNext(next);
   const [verifySentTo, setVerifySentTo] = useState<string | null>(null);
 
+  // The verification link opens in the default browser, never in the desktop
+  // window, so in the app the browser hands the session back instead.
+  const handoff = useDesktopHandoff();
+
+  const waitForBrowser = async (verifier: string) => {
+    if (!handoff) return;
+    try {
+      await handoff.wait(verifier);
+      // A full load: the session cookie is new and every server component
+      // should read it from scratch.
+      window.location.assign(destination);
+    } catch (error) {
+      if (isCancelled(error)) return;
+      toast.error(error instanceof Error ? error.message : String(error));
+    }
+  };
+
   const form = useForm({
     defaultValues: { name: "", email: "", password: "" },
     onSubmit: async ({ value }) => {
+      const attempt = handoff ? await handoff.begin() : null;
       await authClient.signUp.email(
         {
           name: value.name,
           email: value.email,
           password: value.password,
-          callbackURL: destination,
+          callbackURL: attempt?.callbackURL ?? destination,
         },
         {
           // Verification is required, so sign-up never yields a session. The
           // next step is the inbox, not the app.
-          onSuccess: () => setVerifySentTo(value.email),
+          onSuccess: () => {
+            setVerifySentTo(value.email);
+            if (attempt) void waitForBrowser(attempt.verifier);
+          },
           onError: (error) => {
             toast.error(error.error.message || error.error.statusText);
           },
@@ -63,8 +85,18 @@ export default function SignUpForm({
         <p className="text-muted-foreground text-sm">
           Click the link in that email to finish setting up your account. The link expires in
           an hour.
+          {handoff
+            ? " It opens in your browser; confirm there and this app signs in by itself."
+            : ""}
         </p>
-        <Button variant="outline" className="w-full" onClick={onSwitchToSignIn}>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => {
+            handoff?.cancel();
+            onSwitchToSignIn();
+          }}
+        >
           Back to sign in
         </Button>
       </AuthCard>

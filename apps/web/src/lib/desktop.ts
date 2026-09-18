@@ -69,6 +69,14 @@ export type DesktopBridge = {
     origin: string;
     /** Back to the connect screen, to point the app somewhere else. */
     change: () => Promise<void>;
+    /**
+     * Opens a path on this server in the user's real browser.
+     *
+     * Google refuses OAuth to embedded browsers, and this window is one, so
+     * signing in with Google has to happen out there and be handed back.
+     * Only same-server paths travel: the shell resolves them itself.
+     */
+    openInBrowser: (path: string) => Promise<void>;
   };
   runtime: {
     status: () => Promise<LocalRuntimeStatus>;

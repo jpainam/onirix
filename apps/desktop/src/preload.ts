@@ -29,6 +29,7 @@ if (origin && window.location.origin === origin) {
     server: {
       origin,
       change: () => ipcRenderer.invoke("server:change"),
+      openInBrowser: (path) => ipcRenderer.invoke("server:openInBrowser", path),
     },
     runtime: {
       status: () => ipcRenderer.invoke("runtime:status"),
