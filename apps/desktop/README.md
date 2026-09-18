@@ -21,6 +21,7 @@ directory. "Change Server…" in the app menu goes back to that screen.
 | File | Role |
 | --- | --- |
 | `src/main.ts` | Windows, navigation rules, menu, IPC |
+| `src/updates.ts` | Checks GitHub releases, downloads, installs on restart |
 | `src/runtime.ts` | Finds, installs, starts Ollama; pulls and removes models |
 | `src/preload.ts` | Publishes `window.onirixDesktop` to the attached server's origin only |
 | `src/connect.html` | The local "which server?" screen |
@@ -44,6 +45,9 @@ signs in with Google itself: it hands the job to the real browser and waits.
    user confirms. That records an approval against the hash.
 3. The window, polling `/api/auth/desktop/exchange` with the secret, trades it
    for a session cookie and reloads.
+4. The browser page opens `onirix://signed-in`, which brings the app back in
+   front of the browser. The link carries nothing: the window already has its
+   session by then, so this only saves the user from hunting for the window.
 
 The hash travels in a URL anyone could read; the secret never leaves the
 window, so a copied link cannot become a session elsewhere, and each approval
@@ -52,7 +56,24 @@ browser too, so they take the same route. Password sign-in needs none of this
 and happens in the window.
 
 The server half is `desktopSignIn` in `packages/auth/src/desktop.ts`; the
-window half is `useDesktopHandoff` in the web app.
+window half is `useDesktopHandoff` in the web app. The `onirix://` scheme is
+declared under `protocols` in electron-builder.yml, which puts it in the macOS
+bundle and the Windows installer; on Linux it depends on the AppImage being
+integrated into the desktop environment, and the sign-in completes without it.
+
+### Updating
+
+The app updates itself from the GitHub releases this repository publishes. It
+checks at launch and every six hours, downloads in the background, and asks to
+restart once the update is staged; declining leaves it staged for the next
+quit. "Check for Updates…" in the app menu (macOS) or the Help menu (Windows,
+Linux) does the same on demand and always answers, "you are up to date"
+included. Development builds have no installer to replace and say so.
+
+Two things it depends on. macOS cannot update from a dmg, so every release also
+ships a zip, which is what the updater downloads; and the copy has to be signed,
+or macOS refuses to swap it. When any of that fails the dialog offers the
+releases page, which always works.
 
 ### The constraint worth knowing
 
@@ -89,8 +110,9 @@ the icon from the product mark with `pnpm --filter desktop icon`.
 ## Release
 
 Tag `desktop-v1.2.3`. The `Desktop release` workflow builds macOS, Windows, and
-Linux installers and attaches them to a GitHub release of this repository. The
-`/download` page links to `releases/latest/download/<file>`
+Linux installers and attaches them to a GitHub release of this repository,
+along with the `latest*.yml` files installed copies read to notice a release.
+The `/download` page links to `releases/latest/download/<file>`
 (`DESKTOP_DOWNLOAD_URL`), so the newest release must always be a desktop one:
 if the server ever gets GitHub releases of its own, mark those as pre-release
 or point `DESKTOP_DOWNLOAD_URL` somewhere else. Repository secrets:

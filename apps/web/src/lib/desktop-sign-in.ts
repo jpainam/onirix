@@ -27,6 +27,15 @@ export function handoffPath(challenge: string): Route {
   return `/desktop/handoff?challenge=${challenge}` as Route;
 }
 
+/**
+ * The link that brings the desktop app back to the front.
+ *
+ * It carries nothing. The window that started the sign-in is already waiting
+ * for its session, so there is nothing to smuggle through the OS, and a link
+ * anyone can type opens an app rather than granting anything.
+ */
+export const RETURN_TO_APP = "onirix://signed-in";
+
 /** The page the desktop opens in the browser to begin the sign-in. */
 export function signInPath(challenge: string, provider: "google"): string {
   return `/desktop/sign-in?provider=${provider}&challenge=${challenge}`;

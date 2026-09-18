@@ -18,12 +18,13 @@ import {
   nativeTheme,
   shell,
 } from "electron";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import type { LocalProgress } from "../../web/src/lib/desktop";
 
 import * as runtime from "./runtime";
 import { readSettings, writeSettings } from "./settings";
+import { RELEASES_PAGE, checkForUpdates, watchForUpdates } from "./updates";
 
 const DEFAULT_SERVER = process.env.ONIRIX_DEFAULT_SERVER ?? "http://localhost:3001";
 const isMac = process.platform === "darwin";
@@ -37,6 +38,17 @@ const isMac = process.platform === "darwin";
  * a Google account to an existing session, for the Drive connector.
  */
 const SIGN_IN_HOSTS = /(^|\.)(google\.com|youtube\.com|googleusercontent\.com)$/;
+
+/**
+ * The scheme the browser uses to hand the user back.
+ *
+ * A sign-in that had to happen in the browser ends on a page there, with the
+ * app behind every other window. That page then opens `onirix://`, which the
+ * OS routes here. The link carries nothing: the window that started the
+ * sign-in is already waiting for its session, so all this has to do is come
+ * to the front.
+ */
+const PROTOCOL = "onirix";
 
 let workspace: BrowserWindow | null = null;
 let connect: BrowserWindow | null = null;
@@ -337,6 +349,7 @@ function buildMenu(): void {
             label: app.name,
             submenu: [
               { role: "about" },
+              { label: "Check for Updates…", click: () => void checkForUpdates(true) },
               { type: "separator" },
               { label: "Change Server…", click: () => openConnect() },
               { type: "separator" },
@@ -376,6 +389,16 @@ function buildMenu(): void {
       ],
     },
     { role: "windowMenu" },
+    {
+      role: "help",
+      submenu: [
+        // Also in the app menu on macOS, where people look for it first; here
+        // for the platforms whose app menu does not exist.
+        { label: "Check for Updates…", click: () => void checkForUpdates(true) },
+        { type: "separator" },
+        { label: "Release Notes", click: () => openExternal(RELEASES_PAGE) },
+      ],
+    },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -386,19 +409,58 @@ function launch(): void {
   else openConnect();
 }
 
+/** Brings the app to the front, from behind a browser or a minimised state. */
+function focusApp(): void {
+  const window = workspace ?? connect;
+  if (!window) {
+    launch();
+    return;
+  }
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+  // The browser has focus at this point, so asking politely is not enough.
+  if (isMac) app.focus({ steal: true });
+}
+
+/**
+ * Tells the OS this app answers `onirix://`.
+ *
+ * Packaged builds declare it in their bundle (see `protocols` in
+ * electron-builder.yml) and this confirms it at runtime. Unpackaged, the
+ * executable is Electron itself, so the registration has to name the script
+ * it should run or the OS would launch a bare Electron.
+ */
+function registerProtocol(): void {
+  if (!process.defaultApp) {
+    app.setAsDefaultProtocolClient(PROTOCOL);
+    return;
+  }
+  const script = process.argv[1];
+  if (script) app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [resolve(script)]);
+}
+
+
+// macOS delivers the link as an event, and can do so before the app is ready,
+// so this listener goes on before anything else.
+app.on("open-url", (event) => {
+  event.preventDefault();
+  if (app.isReady()) focusApp();
+});
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
-    const window = workspace ?? connect;
-    if (window?.isMinimized()) window.restore();
-    window?.focus();
-  });
+  // A second launch, which is what a browser opening `onirix://` looks like
+  // on Windows and Linux. Either way the answer is the same: come forward.
+  app.on("second-instance", () => focusApp());
 
   void app.whenReady().then(() => {
+    registerProtocol();
     registerIpc();
     buildMenu();
     syncLoginItem();
+    watchForUpdates();
     void runtime.resume();
     launch();
 

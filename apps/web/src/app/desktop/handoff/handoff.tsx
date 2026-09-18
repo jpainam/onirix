@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { AuthCard } from "@/components/auth-card";
 import { authClient } from "@/lib/auth-client";
+import { RETURN_TO_APP } from "@/lib/desktop-sign-in";
 
 /**
  * Confirms that this browser's session may be handed to the desktop app.
@@ -26,6 +27,15 @@ export function DesktopHandoff({
   const [state, setState] = useState<"ready" | "approving" | "approved">("ready");
   const [failed, setFailed] = useState<string | null>(null);
 
+  /**
+   * Hands the user back to the app. Nothing happens if the app is not
+   * installed on this machine, which is the case when the link was opened on
+   * a phone; the desktop window collects the session by itself either way.
+   */
+  const returnToApp = () => {
+    window.location.href = RETURN_TO_APP;
+  };
+
   const approve = async () => {
     setState("approving");
     setFailed(null);
@@ -39,12 +49,18 @@ export function DesktopHandoff({
       return;
     }
     setState("approved");
+    returnToApp();
   };
 
   if (state === "approved") {
     return (
-      <AuthCard title="You&apos;re signed in" subtitle="Go back to the Onirix app.">
-        <p className="text-ink-03 text-sm">You can close this tab.</p>
+      <AuthCard
+        title="You&apos;re signed in"
+        subtitle="Onirix should be back in front of you. You can close this tab."
+      >
+        <Button variant="outline" className="w-full" onClick={returnToApp}>
+          Open the Onirix app
+        </Button>
       </AuthCard>
     );
   }

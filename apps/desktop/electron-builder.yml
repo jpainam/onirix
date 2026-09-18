@@ -19,11 +19,21 @@ files:
 # releases/latest/download/<name>, which only works when the name is stable.
 artifactName: Onirix-${os}-${arch}.${ext}
 
+# The browser hands the user back to the app with `onirix://` after a sign-in
+# it had to handle itself, so the OS has to know this app answers that scheme.
+protocols:
+  - name: Onirix
+    schemes: [onirix]
+
 mac:
   category: public.app-category.productivity
   icon: resources/icon.png
   target:
     - target: dmg
+      arch: [arm64, x64]
+    # People download the dmg; the in-app updater downloads the zip. macOS has
+    # no way to update from a dmg, so both ship with every release.
+    - target: zip
       arch: [arm64, x64]
   hardenedRuntime: true
   gatekeeperAssess: false

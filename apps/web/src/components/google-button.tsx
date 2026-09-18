@@ -40,7 +40,7 @@ export function GoogleButton({ label, next }: { label: string; next?: string | n
     if (!handoff) return;
     setWaiting(true);
     try {
-      const { challenge, verifier } = await handoff.begin();
+      const { challenge, verifier } = await handoff.begin(resolveNext(next));
       await handoff.bridge.server.openInBrowser(signInPath(challenge, "google"));
       await handoff.wait(verifier);
       // A full load rather than a client transition: the session cookie is

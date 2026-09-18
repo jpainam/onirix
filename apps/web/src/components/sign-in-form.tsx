@@ -49,7 +49,7 @@ export default function SignInForm({
   const magicLinkForm = useForm({
     defaultValues: { email: "" },
     onSubmit: async ({ value }) => {
-      const attempt = handoff ? await handoff.begin() : null;
+      const attempt = handoff ? await handoff.begin(destination) : null;
       await authClient.signIn.magicLink(
         { email: value.email, callbackURL: attempt?.callbackURL ?? destination },
         {

@@ -46,7 +46,7 @@ export default function SignUpForm({
   const form = useForm({
     defaultValues: { name: "", email: "", password: "" },
     onSubmit: async ({ value }) => {
-      const attempt = handoff ? await handoff.begin() : null;
+      const attempt = handoff ? await handoff.begin(destination) : null;
       await authClient.signUp.email(
         {
           name: value.name,
