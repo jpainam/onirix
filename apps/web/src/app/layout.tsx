@@ -1,44 +1,25 @@
-import type { Metadata } from "next";
-import { DM_Mono, Hanken_Grotesk } from "next/font/google";
+import type { PropsWithChildren } from "react";
 
-import Providers from "@/components/providers";
-import { cn } from "@onirix/ui/lib/utils";
-import "../index.css";
+import { SiteFooter } from "@/components/marketing/site-footer";
+import { SiteHeader } from "@/components/marketing/site-header";
 
-// Hanken Grotesk and DM Mono are the two faces the design system is drawn
-// against: the grotesk carries all prose and UI, the mono carries figures.
-const sans = Hanken_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const mono = DM_Mono({
-  subsets: ["latin"],
-  weight: ["300", "400", "500"],
-  variable: "--font-mono",
-  display: "swap",
-});
-
-export const metadata: Metadata = {
-  title: "Onirix",
-  description: "Open source AI platform for work",
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+/**
+ * The public shell: what a visitor sees before they have an account.
+ *
+ * Nothing in here touches the session. The landing page decides on its own
+ * whether a signed-in visitor should be sent into the app; the security page
+ * is worth reading either way, so it never redirects.
+ *
+ * The public pages are always light. The `light` scope re-applies the light
+ * tokens beneath whatever theme the visitor's system set on `<html>`, and
+ * individual sections opt back into `dark` for an ink band.
+ */
+export default function MarketingLayout({ children }: PropsWithChildren) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={cn("font-sans", sans.variable, mono.variable)}
-    >
-      <body className="antialiased">
-        <Providers>{children}</Providers>
-      </body>
-    </html>
+    <div className="light bg-background text-foreground flex min-h-svh flex-col">
+      <SiteHeader />
+      <main className="flex-1">{children}</main>
+      <SiteFooter />
+    </div>
   );
 }
