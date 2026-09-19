@@ -401,6 +401,26 @@ html.onirix-desktop-darwin {
   body:not(:has([data-slot="sidebar-wrapper"]))::before {
     height: 2.5rem;
   }
+
+  /* The controls are wider than the icon rail, so here the sidebar closes
+     completely (see app-sidebar.tsx) and a title strip beside the controls
+     holds the button that reopens it. The content column moves down to clear
+     both, in step with the sidebar sliding away. */
+  [data-slot="desktop-titlebar"] {
+    -webkit-app-region: drag;
+
+    :is(a, button) {
+      -webkit-app-region: no-drag;
+    }
+  }
+
+  [data-slot="sidebar-inset"] {
+    transition: padding-top 200ms linear;
+  }
+
+  [data-slot="sidebar"][data-collapsible="offcanvas"] ~ [data-slot="sidebar-inset"] {
+    padding-top: 2.75rem;
+  }
 }
 
 /* An app's frame is not a document: dragging across it should not paint a

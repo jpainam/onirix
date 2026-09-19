@@ -123,3 +123,8 @@ or point `DESKTOP_DOWNLOAD_URL` somewhere else. Repository secrets:
   it. [SIGNING.md](SIGNING.md) walks through getting each one.
 - `WIN_CERTIFICATE_PFX_BASE64`, `WIN_CERTIFICATE_PASSWORD`: optional. Unsigned
   Windows installers run after a SmartScreen warning.
+
+```
+git tag desktop-v0.1.1
+git push origin desktop-v0.1.1
+```
