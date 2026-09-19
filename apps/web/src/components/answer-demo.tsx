@@ -5,7 +5,7 @@ import {
   PaperclipIcon,
 } from "lucide-react";
 
-import { OnirixMark } from "@/components/onirix-mark";
+import { OnirixMark } from "@onirix/ui/brand/onirix-mark";
 import { ProviderLogo } from "@/components/provider-logo";
 
 import { Cite, Frame } from "./section";

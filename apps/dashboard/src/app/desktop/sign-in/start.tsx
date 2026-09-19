@@ -11,7 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 import { authClient } from "@/lib/auth-client";
 
 /**

@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 # Placeholders, not secrets. Varlock validates the schema during install and
-# `next build`, so the values only have to satisfy apps/web/.env.schema. Nothing
+# `next build`, so the values only have to satisfy apps/dashboard/.env.schema. Nothing
 # here connects to a real service.
 env:
   CI: true
@@ -55,6 +55,7 @@ jobs:
           path: |
             .turbo/cache
             apps/web/.next/cache
+            apps/dashboard/.next/cache
           key: build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
           restore-keys: |
             build-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-

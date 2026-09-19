@@ -39,7 +39,7 @@ import {
   useCommandPalette,
 } from "@/components/command-palette";
 import { NavUser } from "@/components/nav-user";
-import { OnirixMark, OnirixWordmark } from "@/components/onirix-mark";
+import { OnirixMark, OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 import { RecentConversations } from "@/components/recent-conversations";
 import { useDesktopMac } from "@/hooks/use-desktop-mac";
 

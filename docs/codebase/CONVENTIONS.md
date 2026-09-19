@@ -6,16 +6,16 @@
 
 | Item | Rule | Example | Evidence |
 |------|------|---------|----------|
-| Files | kebab-case for source files and route segments | `chat-panel.tsx`, `language-models/` | `apps/web/src/` |
+| Files | kebab-case for source files and route segments | `chat-panel.tsx`, `language-models/` | `apps/dashboard/src/` |
 | Functions/methods | camelCase; action-oriented verbs | `resolvePrincipal`, `retrieveContext` | `packages/db/src/principal.ts`, `packages/ingestion/src/retrieval.ts` |
 | Types/interfaces | PascalCase, usually `type` aliases | `ProviderCredentials`, `SearchFilters` | `packages/llm/src/factory.ts`, `packages/search/src/query.ts` |
-| Constants/env vars | SCREAMING_SNAKE_CASE | `MAX_FILE_BYTES`, `REDIS_URL` | `apps/web/src/app/api/upload/route.ts`, `apps/web/.env.schema` |
-| React components | PascalCase named exports | `ChatPanel`, `SourcePanel` | `apps/web/src/app/(dashboard)/chat/` |
+| Constants/env vars | SCREAMING_SNAKE_CASE | `MAX_FILE_BYTES`, `REDIS_URL` | `apps/dashboard/src/app/api/upload/route.ts`, `apps/dashboard/.env.schema` |
+| React components | PascalCase named exports | `ChatPanel`, `SourcePanel` | `apps/dashboard/src/app/(dashboard)/chat/` |
 
 ### 2) Formatting and Linting
 
 - Formatter: no standalone Prettier/Biome configuration was found; formatting style is repository convention. `[TODO]` Choose and document an automatic formatter if one is required.
-- Linter: ESLint 10 in the web app, configured by `apps/web/eslint.config.mjs`.
+- Linter: ESLint 10 in the web app, configured by `apps/dashboard/eslint.config.mjs`.
 - Most relevant rules: no component restyling beyond allowed layout, no raw colors, no arbitrary values, no inline styles, static/known classes.
 - TypeScript is strict and enables `noUncheckedIndexedAccess`, unused-symbol checks, isolated modules, and fallthrough checks.
 - Run commands: `pnpm run lint`, `pnpm run check-types`.
@@ -42,9 +42,9 @@
 
 ### 6) Evidence
 
-- `apps/web/eslint.config.mjs`
+- `apps/dashboard/eslint.config.mjs`
 - `packages/config/tsconfig.base.json`
 - `packages/api/src/index.ts`
-- `apps/web/src/app/api/chat/route.ts`
+- `apps/dashboard/src/app/api/chat/route.ts`
 - `apps/worker/src/index.ts`
 - `packages/llm/src/factory.ts`

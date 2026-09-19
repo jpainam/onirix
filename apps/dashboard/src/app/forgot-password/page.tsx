@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import z from "zod";
 
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 import { FieldError } from "@/components/field-error";
 import { authClient } from "@/lib/auth-client";
 

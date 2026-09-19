@@ -65,10 +65,12 @@
     }
   },
   "globalEnv": [
+    "APP_URL",
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
     "CI",
     "DATABASE_URL",
+    "DESKTOP_DOWNLOAD_URL",
     "EMAIL_FROM",
     "EXPO_PUBLIC_SERVER_URL",
     "GOOGLE_CLIENT_ID",

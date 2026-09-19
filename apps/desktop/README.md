@@ -25,7 +25,7 @@ directory. "Change Server…" in the app menu goes back to that screen.
 | `src/runtime.ts` | Finds, installs, starts Ollama; pulls and removes models |
 | `src/preload.ts` | Publishes `window.onirixDesktop` to the attached server's origin only |
 | `src/connect.html` | The local "which server?" screen |
-| `../web/src/lib/desktop.ts` | The bridge contract, shared by both sides |
+| `../dashboard/src/lib/desktop.ts` | The bridge contract, shared by both sides |
 
 The web app detects the shell through `getDesktopBridge()`. In the shell, the
 Ollama setup dialog gains a "This computer" mode that installs Ollama (checksum

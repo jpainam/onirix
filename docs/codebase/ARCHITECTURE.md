@@ -25,7 +25,7 @@ Connector -> sync_source job (on demand or on schedule) -> worker streams docume
 
 Grounded chat proceeds as follows:
 
-1. `apps/web/src/app/api/chat/route.ts` authenticates the session and loads its active workspace.
+1. `apps/dashboard/src/app/api/chat/route.ts` authenticates the session and loads its active workspace.
 2. `packages/db/src/principal.ts` resolves organization, teams, role grants, and ACL tokens.
 3. A follow-up question may be rewritten; `packages/ingestion/src/retrieval.ts` embeds it and performs hybrid search with organization and ACL filters.
 4. `packages/search/src/query.ts` combines vector and keyword candidates; `packages/search/src/rerank.ts` applies freshness/boost ordering and document deduplication.
@@ -36,7 +36,7 @@ Grounded chat proceeds as follows:
 
 | Layer or module | Owns | Must not own | Evidence |
 |-----------------|------|--------------|----------|
-| Next.js routes | Authentication adapters, HTTP streaming, request orchestration | Search/index internals | `apps/web/src/app/api/` |
+| Next.js routes | Authentication adapters, HTTP streaming, request orchestration | Search/index internals | `apps/dashboard/src/app/api/` |
 | tRPC routers | Validated CRUD and permission-gated operations | UI state | `packages/api/src/routers/` |
 | DB/principal layer | Tenant, role, team, and document ACL truth | Model generation | `packages/db/src/access.ts`, `packages/db/src/principal.ts` |
 | Ingestion | Extraction, chunking, embedding, retrieval shaping | Auth decisions | `packages/ingestion/src/` |
@@ -53,7 +53,7 @@ Grounded chat proceeds as follows:
 | Middleware/context | `packages/api/src/index.ts` | Resolves auth, tenant, principal, and permission gates once |
 | Materialized ACL tokens | `packages/db/src/access.ts`, `packages/search/src/query.ts` | Makes PostgreSQL and OpenSearch enforce the same visibility rule |
 | Reliable queue | `packages/jobs/src/index.ts` | Moves jobs atomically between pending and processing lists |
-| Process-wide singleton cache | `apps/web/src/services.ts` | Reuses database, Redis, storage, and search connections |
+| Process-wide singleton cache | `apps/dashboard/src/services.ts` | Reuses database, Redis, storage, and search connections |
 | Shared schema contract | `packages/llm/src/chart.ts` | Keeps server tool validation and client chart rendering aligned |
 | Background synchronization | `apps/worker/src/index.ts` | Mirrors ACL and collection changes into indexed chunks without re-embedding |
 
@@ -67,9 +67,9 @@ Grounded chat proceeds as follows:
 
 ### 6) Evidence
 
-- `apps/web/src/app/api/chat/route.ts`
-- `apps/web/src/app/api/upload/route.ts`
-- `apps/web/src/services.ts`
+- `apps/dashboard/src/app/api/chat/route.ts`
+- `apps/dashboard/src/app/api/upload/route.ts`
+- `apps/dashboard/src/services.ts`
 - `apps/worker/src/index.ts`
 - `packages/api/src/index.ts`
 - `packages/db/src/access.ts`

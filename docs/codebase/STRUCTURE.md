@@ -6,7 +6,8 @@
 
 | Path | Purpose | Evidence |
 |------|---------|----------|
-| `apps/web/` | Next.js web product, HTTP routes, dashboard UI | `apps/web/package.json`, `apps/web/src/app/` |
+| `apps/dashboard/` | Next.js web product, HTTP routes, dashboard UI | `apps/dashboard/package.json`, `apps/dashboard/src/app/` |
+| `apps/web/` | Public marketing site: landing, security, download. No session, no database | `apps/web/package.json`, `apps/web/src/app/` |
 | `apps/worker/` | Redis-backed background indexing worker | `apps/worker/src/index.ts` |
 | `apps/native/` | Expo application workspace; current AI screen targets `/ai`, which the web app does not expose | `apps/native/package.json`, `apps/native/app/(drawer)/ai.tsx` |
 | `packages/api/` | tRPC context, procedures, and feature routers | `packages/api/src/index.ts`, `packages/api/src/routers/` |
@@ -24,8 +25,8 @@
 
 ### 2) Entry Points
 
-- Main web runtime: Next.js App Router under `apps/web/src/app/`; Docker starts `apps/web/server.js` from the standalone build.
-- API entry points: `apps/web/src/app/api/trpc/[trpc]/route.ts`, `apps/web/src/app/api/chat/route.ts`, `apps/web/src/app/api/upload/route.ts`, and the Better Auth handler.
+- Main web runtime: Next.js App Router under `apps/dashboard/src/app/`; Docker starts `apps/dashboard/server.js` from the standalone build.
+- API entry points: `apps/dashboard/src/app/api/trpc/[trpc]/route.ts`, `apps/dashboard/src/app/api/chat/route.ts`, `apps/dashboard/src/app/api/upload/route.ts`, and the Better Auth handler.
 - Worker entry point: `apps/worker/src/index.ts`, selected by `apps/worker/package.json` and its Dockerfile.
 - Native entry point: Expo Router under `apps/native/app/`, selected by `expo-router/entry` in `apps/native/package.json`.
 
@@ -33,7 +34,7 @@
 
 | Boundary | What belongs here | What must not be here |
 |----------|-------------------|------------------------|
-| `apps/web` | Page composition, browser state, HTTP adapters, streaming UI | Reusable DB schema or search algorithms |
+| `apps/dashboard` | Page composition, browser state, HTTP adapters, streaming UI | Reusable DB schema or search algorithms |
 | `apps/worker` | Queue consumption and indexing orchestration | Interactive request handling |
 | `packages/api` | Validated, organization-scoped business operations | Page rendering |
 | `packages/connectors` | Turning a source's settings into a stream of documents with bytes and identity | Extraction, embedding, database access |
@@ -55,7 +56,7 @@
 
 - `pnpm-workspace.yaml`
 - `package.json`
-- `apps/web/src/app/`
+- `apps/dashboard/src/app/`
 - `apps/worker/src/index.ts`
 - `apps/native/app/_layout.tsx`
 - `packages/api/src/routers/index.ts`

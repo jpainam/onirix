@@ -5,15 +5,15 @@ import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@onirix/ui/components/button";
 
-import { DownloadButton } from "@/components/marketing/download-button";
-import { ModelSetupDemo } from "@/components/marketing/model-setup-demo";
+import { DownloadButton } from "@/components/download-button";
+import { ModelSetupDemo } from "@/components/model-setup-demo";
 import {
   Container,
   Heading,
   Lead,
   Section,
   SectionIntro,
-} from "@/components/marketing/section";
+} from "@/components/section";
 import {
   type DesktopDownload,
   desktopDownloads,

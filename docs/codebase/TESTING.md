@@ -45,9 +45,9 @@ pnpm run build
 ### 6) Evidence
 
 - `package.json`
-- `apps/web/package.json`
+- `apps/dashboard/package.json`
 - `apps/worker/package.json`
 - `turbo.json`
 - `packages/config/tsconfig.base.json`
-- `apps/web/eslint.config.mjs`
+- `apps/dashboard/eslint.config.mjs`
 - Repository search for `*.test.*`, `*.spec.*`, Jest, Vitest, and Playwright configuration returned no project files.

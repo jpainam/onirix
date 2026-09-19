@@ -30,10 +30,10 @@ cd onirix
 ## 3. Create the env file
 
 ```bash
-cp apps/web/.env.example apps/web/.env
+cp apps/dashboard/.env.example apps/dashboard/.env
 ```
 
-Open `apps/web/.env` and fill in the four values at the top:
+Open `apps/dashboard/.env` and fill in the four values at the top:
 
 | Variable | Value |
 | --- | --- |
@@ -61,7 +61,7 @@ The first build takes 5 to 10 minutes. After that:
 docker compose ps
 ```
 
-Wait until `web` shows `healthy`. OpenSearch is the slow one, give it a minute
+Wait until `dashboard` shows `healthy`. OpenSearch is the slow one, give it a minute
 or two. The worker creates the database schema and the storage bucket by
 itself, there is no migration step to run.
 
@@ -76,7 +76,7 @@ to stay fully local.
 
 | Task | Command |
 | --- | --- |
-| Logs | `docker compose logs -f web worker` |
+| Logs | `docker compose logs -f dashboard worker` |
 | Stop, keep data | `docker compose down` |
 | Start again | `docker compose up -d` |
 | Update to the latest code | `git pull && docker compose up -d --build` |
@@ -84,7 +84,7 @@ to stay fully local.
 
 Updates apply new database migrations when the worker starts.
 
-After changing `apps/web/.env`, run `docker compose up -d --build` again, not
+After changing `apps/dashboard/.env`, run `docker compose up -d --build` again, not
 just a restart. The build reads the file too.
 
 ## 7. Ports
@@ -117,7 +117,7 @@ This setup is meant for a developer's computer.
   `MINIO_ROOT_PASSWORD` and `OPENSEARCH_ADMIN_PASSWORD` in the root `.env`
   before the first start, and firewall every port except 3001. These passwords
   only apply when the volumes are first created.
-- `next build` writes the values from `apps/web/.env` into the web image. That
+- `next build` writes the values from `apps/dashboard/.env` into the web image. That
   is fine for an image that stays on your machine. **Do not push these images
   to a registry**, they contain your keys.
 - The app URL is set to `http://localhost:3001` in `docker-compose.yml`
@@ -126,7 +126,7 @@ This setup is meant for a developer's computer.
 
 ## 9. Backups
 
-All state lives in three Docker volumes plus `apps/web/.env`.
+All state lives in three Docker volumes plus `apps/dashboard/.env`.
 
 ```bash
 docker compose exec postgres pg_dump -U postgres onirix > onirix-$(date +%F).sql
@@ -140,17 +140,17 @@ docker compose exec postgres pg_dump -U postgres onirix > onirix-$(date +%F).sql
 
 | Symptom | Cause |
 | --- | --- |
-| Build fails with a Varlock validation error | A required value in `apps/web/.env` is empty, too short, or the Retransmit key does not start with `rt_` |
-| `failed to read secret` or `apps/web/.env: no such file` | Step 3 was skipped |
+| Build fails with a Varlock validation error | A required value in `apps/dashboard/.env` is empty, too short, or the Retransmit key does not start with `rt_` |
+| `failed to read secret` or `apps/dashboard/.env: no such file` | Step 3 was skipped |
 | Build is killed, or exits with code 137 | Docker is out of memory, raise its limit to 8 GB |
 | `opensearch` exits with `max virtual memory areas` | `vm.max_map_count` not set, see Requirements |
 | `port is already allocated` | Another program owns the port, see Ports |
 | `container name "onirix-postgres" is already in use` | A second copy of the stack exists on this machine. Run `docker compose down` in the other folder |
-| Sign-up email never arrives | `EMAIL_FROM` domain is not verified in Retransmit. Check `docker compose logs web` |
-| `web` stays `unhealthy` | It cannot reach Postgres. Check `docker compose logs web postgres` |
+| Sign-up email never arrives | `EMAIL_FROM` domain is not verified in Retransmit. Check `docker compose logs dashboard` |
+| `dashboard` stays `unhealthy` | It cannot reach Postgres. Check `docker compose logs dashboard postgres` |
 
 ## Working on the code instead
 
 To run the apps on the host with hot reload, and only the backing services in
 Docker, see "Local development" in [README.md](README.md). The same
-`apps/web/.env` works for both.
+`apps/dashboard/.env` works for both.

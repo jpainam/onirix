@@ -26,7 +26,7 @@ import type {
   LocalProgress,
   LocalRuntimeStatus,
   LocalSharing,
-} from "../../web/src/lib/desktop";
+} from "../../dashboard/src/lib/desktop";
 
 import { readSettings, writeSettings } from "./settings";
 

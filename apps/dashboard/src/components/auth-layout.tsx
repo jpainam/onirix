@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 
 export function AuthLayout({
   title,

@@ -20,7 +20,7 @@ import {
 } from "@onirix/ui/components/input-group";
 import { Spinner } from "@onirix/ui/components/spinner";
 
-import { OnirixMark } from "@/components/onirix-mark";
+import { OnirixMark } from "@onirix/ui/brand/onirix-mark";
 import {
   getCitedSources,
   getMessageText,

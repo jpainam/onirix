@@ -15,7 +15,7 @@ See [PRODUCT.md](./PRODUCT.md) for the product definition.
 | `opensearch` | Hybrid vector + keyword index (Onyx migrated here from Vespa) |
 | `redis` | Background indexing queue |
 | `minio` | S3-compatible store for uploaded originals |
-| `web` | Next.js application |
+| `dashboard` | Next.js application |
 | `worker` | Background indexing, connector syncs and their schedule; replaces Onyx's Celery workers |
 
 There is also a desktop client, `apps/desktop`: an Electron window around the
@@ -31,7 +31,9 @@ over.
 
 ```
 apps/
-  web/          Next.js application
+  dashboard/    Next.js application: the product, its API routes and sign-in
+  web/          Public marketing site; links into the dashboard through APP_URL
+  desktop/      Desktop client (Electron)
   worker/       Background indexing worker
   native/       Mobile application (Expo)
 packages/
@@ -77,8 +79,9 @@ Run the infrastructure in Docker and the apps on the host:
 ```bash
 pnpm run infra:up       # postgres, opensearch, redis, minio
 pnpm run db:migrate     # apply schema
-pnpm run dev:web        # http://localhost:3001
+pnpm run dev:dashboard  # http://localhost:3001
 pnpm run dev:worker     # background indexing
+pnpm run dev:web        # public site, http://localhost:3000 (needs no infrastructure)
 ```
 
 ### Ports
@@ -135,7 +138,8 @@ Add more with `npx shadcn@latest add <component> -c packages/ui`, then import as
 | Script | Purpose |
 | --- | --- |
 | `pnpm run dev` | Run all apps in development |
-| `pnpm run dev:web` | Web only |
+| `pnpm run dev:dashboard` | Dashboard only |
+| `pnpm run dev:web` | Public site only |
 | `pnpm run dev:worker` | Indexing worker only |
 | `pnpm run dev:desktop` | Desktop shell, attached to a running server |
 | `pnpm run desktop:dist` | Build desktop installers into `apps/desktop/release` |

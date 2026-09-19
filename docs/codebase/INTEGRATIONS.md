@@ -6,9 +6,9 @@
 
 | System | Type (API/DB/Queue/etc) | Purpose | Auth model | Criticality | Evidence |
 |--------|---------------------------|---------|------------|-------------|----------|
-| PostgreSQL | Database | Organizations, users, documents, model config, chats, citations | Connection URL | High | `packages/db/src/index.ts`, `apps/web/.env.schema` |
-| OpenSearch | Search/vector database | Keyword/vector retrieval and ACL filtering | Admin username/password, optional TLS verification | High | `packages/search/src/client.ts`, `apps/web/.env.schema` |
-| Redis | Queue/pub-sub/state | Indexing jobs and resumable chat streams | URL; Compose default has no password | High | `packages/jobs/src/index.ts`, `apps/web/src/services.ts` |
+| PostgreSQL | Database | Organizations, users, documents, model config, chats, citations | Connection URL | High | `packages/db/src/index.ts`, `apps/dashboard/.env.schema` |
+| OpenSearch | Search/vector database | Keyword/vector retrieval and ACL filtering | Admin username/password, optional TLS verification | High | `packages/search/src/client.ts`, `apps/dashboard/.env.schema` |
+| Redis | Queue/pub-sub/state | Indexing jobs and resumable chat streams | URL; Compose default has no password | High | `packages/jobs/src/index.ts`, `apps/dashboard/src/services.ts` |
 | MinIO/S3 | Object store | Uploaded originals | Access key and secret | High | `packages/ingestion/src/storage.ts` |
 | OpenAI | Model API | Chat and embeddings | Workspace API key | Optional | `packages/llm/src/factory.ts` |
 | Anthropic | Model API | Chat | Workspace API key | Optional | `packages/llm/src/factory.ts` |
@@ -16,7 +16,7 @@
 | xAI | Model API | Chat | Workspace API key | Optional | `packages/llm/src/factory.ts` |
 | Ollama | Self-hosted/cloud model API | Chat and embeddings through OpenAI-compatible API | Endpoint or cloud key | Optional | `packages/llm/src/catalog.ts`, `packages/llm/src/factory.ts` |
 | Google OAuth | Identity API | Optional social sign-in | Deployment client ID/secret | Optional | `packages/auth/src/index.ts` |
-| Retransmit | Email API | Verification, reset, magic-link, invitation mail | Deployment API key | High for account flows | `packages/transactional/src/index.ts`, `apps/web/.env.schema` |
+| Retransmit | Email API | Verification, reset, magic-link, invitation mail | Deployment API key | High for account flows | `packages/transactional/src/index.ts`, `apps/dashboard/.env.schema` |
 
 ### 2) Data Stores
 
@@ -53,10 +53,10 @@
 
 ### 6) Evidence
 
-- `apps/web/.env.schema`
+- `apps/dashboard/.env.schema`
 - `apps/worker/.env.schema`
 - `docker-compose.yml`
-- `apps/web/src/services.ts`
+- `apps/dashboard/src/services.ts`
 - `apps/worker/src/index.ts`
 - `packages/jobs/src/index.ts`
 - `packages/llm/src/catalog.ts`

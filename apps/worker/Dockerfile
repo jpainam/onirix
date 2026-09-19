@@ -3,7 +3,7 @@ RUN npm install -g pnpm@11
 WORKDIR /app
 
 COPY . .
-RUN --mount=type=secret,id=web_env,target=/app/apps/web/.env.local \
+RUN --mount=type=secret,id=dashboard_env,target=/app/apps/dashboard/.env.local \
     --mount=type=cache,target=/pnpm-store \
     pnpm install --store-dir /pnpm-store
 

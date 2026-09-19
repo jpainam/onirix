@@ -9,7 +9,7 @@
  *
  *   packages/auth      builds the `ac` instance and the pre-defined roles
  *   packages/api       gates procedures with `can()`
- *   apps/web           decides which controls to render with `can()`
+ *   apps/dashboard     decides which controls to render with `can()`
  *
  * `ac` is Better Auth's own resource name for role management. It is kept as
  * spelled because the plugin checks `ac: ["create"]` internally before it will

@@ -3,5 +3,5 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["src", "../web/src/lib/desktop.ts"]
+  "include": ["src", "../dashboard/src/lib/desktop.ts"]
 }

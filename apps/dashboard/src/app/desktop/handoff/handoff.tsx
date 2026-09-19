@@ -12,7 +12,7 @@ import { Spinner } from "@onirix/ui/components/spinner";
 import { useState } from "react";
 
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 import { authClient } from "@/lib/auth-client";
 import { RETURN_TO_APP } from "@/lib/desktop-sign-in";
 

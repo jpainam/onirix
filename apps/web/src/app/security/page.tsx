@@ -14,7 +14,8 @@ import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@onirix/ui/components/button";
 
-import { Container, Eyebrow, Heading, Lead } from "@/components/marketing/section";
+import { Container, Eyebrow, Heading, Lead } from "@/components/section";
+import { SIGN_UP_URL } from "@/lib/app-url";
 
 export const metadata: Metadata = {
   title: "Security at Onirix",
@@ -125,7 +126,7 @@ export default function SecurityPage() {
             />
           </Block>
 
-          {/* apps/web/src/app/(dashboard)/admin/security, packages/api security router */}
+          {/* apps/dashboard/src/app/(dashboard)/admin/security, packages/api security router */}
           <Block
             id="sessions"
             icon={MonitorSmartphoneIcon}
@@ -312,7 +313,7 @@ export default function SecurityPage() {
               </div>
             </div>
             <div className="mt-12 flex flex-wrap gap-3">
-              <Button nativeButton={false} render={<Link href="/login?mode=signup" />}>Create a workspace</Button>
+              <Button nativeButton={false} render={<a href={SIGN_UP_URL} />}>Create a workspace</Button>
               <Button variant="ghost" nativeButton={false} render={<Link href="/#self-host" />}>
                 Back to self-hosting
               </Button>

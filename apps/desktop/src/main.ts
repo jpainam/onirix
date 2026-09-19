@@ -20,7 +20,7 @@ import {
 } from "electron";
 import { join, resolve } from "node:path";
 
-import type { LocalProgress } from "../../web/src/lib/desktop";
+import type { LocalProgress } from "../../dashboard/src/lib/desktop";
 
 import * as runtime from "./runtime";
 import { readSettings, writeSettings } from "./settings";

@@ -9,7 +9,7 @@ and four backing services next to it. The compose file below starts all of it.
 
 | Image | Role |
 | --- | --- |
-| `jpainam/onirix-web` | Next.js application, port 3001 |
+| `jpainam/onirix-app` | Next.js application, port 3001 |
 | `jpainam/onirix-worker` | Indexing, connector syncs, database migrations |
 
 Tags: `latest`, plus one tag per release such as `0.1.0`. Platforms:
@@ -63,8 +63,8 @@ x-depends: &depends
     condition: service_healthy
 
 services:
-  web:
-    image: jpainam/onirix-web:${ONIRIX_VERSION:-latest}
+  dashboard:
+    image: jpainam/onirix-app:${ONIRIX_VERSION:-latest}
     init: true
     ports:
       - "${WEB_PORT:-3001}:3001"
@@ -232,7 +232,7 @@ openssl rand -hex 24      # MINIO_ROOT_PASSWORD
 
 ```bash
 docker compose up -d
-docker compose ps        # wait until web shows "healthy"
+docker compose ps        # wait until dashboard shows "healthy"
 ```
 
 The first start takes a minute or two while OpenSearch boots. The worker
@@ -246,7 +246,7 @@ embedding models.
 
 | Task | Command |
 | --- | --- |
-| Logs | `docker compose logs -f web worker` |
+| Logs | `docker compose logs -f dashboard worker` |
 | Stop | `docker compose down` |
 | Upgrade | set `ONIRIX_VERSION`, then `docker compose pull && docker compose up -d` |
 | Wipe everything, data included | `docker compose down -v` |
@@ -277,6 +277,6 @@ Set `APP_URL=https://onirix.your-domain.com`, put a reverse proxy with TLS
 | --- | --- |
 | `opensearch` exits with `max virtual memory areas` | `vm.max_map_count` not set, see Requirements |
 | `opensearch` restarts in a loop right after first start | Password too weak. Fix `.env`, then `docker compose down -v` and start again |
-| `web` exits at once with a Varlock validation error | A required `.env` value is missing or too short |
+| `dashboard` exits at once with a Varlock validation error | A required `.env` value is missing or too short |
 | Sign-up email never arrives | `EMAIL_FROM` domain is not verified in Retransmit |
 | Port 3001 already in use | Change `WEB_PORT`, and `APP_URL` with it |

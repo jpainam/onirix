@@ -15,7 +15,7 @@ import {
 import { Spinner } from "@onirix/ui/components/spinner";
 
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 import { AFTER_SIGN_IN, authClient } from "@/lib/auth-client";
 
 type State =

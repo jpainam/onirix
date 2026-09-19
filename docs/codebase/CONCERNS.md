@@ -11,13 +11,13 @@
 | High | Development fallback credentials can become deployed credentials | `docker-compose.yml` | An exposed default stack could be compromised | Fail startup outside development when defaults are still in use |
 | Medium | PostgreSQL/OpenSearch ACL changes are eventually consistent | `packages/db/src/access.ts`, `apps/worker/src/index.ts` | Old access remains active in retrieval until the sync job runs | Prioritize ACL jobs, expose sync state, and test restrictive transitions |
 | Low | Indexing jobs retry three times; ACL and collection sync jobs still do not | `packages/jobs/src/index.ts`, `apps/worker/src/index.ts` | A failed permission sync has no visible recovery path | Add attempt metadata to sync jobs and an admin remediation view |
-| Medium | Product surfaces imply capabilities that are not connected end-to-end | `apps/web/src/app/(dashboard)/agents/page.tsx`, `apps/native/app/(drawer)/ai.tsx`, `packages/db/src/schema/knowledge.ts` | Marketing or navigation may overstate current behavior | Keep shipping claims aligned with `PRODUCT.md`; hide or label placeholders |
+| Medium | Product surfaces imply capabilities that are not connected end-to-end | `apps/dashboard/src/app/(dashboard)/agents/page.tsx`, `apps/native/app/(drawer)/ai.tsx`, `packages/db/src/schema/knowledge.ts` | Marketing or navigation may overstate current behavior | Keep shipping claims aligned with `PRODUCT.md`; hide or label placeholders |
 
 ### 2) Technical Debt
 
 | Debt item | Why it exists | Where | Risk if ignored | Suggested fix |
 |-----------|---------------|-------|-----------------|---------------|
-| Chat route owns too many concerns | Retrieval, generation, title creation, stream lifecycle, and persistence grew together | `apps/web/src/app/api/chat/route.ts` | High-churn changes can couple unrelated behavior | Extract turn orchestration, persistence, and retrieval adapters |
+| Chat route owns too many concerns | Retrieval, generation, title creation, stream lifecycle, and persistence grew together | `apps/dashboard/src/app/api/chat/route.ts` | High-churn changes can couple unrelated behavior | Extract turn orchestration, persistence, and retrieval adapters |
 | Package-manager versions differ | Root pins pnpm 10.27.0; Docker installs pnpm 11 | `package.json`, both Dockerfiles | Container and local lockfile behavior may diverge | Install the root-declared version via Corepack |
 | Native app is a scaffold, not an Onirix client | AI screen targets `/ai`, while web exposes `/api/chat` and authenticated workspace flows | `apps/native/app/(drawer)/ai.tsx` | Mobile demos fail against the current server contract | Integrate auth and current chat transport or remove the product surface |
 
@@ -43,9 +43,9 @@
 
 | Area | Why fragile | Churn signal | Safe change strategy |
 |------|-------------|-------------|----------------------|
-| `apps/web/src/app/api/chat/route.ts` | Security filters, model calls, streams, and writes converge | 9 changes in the recent 90-day scan | Add focused tests and split orchestration before major features |
-| `apps/web/src/app/(dashboard)/chat/chat-panel.tsx` | Client lifecycle, optimistic chat creation, reconnects, citations | 8 changes | Test refresh/offline/multi-tab states end to end |
-| `apps/web/src/components/app-sidebar.tsx` | Setup, admin, search, agents, and recents navigation | 8 changes | Keep navigation metadata declarative and add route smoke tests |
+| `apps/dashboard/src/app/api/chat/route.ts` | Security filters, model calls, streams, and writes converge | 9 changes in the recent 90-day scan | Add focused tests and split orchestration before major features |
+| `apps/dashboard/src/app/(dashboard)/chat/chat-panel.tsx` | Client lifecycle, optimistic chat creation, reconnects, citations | 8 changes | Test refresh/offline/multi-tab states end to end |
+| `apps/dashboard/src/components/app-sidebar.tsx` | Setup, admin, search, agents, and recents navigation | 8 changes | Keep navigation metadata declarative and add route smoke tests |
 | `packages/auth/src/index.ts` | Auth, orgs, teams, roles, email, Expo, cookies | 6 changes | Verify every plugin change against sign-up/invite/switch flows |
 | `packages/api/src/routers/onboarding.ts` | Establishes tenant membership and first provider | 5 changes | Test invited-user and first-workspace transactions |
 
@@ -64,5 +64,5 @@
 - `packages/db/src/access.ts`
 - `packages/jobs/src/index.ts`
 - `apps/worker/src/index.ts`
-- `apps/web/src/app/api/chat/route.ts`
+- `apps/dashboard/src/app/api/chat/route.ts`
 - `apps/native/app/(drawer)/ai.tsx`

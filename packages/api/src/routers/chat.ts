@@ -2,7 +2,7 @@
  * Conversations and history.
  *
  * Answer generation streams over a route handler rather than tRPC (see
- * `apps/web/src/app/api/chat/route.ts`); this router covers everything around
+ * `apps/dashboard/src/app/api/chat/route.ts`); this router covers everything around
  * it — listing, renaming, deleting, and reading past conversations.
  */
 import { TRPCError } from "@trpc/server";

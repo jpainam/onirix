@@ -37,7 +37,7 @@ import {
   LocalRuntimeStatus,
   LocalSharingControls,
 } from "@/components/local-runtime";
-import { OnirixMark } from "@/components/onirix-mark";
+import { OnirixMark } from "@onirix/ui/brand/onirix-mark";
 import { ProviderLogo } from "@/components/provider-logo";
 import { useLocalRuntime } from "@/hooks/use-local-runtime";
 import { getDesktopBridge, localRuntimeCandidates } from "@/lib/desktop";

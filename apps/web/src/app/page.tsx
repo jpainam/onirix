@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import {
   ArrowRightIcon,
   BarChart3Icon,
@@ -18,8 +16,8 @@ import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@onirix/ui/components/button";
 
-import { AnswerDemo } from "@/components/marketing/answer-demo";
-import { ChartDemo } from "@/components/marketing/chart-demo";
+import { AnswerDemo } from "@/components/answer-demo";
+import { ChartDemo } from "@/components/chart-demo";
 import {
   Container,
   Eyebrow,
@@ -27,10 +25,9 @@ import {
   Lead,
   Section,
   SectionIntro,
-} from "@/components/marketing/section";
+} from "@/components/section";
 import { ProviderLogo } from "@/components/provider-logo";
-import { AFTER_SIGN_IN } from "@/lib/auth-client";
-import { auth } from "@/services";
+import { SIGN_IN_URL, SIGN_UP_URL } from "@/lib/app-url";
 
 export const metadata: Metadata = {
   title: "Onirix. Ask your company. See the evidence.",
@@ -63,7 +60,7 @@ const QUESTIONS = [
 ];
 
 const STACK = [
-  { name: "web", role: "Next.js application" },
+  { name: "dashboard", role: "Next.js application" },
   { name: "worker", role: "Background indexing" },
   { name: "postgres", role: "Metadata, chats, citations" },
   { name: "opensearch", role: "Hybrid vector and keyword index" },
@@ -74,16 +71,11 @@ const STACK = [
 /**
  * The front door.
  *
- * A visitor with a live session has no use for a pitch, so they go straight
- * to the workspace. Everyone else gets the product in the order PRODUCT.md
- * asks for: the headline, an answer with citations and its passage, a chart
+ * The product in the order PRODUCT.md asks for: the headline, an answer with citations and its passage, a chart
  * from a spreadsheet, the three claims, then the call to action. Nothing on
  * this page is promised that the product does not do today.
  */
-export default async function LandingPage() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (session?.user) redirect(AFTER_SIGN_IN);
-
+export default function LandingPage() {
   return (
     <>
       {/* Hero */}
@@ -109,7 +101,7 @@ export default async function LandingPage() {
               infrastructure your organization chooses.
             </Lead>
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <Button size="lg" nativeButton={false} render={<Link href="/login?mode=signup" />}>
+              <Button size="lg" nativeButton={false} render={<a href={SIGN_UP_URL} />}>
                 Create a workspace
                 <ArrowRightIcon data-icon="inline-end" />
               </Button>
@@ -344,11 +336,11 @@ export default async function LandingPage() {
           </Heading>
           <Lead>Create a workspace, connect a provider, upload a folder.</Lead>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button size="lg" nativeButton={false} render={<Link href="/login?mode=signup" />}>
+            <Button size="lg" nativeButton={false} render={<a href={SIGN_UP_URL} />}>
               Create a workspace
               <ArrowRightIcon data-icon="inline-end" />
             </Button>
-            <Button variant="ghost" size="lg" nativeButton={false} render={<Link href="/login" />}>
+            <Button variant="ghost" size="lg" nativeButton={false} render={<a href={SIGN_IN_URL} />}>
               Sign in
             </Button>
           </div>

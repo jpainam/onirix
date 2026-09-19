@@ -1,6 +1,10 @@
+import type { Route } from "next";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
+
+import { SIGN_IN_URL, SIGN_UP_URL } from "@/lib/app-url";
 
 const COLUMNS = [
   {
@@ -25,11 +29,11 @@ const COLUMNS = [
   {
     title: "Account",
     links: [
-      { href: "/login", label: "Sign in" },
-      { href: "/login?mode=signup", label: "Create a workspace" },
+      { href: SIGN_IN_URL, label: "Sign in" },
+      { href: SIGN_UP_URL, label: "Create a workspace" },
     ],
   },
-] as const;
+];
 
 /** The public footer: brand, three link columns and a contact line. */
 export function SiteFooter() {
@@ -49,12 +53,7 @@ export function SiteFooter() {
               <ul className="flex flex-col gap-2">
                 {column.links.map((link) => (
                   <li key={link.href}>
-                    <Link
-                      href={link.href}
-                      className="text-ink-03 hover:text-foreground text-sm transition-colors"
-                    >
-                      {link.label}
-                    </Link>
+                    <FooterLink href={link.href}>{link.label}</FooterLink>
                   </li>
                 ))}
               </ul>
@@ -72,5 +71,22 @@ export function SiteFooter() {
         </div>
       </div>
     </footer>
+  );
+}
+
+/** Pages on this site route client-side; the account links leave for the app. */
+function FooterLink({ href, children }: { href: string; children: ReactNode }) {
+  const className = "text-ink-03 hover:text-foreground text-sm transition-colors";
+  if (href.startsWith("/")) {
+    return (
+      <Link href={href as Route} className={className}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <a href={href} className={className}>
+      {children}
+    </a>
   );
 }

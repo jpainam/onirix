@@ -28,5 +28,5 @@ push() {
   echo "updated $NAMESPACE/$repo"
 }
 
-push onirix-web dockerhub-web.md "Onirix: a private AI workspace for organizational knowledge. Web application."
+push onirix-app dockerhub-app.md "Onirix: a private AI workspace for organizational knowledge. Web application."
 push onirix-worker dockerhub-worker.md "Onirix background worker: indexing, connector syncs, migrations."

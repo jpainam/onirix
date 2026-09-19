@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 import { Button } from "@onirix/ui/components/button";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 
-import { OnirixWordmark } from "@/components/onirix-mark";
+import { SIGN_IN_URL, SIGN_UP_URL } from "@/lib/app-url";
 
 const NAV = [
   { href: "/#product", label: "Product" },
@@ -36,10 +37,10 @@ export function SiteHeader() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/login" />}>
+          <Button variant="ghost" size="sm" nativeButton={false} render={<a href={SIGN_IN_URL} />}>
             Sign in
           </Button>
-          <Button size="sm" nativeButton={false} render={<Link href="/login?mode=signup" />}>
+          <Button size="sm" nativeButton={false} render={<a href={SIGN_UP_URL} />}>
             Get started
           </Button>
         </div>

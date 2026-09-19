@@ -7,18 +7,18 @@
 | Area | Value | Evidence |
 |------|-------|----------|
 | Primary language | TypeScript 6 with React TSX | `package.json`, `packages/config/tsconfig.base.json` |
-| Runtime + version | Node.js 24 in production containers; Expo/React Native for the native workspace | `apps/web/Dockerfile`, `apps/worker/Dockerfile`, `apps/native/package.json` |
-| Package manager | pnpm 10.27.0 at the root; Dockerfiles currently install pnpm 11 | `package.json`, `apps/web/Dockerfile`, `apps/worker/Dockerfile` |
-| Module/build system | ESM, pnpm workspaces, Turborepo, Next.js standalone build | `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `apps/web/next.config.ts` |
+| Runtime + version | Node.js 24 in production containers; Expo/React Native for the native workspace | `apps/dashboard/Dockerfile`, `apps/worker/Dockerfile`, `apps/native/package.json` |
+| Package manager | pnpm 10.27.0 at the root; Dockerfiles currently install pnpm 11 | `package.json`, `apps/dashboard/Dockerfile`, `apps/worker/Dockerfile` |
+| Module/build system | ESM, pnpm workspaces, Turborepo, Next.js standalone build | `package.json`, `pnpm-workspace.yaml`, `turbo.json`, `apps/dashboard/next.config.ts` |
 
 ### 2) Production Frameworks and Dependencies
 
 | Dependency | Version | Role in system | Evidence |
 |------------|---------|----------------|----------|
-| Next.js | ^16.3.4 | Web application and route handlers | `apps/web/package.json` |
-| React | ^19.2.8 | Web UI | `apps/web/package.json` |
+| Next.js | ^16.3.4 | Web application and route handlers | `apps/dashboard/package.json` |
+| React | ^19.2.8 | Web UI | `apps/dashboard/package.json` |
 | Expo / React Native | ~57.0.20 / 0.86.3 | Native application workspace | `apps/native/package.json` |
-| AI SDK | ^7.0.93 | Streaming chat, model tools, embeddings | `apps/web/package.json`, `packages/ingestion/package.json` |
+| AI SDK | ^7.0.93 | Streaming chat, model tools, embeddings | `apps/dashboard/package.json`, `packages/ingestion/package.json` |
 | tRPC | ^11.18.0 | Typed application API | `packages/api/package.json` |
 | Better Auth | 1.7.3 | Authentication, organizations, teams, roles | `packages/auth/package.json` |
 | Drizzle ORM / PostgreSQL | ^0.45.2 / PostgreSQL 18 image | Relational metadata and migrations | `packages/db/package.json`, `docker-compose.yml` |
@@ -33,7 +33,7 @@
 |------|---------|----------|
 | Turborepo 2.10.12 | Workspace task orchestration and caching | `package.json`, `turbo.json` |
 | TypeScript 6.0.3 | Strict static checking | `package.json`, `packages/config/tsconfig.base.json` |
-| ESLint 10 + `@shadcn/lint` | Web linting and design-system enforcement | `apps/web/package.json`, `apps/web/eslint.config.mjs` |
+| ESLint 10 + `@shadcn/lint` | Web linting and design-system enforcement | `apps/dashboard/package.json`, `apps/dashboard/eslint.config.mjs` |
 | Varlock 1.18.0 | Typed environment schemas and runtime loading | `pnpm-workspace.yaml`, `apps/*/.env.schema` |
 | Drizzle Kit 0.31.10 | Schema migration generation and DB studio | `packages/db/package.json` |
 | Docker Compose | Full local/self-hosted stack | `docker-compose.yml` |
@@ -46,7 +46,7 @@ pnpm run build
 pnpm run lint
 pnpm run check-types
 pnpm run docker:up
-pnpm run dev:web
+pnpm run dev:dashboard
 pnpm run dev:worker
 ```
 
@@ -54,7 +54,7 @@ There is no root test command because no test runner is configured.
 
 ### 5) Environment and Config
 
-- Config sources: `apps/web/.env.schema`, `apps/worker/.env.schema`, `apps/native/.env.schema`, `packages/db/.env.schema`, `docker-compose.yml`.
+- Config sources: `apps/dashboard/.env.schema`, `apps/worker/.env.schema`, `apps/native/.env.schema`, `packages/db/.env.schema`, `docker-compose.yml`.
 - Web requires auth, database, OpenSearch, Redis, S3-compatible storage, and transactional-email settings. Google OAuth is optional.
 - Native requires `EXPO_PUBLIC_SERVER_URL`.
 - Model-provider credentials are entered per workspace and stored in PostgreSQL, rather than read from deployment-wide provider environment variables.
@@ -66,8 +66,8 @@ There is no root test command because no test runner is configured.
 - `pnpm-workspace.yaml`
 - `turbo.json`
 - `packages/config/tsconfig.base.json`
-- `apps/web/package.json`
+- `apps/dashboard/package.json`
 - `apps/native/package.json`
 - `docker-compose.yml`
-- `apps/web/Dockerfile`
+- `apps/dashboard/Dockerfile`
 - `apps/worker/Dockerfile`

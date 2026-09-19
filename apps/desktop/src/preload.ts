@@ -12,7 +12,7 @@ import type {
   DesktopBridge,
   DesktopPlatform,
   LocalProgress,
-} from "../../web/src/lib/desktop";
+} from "../../dashboard/src/lib/desktop";
 
 /** Values the main process hands over as `--name=value` arguments. */
 function argument(name: string): string {

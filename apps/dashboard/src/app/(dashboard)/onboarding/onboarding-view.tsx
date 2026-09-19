@@ -23,7 +23,7 @@ import {
 import { Separator } from "@onirix/ui/components/separator";
 import { Spinner } from "@onirix/ui/components/spinner";
 
-import { OnirixMark } from "@/components/onirix-mark";
+import { OnirixMark } from "@onirix/ui/brand/onirix-mark";
 import { ProviderDialog, type Provider } from "@/components/provider-dialog";
 import { trpc } from "@/utils/trpc";
 
