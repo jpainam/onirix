@@ -188,11 +188,11 @@ export function RolesView({
                           Edit
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="destructive"
                           size="sm"
                           onClick={() => setDeleting(role)}
                         >
-                          <Trash2Icon className="text-destructive" />
+                          <Trash2Icon />
                           Delete
                         </Button>
                       </div>

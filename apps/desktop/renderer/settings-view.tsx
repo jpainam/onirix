@@ -241,7 +241,7 @@ export function SettingsView({
                   </Button>
                   {model ? (
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       className="rounded-full px-4"
                       onClick={() => void removeModel()}
                     >

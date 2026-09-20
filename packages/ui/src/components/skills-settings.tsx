@@ -493,7 +493,7 @@ function SkillDialog({
           </Button>
         ) : (
           <Button
-            variant="ghost"
+            variant="destructive"
             size="pill"
             className="mr-auto"
             disabled={busy}
@@ -503,7 +503,7 @@ function SkillDialog({
                 : setConfirmingDelete(true)
             }
           >
-            <Trash2Icon className="text-destructive" />
+            <Trash2Icon />
             {confirmingDelete ? "Delete for good" : "Delete"}
           </Button>
         )}

@@ -214,7 +214,7 @@ export function ModelStore({
                     </Button>
                   )}
                   <Button
-                    variant="muted"
+                    variant="destructive"
                     size="icon-sm"
                     aria-label={`Remove ${row.label} from this computer`}
                     disabled={active}

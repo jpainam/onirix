@@ -421,7 +421,7 @@ function ModelDetails({
               {actions}
               {readOnly ? null : (
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon-sm"
                   aria-label={`Remove ${model.label}`}
                   title={removeBlocked ?? "Remove from disk"}

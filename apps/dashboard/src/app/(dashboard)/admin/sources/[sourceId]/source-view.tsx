@@ -295,8 +295,8 @@ export function SourceView({
         {canDelete ? (
           <Section title="Remove" description="Removes the source and its documents from search.">
             <div>
-              <Button variant="outline" onClick={() => setRemoving(true)}>
-                <Trash2Icon className="text-destructive" />
+              <Button variant="destructive" onClick={() => setRemoving(true)}>
+                <Trash2Icon />
                 Remove this source
               </Button>
             </div>

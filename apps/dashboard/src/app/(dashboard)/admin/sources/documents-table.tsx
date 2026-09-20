@@ -330,7 +330,7 @@ export function DocumentsTable({
                         ) : null}
                         {canDelete ? (
                           <Button
-                            variant="ghost"
+                            variant="destructive"
                             size="icon-sm"
                             aria-label={`Remove ${doc.title}`}
                             onClick={() =>
@@ -341,7 +341,7 @@ export function DocumentsTable({
                               })
                             }
                           >
-                            <Trash2Icon className="text-destructive" />
+                            <Trash2Icon />
                           </Button>
                         ) : null}
                       </span>

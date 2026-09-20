@@ -277,7 +277,7 @@ export function UsersView({
                       <TableCell className="text-right">
                         {canManage && row.role !== "owner" ? (
                           <Button
-                            variant="ghost"
+                            variant="destructive"
                             size="sm"
                             onClick={() =>
                               void run(

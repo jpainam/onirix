@@ -321,8 +321,8 @@ function CollectionCard({
           </Button>
         ) : null}
         {canDelete ? (
-          <Button variant="ghost" size="sm" onClick={onDelete}>
-            <Trash2Icon className="text-destructive" />
+          <Button variant="destructive" size="sm" onClick={onDelete}>
+            <Trash2Icon />
             Delete
           </Button>
         ) : null}

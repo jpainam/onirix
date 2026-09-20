@@ -183,7 +183,7 @@ function MemberRow({
       </div>
       {canManage ? (
         <Button
-          variant="ghost"
+          variant="destructive"
           size="sm"
           aria-label={`Remove ${person.name} from ${teamName}`}
           onClick={onRemove}

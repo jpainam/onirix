@@ -248,12 +248,12 @@ export function DatabasesSection({
                         )}
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="destructive"
                         size="icon-sm"
                         aria-label={`Disconnect ${entry.name}`}
                         onClick={() => setRemoving({ id: entry.id, name: entry.name })}
                       >
-                        <Trash2Icon className="text-destructive" />
+                        <Trash2Icon />
                       </Button>
                     </>
                   ) : null}

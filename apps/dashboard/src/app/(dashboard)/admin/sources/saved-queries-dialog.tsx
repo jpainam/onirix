@@ -153,13 +153,13 @@ export function SavedQueriesDialog({
                   Edit
                 </Button>
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon-sm"
                   aria-label={`Delete ${query.name}`}
                   disabled={remove.isPending}
                   onClick={() => remove.mutate({ id: query.id })}
                 >
-                  <Trash2Icon className="text-destructive" />
+                  <Trash2Icon />
                 </Button>
               </div>
             ))}
@@ -367,7 +367,7 @@ function QueryEditor({
                       }
                     />
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="icon-sm"
                       aria-label={`Remove parameter ${index + 1}`}
                       onClick={() =>

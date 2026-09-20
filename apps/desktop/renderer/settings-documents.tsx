@@ -196,12 +196,12 @@ export function DocumentsSettings({
                 {/* Asks nothing first: the original file is untouched, so
                     this only undoes an "add". */}
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon-sm"
                   aria-label={`Delete ${row.title} from your library`}
                   onClick={() => void remove(row.id)}
                 >
-                  <Trash2Icon className="text-destructive" />
+                  <Trash2Icon />
                 </Button>
               </li>
             ))}

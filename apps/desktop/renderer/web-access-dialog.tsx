@@ -83,7 +83,7 @@ export function WebAccessDialog({
             <li key={site} className="flex items-center gap-2 py-1.5 pr-1.5 pl-4">
               <span className="min-w-0 flex-1 truncate text-sm select-text">{site}</span>
               <Button
-                variant="ghost"
+                variant="destructive"
                 size="icon-sm"
                 onClick={() => onSitesChange(sites.filter((other) => other !== site))}
               >

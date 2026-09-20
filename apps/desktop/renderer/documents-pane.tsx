@@ -211,7 +211,7 @@ export function DocumentsPane({
                     can take a file back out of. The original is untouched, so
                     this asks nothing first. */}
                 <Button
-                  variant="muted"
+                  variant="destructive"
                   size="icon-xs"
                   aria-label={`Delete ${row.title} from your library`}
                   onClick={() => onDelete(row.id)}

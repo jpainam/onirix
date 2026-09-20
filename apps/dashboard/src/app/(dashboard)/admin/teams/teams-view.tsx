@@ -159,7 +159,7 @@ function TeamCard({
             Add members
           </Button>
           <Button
-            variant="ghost"
+            variant="destructive"
             size="sm"
             onClick={() =>
               void run(
@@ -168,7 +168,7 @@ function TeamCard({
               )
             }
           >
-            <Trash2Icon className="text-destructive" />
+            <Trash2Icon />
             Remove
           </Button>
         </div>

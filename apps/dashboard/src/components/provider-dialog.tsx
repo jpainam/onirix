@@ -570,8 +570,8 @@ export function ProviderDialog({
           {/* Removing a provider belongs with its settings, not on the list
               behind a second menu. */}
           {connected && onDisconnect ? (
-            <Button variant="ghost" className="mr-auto" onClick={onDisconnect}>
-              <Trash2Icon className="text-destructive" />
+            <Button variant="destructive" className="mr-auto" onClick={onDisconnect}>
+              <Trash2Icon />
               Disconnect
             </Button>
           ) : null}
