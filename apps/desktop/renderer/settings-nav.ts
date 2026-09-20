@@ -74,7 +74,7 @@ export const SETTINGS_SECTIONS: { label: string; items: SettingsItem[] }[] = [
     label: "Model",
     items: [
       { page: "model", title: "Language model", icon: CpuIcon },
-      { page: "local-models", title: "Local models", icon: DownloadIcon },
+      { page: "local-models", title: "Open models", icon: DownloadIcon },
     ],
   },
   {

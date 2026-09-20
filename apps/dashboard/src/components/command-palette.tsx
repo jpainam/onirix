@@ -7,6 +7,7 @@ import {
   BuildingIcon,
   CpuIcon,
   DatabaseIcon,
+  DownloadIcon,
   FileTextIcon,
   NetworkIcon,
   PaletteIcon,
@@ -42,6 +43,7 @@ const DESTINATIONS = [
   { title: "Teams", url: "/admin/teams", icon: NetworkIcon },
   { title: "Roles", url: "/admin/roles", icon: ShieldIcon },
   { title: "Language models", url: "/admin/language-models", icon: CpuIcon },
+  { title: "Open models", url: "/admin/open-models", icon: DownloadIcon },
   { title: "Organization", url: "/admin/organization", icon: BuildingIcon },
   { title: "Appearance", url: "/admin/appearance", icon: PaletteIcon },
 ] as const;

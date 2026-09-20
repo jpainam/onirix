@@ -21,7 +21,11 @@ import { openNullable, sealNullable } from "@onirix/db/secrets";
 import {
   PROVIDERS,
   type ProviderId,
+  deleteOllamaModel,
   findEmbeddingModel,
+  isDownloadableModel,
+  listOllamaModels,
+  ollamaOrigin,
   providerIdSchema,
 } from "@onirix/llm";
 import { getIndexName } from "@onirix/search";
@@ -234,6 +238,34 @@ export async function connectProvider(
   return { organizationId };
 }
 
+/**
+ * The workspace's Ollama connection, as the model browser needs it.
+ *
+ * Exported for the download route, which streams and so cannot be a tRPC
+ * procedure, but must agree with these about which Ollama is the workspace's.
+ */
+export async function ollamaConnection(
+  ctx: Pick<Context, "db"> & { organizationId: string },
+): Promise<
+  | { state: "none" | "cloud"; row: null | typeof llmProvider.$inferSelect; origin: null }
+  | { state: "connected"; row: typeof llmProvider.$inferSelect; origin: string }
+> {
+  const row = await ctx.db.query.llmProvider.findFirst({
+    where: and(
+      eq(llmProvider.organizationId, ctx.organizationId),
+      eq(llmProvider.provider, "ollama"),
+    ),
+  });
+  if (!row) return { state: "none", row: null, origin: null };
+
+  const origin = ollamaOrigin(row.baseUrl);
+  // Ollama Cloud serves its models itself; there is no disk of ours to fill.
+  if (!origin || row.baseUrl === PROVIDERS.ollama.cloud?.baseUrl) {
+    return { state: "cloud", row, origin: null };
+  }
+  return { state: "connected", row, origin };
+}
+
 export const modelsRouter = router({
   /**
    * Everything the Language Models page draws: what is connected, what can
@@ -334,6 +366,107 @@ export const modelsRouter = router({
       } catch {
         return unreachable;
       }
+    }),
+
+  /**
+   * What the Open Models page draws: whether this workspace has an Ollama to
+   * download into, what is on its disk, and which of those are enabled.
+   *
+   * Models download onto the machine that runs Ollama, and it is this server
+   * that talks to it, so any admin can do this from any browser. `none` and
+   * `cloud` are the cases where there is no such machine.
+   */
+  library: orgProcedure.query(async ({ ctx }) => {
+    const connection = await ollamaConnection(ctx);
+    const config = await ctx.db.query.llmConfig.findFirst({
+      where: eq(llmConfig.organizationId, ctx.organizationId),
+    });
+    const base = {
+      baseUrl: connection.row?.baseUrl ?? null,
+      enabled: connection.row?.chatModels ?? [],
+      defaultModel: config?.chatProvider === "ollama" ? config.chatModel : null,
+    };
+
+    if (connection.state !== "connected") {
+      return { ...base, state: connection.state, installed: [] };
+    }
+    const installed = await listOllamaModels(connection.origin);
+    return installed
+      ? { ...base, state: "ready" as const, installed }
+      : { ...base, state: "unreachable" as const, installed: [] };
+  }),
+
+  /** Offer a downloaded model to the workspace, or stop offering it. */
+  setEnabled: permissionProcedure("model", "update")
+    .input(z.object({ model: z.string().min(1), enabled: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const connection = await ollamaConnection(ctx);
+      if (!connection.row) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Ollama is not connected." });
+      }
+
+      if (input.enabled && connection.state === "connected") {
+        const installed = await listOllamaModels(connection.origin);
+        if (installed && !installed.some((model) => model.name === input.model)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Download this model before enabling it.",
+          });
+        }
+      }
+
+      const current = connection.row.chatModels;
+      // Catalog order, so the default a workspace falls back to is stable.
+      const next = PROVIDERS.ollama.chatModels
+        .map((model) => model.id)
+        .filter((id) => (id === input.model ? input.enabled : current.includes(id)));
+      if (next.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "This is the only model enabled on Ollama. Enable another one first, or disconnect Ollama.",
+        });
+      }
+
+      await connectProvider(ctx, {
+        provider: "ollama",
+        models: next,
+        apiKey: null,
+        baseUrl: null,
+        autoUpdateModels: connection.row.autoUpdateModels,
+        embedding: null,
+      });
+      return { enabled: next };
+    }),
+
+  /** Delete a downloaded model from the disk of the workspace's Ollama. */
+  removeDownloaded: permissionProcedure("model", "update")
+    .input(z.object({ model: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const connection = await ollamaConnection(ctx);
+      if (connection.state !== "connected") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Ollama is not connected." });
+      }
+      // The same rule as downloads: only names the catalog lists reach Ollama.
+      if (!isDownloadableModel(input.model)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown model." });
+      }
+      if (connection.row.chatModels.includes(input.model)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This model is enabled for the workspace. Disable it first.",
+        });
+      }
+
+      try {
+        await deleteOllamaModel(connection.origin, input.model);
+      } catch (failure) {
+        throw new TRPCError({
+          code: "BAD_GATEWAY",
+          message: failure instanceof Error ? failure.message : "Ollama could not remove it.",
+        });
+      }
+      return { model: input.model };
     }),
 
   /** Point the workspace at a different default chat model. */

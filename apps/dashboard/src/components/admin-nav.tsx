@@ -6,6 +6,7 @@ import {
   BuildingIcon,
   CpuIcon,
   DatabaseIcon,
+  DownloadIcon,
   HistoryIcon,
   LockIcon,
   NetworkIcon,
@@ -40,7 +41,10 @@ type AdminItem = { title: string; url?: Route; icon: LucideIcon };
 const ADMIN_SECTIONS: { label: string | null; items: AdminItem[] }[] = [
   {
     label: null,
-    items: [{ title: "Language Models", url: "/admin/language-models", icon: CpuIcon }],
+    items: [
+      { title: "Language Models", url: "/admin/language-models", icon: CpuIcon },
+      { title: "Open Models", url: "/admin/open-models", icon: DownloadIcon },
+    ],
   },
   {
     label: "Documents & Knowledge",

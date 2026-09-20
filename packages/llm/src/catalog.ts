@@ -8,6 +8,8 @@
  */
 import { z } from "zod";
 
+import { OPEN_MODELS } from "./open-models";
+
 export const PROVIDER_IDS = ["openai", "anthropic", "google", "xai", "ollama"] as const;
 export const providerIdSchema = z.enum(PROVIDER_IDS);
 export type ProviderId = z.infer<typeof providerIdSchema>;
@@ -142,21 +144,14 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
       label: "Ollama Cloud",
       baseUrl: "https://ollama.com/v1",
     },
-    // Ids are Ollama library tags, so each is what `ollama pull` takes. The
-    // first three are the ones a new connection starts with; the rest are
-    // opt-in, since a self-hosted box only serves what has been pulled.
-    chatModels: [
-      { id: "llama3.3", label: "Llama 3.3", downloadGb: 43 },
-      { id: "qwen2.5", label: "Qwen 2.5", downloadGb: 4.7 },
-      { id: "mistral", label: "Mistral", downloadGb: 4.4 },
-      { id: "gpt-oss:20b", label: "gpt-oss 20B", reasons: true, downloadGb: 14 },
-      { id: "gpt-oss:120b", label: "gpt-oss 120B", reasons: true, downloadGb: 65 },
-      { id: "qwen3", label: "Qwen 3", reasons: true, downloadGb: 5.2 },
-      { id: "deepseek-r1", label: "DeepSeek R1", reasons: true, downloadGb: 5.2 },
-      { id: "gemma3", label: "Gemma 3", downloadGb: 3.3 },
-      { id: "phi4", label: "Phi-4", downloadGb: 9.1 },
-      { id: "mistral-small3.2", label: "Mistral Small 3.2", downloadGb: 15 },
-    ],
+    // One list serves both this and the model browser; see `open-models.ts`
+    // for why its order is fixed. Ids are Ollama library tags.
+    chatModels: OPEN_MODELS.map((model) => ({
+      id: model.id,
+      label: model.label,
+      ...(model.capabilities.includes("reasoning") ? { reasons: true } : {}),
+      downloadGb: model.downloadGb,
+    })),
     embeddingModels: [
       { id: "nomic-embed-text", label: "Nomic Embed Text", dimension: 768, downloadGb: 0.3 },
       { id: "mxbai-embed-large", label: "MxBai Embed Large", dimension: 1024, downloadGb: 0.7 },

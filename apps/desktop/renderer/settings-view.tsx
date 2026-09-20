@@ -19,7 +19,7 @@ import type { Appearance, LibraryDocument, LocalState, ModelChoice } from "../sr
 
 import { errorMessage, getBridge } from "./bridge";
 import { describeChoice } from "./model-label";
-import { ModelStore } from "./model-store";
+import { ModelLibrary } from "./model-library";
 import { ServerForm } from "./server-form";
 import { DocumentsSettings } from "./settings-documents";
 import { type SettingsPage, serverOnlyReason, settingsTitle } from "./settings-nav";
@@ -107,6 +107,18 @@ export function SettingsView({
       <div data-slot="shell-header" aria-hidden className="h-shell shrink-0" />
       {banner}
 
+      {page === "local-models" ? (
+        /* The model browser is two panes that scroll on their own, so it takes
+           the whole content area instead of the centred column. */
+        <div className="flex min-h-0 flex-1 flex-col">
+          <h1 className="px-6 pt-4 pb-4 text-2xl font-medium tracking-display">
+            {settingsTitle(page)}
+          </h1>
+          <div className="min-h-0 flex-1 border-t">
+            <ModelLibrary choice={model} onUse={useLocalModel} />
+          </div>
+        </div>
+      ) : (
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div
           className={cn(
@@ -204,15 +216,6 @@ export function SettingsView({
             </Section>
           ) : null}
 
-          {page === "local-models" ? (
-            <Section
-              title="Local models"
-              description="Open source models, downloaded to this computer and run by Ollama."
-            >
-              <ModelStore choice={model} onUse={useLocalModel} />
-            </Section>
-          ) : null}
-
           {page === "documents" ? (
             <DocumentsSettings library={library} onLibraryChange={onLibraryChange} />
           ) : null}
@@ -272,6 +275,7 @@ export function SettingsView({
           ) : null}
         </div>
       </div>
+      )}
     </div>
   );
 }
