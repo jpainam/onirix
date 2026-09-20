@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeftIcon, NetworkIcon, PlusIcon, UsersIcon } from "lucide-react";
+import { ChevronLeftIcon, NetworkIcon, PlusIcon, UsersIcon } from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import { useState } from "react";
 

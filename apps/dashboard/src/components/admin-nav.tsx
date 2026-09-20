@@ -13,8 +13,8 @@ import {
   PieChartIcon,
   ShieldIcon,
   UsersIcon,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+} from "@onirix/ui/lib/icons";
+import type { LucideIcon } from "@onirix/ui/lib/icons";
 import type { Route } from "next";
 import Link from "next/link";
 
@@ -75,10 +75,33 @@ const ADMIN_SECTIONS: { label: string | null; items: AdminItem[] }[] = [
   },
 ];
 
-export function AdminNav({ pathname }: { pathname: string }) {
+export function AdminNav({
+  pathname,
+  query = "",
+}: {
+  pathname: string;
+  /** What was typed into "Search settings"; rows that do not match drop out. */
+  query?: string;
+}) {
+  const needle = query.trim().toLowerCase();
+  // A section whose rows have all dropped out goes with them, label and all.
+  const sections = ADMIN_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter(
+      (item) =>
+        needle === "" ||
+        item.title.toLowerCase().includes(needle) ||
+        (section.label ?? "").toLowerCase().includes(needle),
+    ),
+  })).filter((section) => section.items.length > 0);
+
+  if (sections.length === 0) {
+    return <p className="text-ink-03 px-3 py-2 text-sm">No setting matches that.</p>;
+  }
+
   return (
     <>
-      {ADMIN_SECTIONS.map((section, index) => (
+      {sections.map((section, index) => (
         <SidebarGroup key={section.label ?? `section-${index}`}>
           {section.label ? <SidebarGroupLabel>{section.label}</SidebarGroupLabel> : null}
           <SidebarMenu>

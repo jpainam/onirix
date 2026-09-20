@@ -10,7 +10,7 @@
  * executor the assistant will, so what the admin sees is what the model gets.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { PlayIcon, PlusIcon, Trash2Icon } from "@onirix/ui/lib/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 

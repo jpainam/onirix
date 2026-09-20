@@ -10,7 +10,7 @@
  * answer.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon } from "@onirix/ui/lib/icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";

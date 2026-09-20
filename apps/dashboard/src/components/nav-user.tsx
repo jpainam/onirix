@@ -7,7 +7,7 @@ import {
   MonitorIcon,
   MoonIcon,
   SunIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 

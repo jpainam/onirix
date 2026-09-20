@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { MoreHorizontalIcon, PencilIcon, Trash2Icon } from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";

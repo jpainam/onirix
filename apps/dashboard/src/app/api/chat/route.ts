@@ -27,7 +27,7 @@ import { headers } from "next/headers";
 
 import { createPostgresExecutor } from "@onirix/datasource";
 import { listAccessibleDatabases } from "@onirix/db/datasources";
-import { chat, citation, message, skill } from "@onirix/db/schema";
+import { chat, chatDocument, citation, message, skill } from "@onirix/db/schema";
 import { ensureBuiltInSkills } from "@onirix/db/skills";
 import {
   DEFAULT_CONTEXT_CHUNKS,
@@ -235,6 +235,15 @@ export async function POST(request: Request) {
 
   const index = getDocumentIndex(config.embeddingModel, Number(config.embeddingDimension));
 
+  const attachedDocumentIds = conversation
+    ? (
+        await db
+          .select({ documentId: chatDocument.documentId })
+          .from(chatDocument)
+          .where(eq(chatDocument.chatId, conversation.id))
+      ).map((row) => row.documentId)
+    : [];
+
   const { hits, context } = await retrieveContext({
     queryText: searchQuery,
     // The only filter retrieval gets. Everything the model is allowed to read
@@ -248,6 +257,9 @@ export async function POST(request: Request) {
     index,
     embeddingCredentials,
     embeddingModelId: config.embeddingModel,
+    // Searched under the filters above like everything else, so a document
+    // attached before its audience narrowed contributes nothing now.
+    attachedDocumentIds,
   });
 
   const contextBlock = buildContextBlock(context);

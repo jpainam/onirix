@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "@onirix/ui/lib/icons";
 import type { ReactNode } from "react";
 
 import { Separator } from "@onirix/ui/components/separator";

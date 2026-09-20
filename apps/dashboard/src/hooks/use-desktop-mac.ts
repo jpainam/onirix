@@ -21,3 +21,15 @@ export function useDesktopMac(): boolean {
     () => false,
   );
 }
+
+/**
+ * True inside the desktop shell on any platform. A window there has no
+ * browser toolbar, so the app supplies the back and forward arrows itself.
+ */
+export function useDesktop(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => getDesktopBridge() !== null && getDesktopBridge() !== undefined,
+    () => false,
+  );
+}

@@ -1,4 +1,4 @@
-import { CircleX } from "lucide-react";
+import { CircleX } from "@onirix/ui/lib/icons";
 
 /**
  * Validation messages for one form field.

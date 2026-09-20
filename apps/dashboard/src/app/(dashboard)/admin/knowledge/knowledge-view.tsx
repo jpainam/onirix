@@ -7,7 +7,7 @@ import {
   LayersIcon,
   PencilIcon,
   Trash2Icon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 

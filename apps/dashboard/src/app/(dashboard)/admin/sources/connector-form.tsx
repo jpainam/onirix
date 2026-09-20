@@ -9,7 +9,7 @@
  * rule that a secret left blank on edit keeps the stored one.
  */
 import { useQuery } from "@tanstack/react-query";
-import { CheckIcon, ExternalLinkIcon } from "lucide-react";
+import { CheckIcon, ExternalLinkIcon } from "@onirix/ui/lib/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 

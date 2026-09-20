@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { RotateCcwIcon } from "lucide-react";
+import { RotateCcwIcon } from "@onirix/ui/lib/icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";

@@ -6,7 +6,7 @@ import {
   GlobeIcon,
   type LucideIcon,
   UploadIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 
 import { cn } from "@onirix/ui/lib/utils";
 

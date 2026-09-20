@@ -17,7 +17,7 @@ import {
   ChevronRightIcon,
   CopyIcon,
   DatabaseIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { useMemo, useState } from "react";
 
 import { Button } from "@onirix/ui/components/button";

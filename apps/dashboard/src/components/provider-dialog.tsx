@@ -2,7 +2,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
-import { ChevronDownIcon, RepeatIcon, Trash2Icon } from "lucide-react";
+import { ChevronDownIcon, RepeatIcon, Trash2Icon } from "@onirix/ui/lib/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 

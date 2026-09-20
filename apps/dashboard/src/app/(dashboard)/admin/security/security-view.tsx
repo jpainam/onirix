@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LaptopIcon, MonitorIcon, SmartphoneIcon, TabletIcon } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { LaptopIcon, MonitorIcon, SmartphoneIcon, TabletIcon } from "@onirix/ui/lib/icons";
+import type { LucideIcon } from "@onirix/ui/lib/icons";
 import { toast } from "sonner";
 
 import { Badge } from "@onirix/ui/components/badge";

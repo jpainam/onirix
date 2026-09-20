@@ -10,7 +10,7 @@ import {
   SearchIcon,
   UsersIcon,
   XIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { useState } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";

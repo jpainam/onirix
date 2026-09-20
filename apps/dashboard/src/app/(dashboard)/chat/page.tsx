@@ -1,9 +1,9 @@
-import { requireConfiguredWorkspace } from "@/lib/workspace";
+import { requireWorkspace } from "@/lib/workspace";
 
 import { ChatPanel } from "./chat-panel";
 
 export default async function ChatPage() {
-  const { workspace } = await requireConfiguredWorkspace();
+  const { workspace } = await requireWorkspace();
 
   return (
     <ChatPanel
@@ -11,7 +11,7 @@ export default async function ChatPage() {
       // with the panel in the same slot; the key forces it back to empty.
       key="new"
       organizationName={workspace.organizationName}
-      modelLabel={workspace.llmConfig.chatModel}
+      modelLabel={workspace.llmConfig?.chatModel ?? null}
     />
   );
 }

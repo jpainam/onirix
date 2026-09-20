@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { loadConversation } from "@/lib/chat-history";
 import { hasActiveStream } from "@/lib/chat-stream";
-import { requireConfiguredWorkspace } from "@/lib/workspace";
+import { requireWorkspace } from "@/lib/workspace";
 
 import { ChatPanel } from "../chat-panel";
 
@@ -12,7 +12,7 @@ export default async function ConversationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { user, workspace } = await requireConfiguredWorkspace();
+  const { user, workspace } = await requireWorkspace();
 
   const conversation = await loadConversation({
     chatId: id,
@@ -34,8 +34,9 @@ export default async function ConversationPage({
       // without a key its history and composer would carry over.
       key={conversation.id}
       organizationName={workspace.organizationName}
-      modelLabel={workspace.llmConfig.chatModel}
+      modelLabel={workspace.llmConfig?.chatModel ?? null}
       conversationId={conversation.id}
+      title={conversation.title}
       initialMessages={conversation.messages}
       resume={streaming}
     />

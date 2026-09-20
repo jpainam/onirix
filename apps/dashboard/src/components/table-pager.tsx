@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeftIcon, ChevronRightIcon, SearchIcon, XIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, SearchIcon, XIcon } from "@onirix/ui/lib/icons";
 
 import { Button } from "@onirix/ui/components/button";
 import {

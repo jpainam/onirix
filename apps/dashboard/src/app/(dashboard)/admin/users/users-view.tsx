@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { MailIcon, ShieldIcon, UserPlusIcon, UsersIcon } from "lucide-react";
+import { MailIcon, ShieldIcon, UserPlusIcon, UsersIcon } from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import { useState } from "react";
 

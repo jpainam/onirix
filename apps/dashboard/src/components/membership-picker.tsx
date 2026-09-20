@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "@onirix/ui/lib/icons";
 
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";

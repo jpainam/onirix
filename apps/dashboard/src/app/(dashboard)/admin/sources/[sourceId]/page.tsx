@@ -1,4 +1,4 @@
-import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
+import { requireWorkspace, workspaceCan } from "@/lib/workspace";
 
 import { SourceView } from "./source-view";
 
@@ -8,7 +8,7 @@ export default async function SourcePage({
   params: Promise<{ sourceId: string }>;
 }) {
   const { sourceId } = await params;
-  const { workspace } = await requireConfiguredWorkspace();
+  const { workspace } = await requireWorkspace();
 
   return (
     <SourceView

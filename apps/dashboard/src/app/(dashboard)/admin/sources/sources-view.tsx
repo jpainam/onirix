@@ -19,7 +19,7 @@ import {
   PlusIcon,
   RefreshCwIcon,
   UploadIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { toast } from "sonner";

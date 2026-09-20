@@ -1,9 +1,10 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DefaultChatTransport } from "ai";
-import { ArrowUpIcon, PaperclipIcon } from "lucide-react";
+import { ArrowUpIcon, PanelRightIcon, PaperclipIcon } from "@onirix/ui/lib/icons";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -32,11 +33,15 @@ import {
   type CitedSource,
   type OnirixUIMessage,
 } from "@/lib/chat-message";
-import { seedRecentConversation } from "@/lib/recents";
+import { displayTitle } from "@/lib/chat-title";
+import { RECENT_CONVERSATIONS_LIMIT, seedRecentConversation } from "@/lib/recents";
 import { trpc } from "@/utils/trpc";
 
 import { AnswerWithCitations, UserMessage } from "./answer";
-import { SourcePanel } from "./source-panel";
+import { DocumentsPane } from "./documents-pane";
+import { SideDock, type DockTab } from "./side-dock";
+import { SourcePane } from "./source-panel";
+import { useSessionDocuments, type SessionDocument } from "./use-session-documents";
 
 const SUGGESTIONS = [
   "What is our parental leave policy?",
@@ -93,13 +98,17 @@ export function ChatPanel({
   organizationName,
   modelLabel,
   conversationId = null,
+  title = null,
   initialMessages,
   resume = false,
 }: {
   organizationName: string;
-  modelLabel: string;
+  /** Null while the workspace has no model connected. */
+  modelLabel: string | null;
   /** Set when reopening stored history; null for a fresh session. */
   conversationId?: string | null;
+  /** The stored name, if it has one yet. */
+  title?: string | null;
   initialMessages?: OnirixUIMessage[];
   /**
    * Set when the conversation was still being answered as the page rendered,
@@ -119,9 +128,29 @@ export function ChatPanel({
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [open, setOpen] = useState<OpenCitation | null>(null);
+  // Raised by trying to send with no model connected, and only then: a
+  // workspace without one stays fully open to look around in, so this is the
+  // first moment the missing model actually stands in anyone's way.
+  const [needsModel, setNeedsModel] = useState(false);
+  const [dockOpen, setDockOpen] = useState(false);
+  const [dockTab, setDockTab] = useState<DockTab>("documents");
   const fileInput = useRef<HTMLInputElement>(null);
 
   const createChat = useMutation(trpc.chat.create.mutationOptions());
+  const sessionDocuments = useSessionDocuments(chatId, created);
+
+  // The sidebar already keeps this list fresh, and it is where a name lands
+  // once the opening exchange has produced one, so the header reads it from
+  // there rather than asking again.
+  const recents = useQuery({
+    ...trpc.chat.list.queryOptions({ limit: RECENT_CONVERSATIONS_LIMIT }),
+    enabled: created,
+  });
+  const heading = created
+    ? displayTitle(recents.data?.find((row) => row.id === chatId)?.title ?? title)
+    : // Nothing to name yet, so the row stays blank rather than labelling
+      // an empty page.
+      "";
 
   const { messages, sendMessage, resumeStream, status, error } = useChat<OnirixUIMessage>({
     // Also what the transport reconnects on: `resume` fetches
@@ -164,22 +193,51 @@ export function ChatPanel({
     openSiblings.find((source) => source.index === open?.index) ?? null;
 
   const selectSource = useCallback(
-    (messageId: string, source: CitedSource) =>
-      setOpen((current) =>
-        // Selecting the citation that is already open closes the panel.
-        current?.messageId === messageId && current.index === source.index
-          ? null
-          : { messageId, index: source.index },
-      ),
-    [],
+    (messageId: string, source: CitedSource) => {
+      // Selecting the citation that is already showing closes the panel.
+      const showing =
+        dockOpen &&
+        dockTab === "source" &&
+        open?.messageId === messageId &&
+        open.index === source.index;
+
+      setOpen(showing ? null : { messageId, index: source.index });
+      setDockTab("source");
+      setDockOpen(!showing);
+    },
+    [dockOpen, dockTab, open],
   );
+
+  function changeDockOpen(next: boolean) {
+    setDockOpen(next);
+    // A citation is only marked as open while its passage is on screen.
+    if (!next) setOpen(null);
+  }
+
+  /** The header's one control: it shuts the panel, or opens it on Documents. */
+  function toggleDocuments() {
+    if (dockOpen) return changeDockOpen(false);
+    setDockTab("documents");
+    setDockOpen(true);
+  }
 
   async function submit(text: string) {
     const trimmed = text.trim();
     if (!trimmed || busy) return;
 
+    if (modelLabel === null) {
+      // Nothing is sent or stored, and what was typed stays in the composer
+      // for when there is a model to answer it.
+      setNeedsModel(true);
+      return;
+    }
+
     if (!created) {
       await createChat.mutateAsync({ id: chatId });
+      // Documents attached before there was a conversation to attach them to
+      // are written now, ahead of the message, so this first answer already
+      // reads them.
+      await sessionDocuments.flush();
       setCreated(true);
       // The row exists now but is nameless until the answer is persisted, so
       // the sidebar is shown the question in the meantime.
@@ -196,7 +254,7 @@ export function ChatPanel({
     sendMessage({ text: trimmed }, { body: { chatId } });
   }
 
-  async function attach(files: FileList | null) {
+  async function attach(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
 
     const formData = new FormData();
@@ -211,10 +269,18 @@ export function ChatPanel({
         toast.error(result.error ?? "Upload failed.");
         return;
       }
-      if (result.accepted?.length > 0) {
-        toast.success(
-          `Indexing ${result.accepted.length} file(s). They will be searchable shortly.`,
+      const accepted: { id: string; title: string }[] = result.accepted ?? [];
+      if (accepted.length > 0) {
+        // An upload from a conversation belongs to that conversation: it is
+        // attached here and shown in the panel, where its progress is visible,
+        // rather than announced and then left for the reader to go and find.
+        await sessionDocuments.attach(
+          accepted.map(
+            (row): SessionDocument => ({ ...row, status: "pending" }),
+          ),
         );
+        setDockTab("documents");
+        setDockOpen(true);
       }
       for (const rejected of result.rejected ?? []) {
         toast.error(`${rejected.name}: ${rejected.reason}`);
@@ -224,6 +290,24 @@ export function ChatPanel({
       if (fileInput.current) fileInput.current.value = "";
     }
   }
+
+  const missingModel = needsModel ? (
+    <div
+      role="alert"
+      className="bg-warning-subtle mb-2 flex w-full items-center gap-3 rounded-xl px-4 py-3"
+    >
+      <p className="text-ink-04 min-w-0 flex-1 text-sm">
+        No language model is set up.
+      </p>
+      <Button
+        size="sm"
+        nativeButton={false}
+        render={<Link href="/onboarding" />}
+      >
+        Set up a model
+      </Button>
+    </div>
+  ) : null;
 
   const composer = (
     <InputGroup size="lg">
@@ -267,6 +351,29 @@ export function ChatPanel({
   return (
     <div className="flex h-full min-h-0">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* The one row of chrome a conversation has. With the sidebar closed it
+            makes room on its left for the controls that reopen it, and in the
+            desktop window it is the handle the window is dragged by; both are
+            arranged in globals.css, keyed on this slot. */}
+        <header
+          data-slot="shell-header"
+          className="flex h-shell shrink-0 items-center gap-2 border-b pr-2 pl-4"
+        >
+          <h1 className="text-ink-04 min-w-0 flex-1 truncate text-sm font-medium">
+            {heading}
+          </h1>
+          <Button
+            variant="muted"
+            size="icon-sm"
+            aria-label="Documents"
+            aria-pressed={dockOpen}
+            title="Documents"
+            onClick={toggleDocuments}
+          >
+            <PanelRightIcon />
+          </Button>
+        </header>
+
         <input
           ref={fileInput}
           type="file"
@@ -327,10 +434,13 @@ export function ChatPanel({
                     {error.message}
                   </p>
                 ) : null}
+                {missingModel}
                 {composer}
-                <p className="text-ink-02 mt-2 text-center text-xs">
-                  Answering with {modelLabel}
-                </p>
+                {modelLabel ? (
+                  <p className="text-ink-02 mt-2 text-center text-xs">
+                    Answering with {modelLabel}
+                  </p>
+                ) : null}
               </div>
             </div>
           </>
@@ -340,9 +450,9 @@ export function ChatPanel({
           <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-10">
             <div className="flex w-full max-w-2xl flex-col items-center">
               <OnirixMark className="text-ink-04 mb-5 size-8" />
-              <h1 className="mb-8 text-3xl font-semibold tracking-hero">
+              <h2 className="mb-8 text-3xl font-semibold tracking-hero">
                 How can I help?
-              </h1>
+              </h2>
 
               {error ? (
                 <p className="text-destructive mb-2 self-start text-sm" role="alert">
@@ -350,6 +460,7 @@ export function ChatPanel({
                 </p>
               ) : null}
 
+              {missingModel}
               {composer}
 
               <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -366,20 +477,40 @@ export function ChatPanel({
               </div>
 
               <p className="text-ink-02 mt-8 text-xs">
-                Grounded in {organizationName}&apos;s knowledge · {modelLabel}
+                Grounded in {organizationName}&apos;s knowledge
+                {modelLabel ? ` \u00b7 ${modelLabel}` : ""}
               </p>
             </div>
           </div>
         )}
       </div>
 
-      <SourcePanel
-        source={openSource}
-        siblings={openSiblings}
-        onSelect={(source) =>
-          openMessage && selectSource(openMessage.id, source)
-        }
-        onClose={() => setOpen(null)}
+      <SideDock
+        open={dockOpen}
+        onOpenChange={changeDockOpen}
+        tab={dockTab}
+        onTabChange={setDockTab}
+        documentCount={sessionDocuments.documents.length}
+        panes={{
+          documents: (
+            <DocumentsPane
+              documents={sessionDocuments.documents}
+              uploading={uploading}
+              onUpload={(files) => void attach(files)}
+              onAttach={(document) => void sessionDocuments.attach([document])}
+              onDetach={(documentId) => void sessionDocuments.detach(documentId)}
+            />
+          ),
+          source: (
+            <SourcePane
+              source={openSource}
+              siblings={openSiblings}
+              onSelect={(source) =>
+                openMessage && setOpen({ messageId: openMessage.id, index: source.index })
+              }
+            />
+          ),
+        }}
       />
     </div>
   );

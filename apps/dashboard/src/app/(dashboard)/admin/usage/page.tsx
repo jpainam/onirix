@@ -1,9 +1,9 @@
-import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
+import { requireWorkspace, workspaceCan } from "@/lib/workspace";
 
 import { UsageView } from "./usage-view";
 
 export default async function UsagePage() {
-  const { workspace } = await requireConfiguredWorkspace();
+  const { workspace } = await requireWorkspace();
 
   // The read itself is the privilege here: a usage tile is a summary of what
   // everyone in the workspace asked. The page renders the refusal rather than

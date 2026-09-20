@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, DownloadIcon, XIcon } from "lucide-react";
+import { CheckIcon, DownloadIcon, XIcon } from "@onirix/ui/lib/icons";
 
 import { Button } from "@onirix/ui/components/button";
 import { Checkbox } from "@onirix/ui/components/checkbox";

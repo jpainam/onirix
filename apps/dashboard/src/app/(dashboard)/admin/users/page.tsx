@@ -1,9 +1,9 @@
-import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
+import { requireWorkspace, workspaceCan } from "@/lib/workspace";
 
 import { UsersView } from "./users-view";
 
 export default async function UsersPage() {
-  const { workspace } = await requireConfiguredWorkspace();
+  const { workspace } = await requireWorkspace();
 
   // Two separate grants, because they are two separate jobs: someone who runs
   // onboarding may invite people without being able to change anyone's role.

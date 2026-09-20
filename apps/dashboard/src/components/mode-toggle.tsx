@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@onirix/ui/components/dropdown-menu";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "@onirix/ui/lib/icons";
 import { useTheme } from "next-themes";
 import * as React from "react";
 

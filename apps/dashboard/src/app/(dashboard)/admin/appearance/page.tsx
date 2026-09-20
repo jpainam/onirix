@@ -1,26 +1,23 @@
-import { PaletteIcon } from "lucide-react";
+import { PaletteIcon } from "@onirix/ui/lib/icons";
 
-import { Page, PageHeader, Section } from "@/components/page";
-import { ThemeSetting } from "@/components/theme-setting";
-import { requireConfiguredWorkspace } from "@/lib/workspace";
+import { RestoreAppearanceButton } from "@onirix/ui/components/appearance-settings";
+
+import { AppearanceView } from "@/components/appearance-view";
+import { Page, PageHeader } from "@/components/page";
+import { requireWorkspace } from "@/lib/workspace";
 
 export default async function AppearancePage() {
-  await requireConfiguredWorkspace();
+  await requireWorkspace();
 
   return (
     <Page>
       <PageHeader
         icon={PaletteIcon}
         title="Appearance"
-        description="How Onirix looks for you."
+        description="Customize the theme, typography and contrast. Kept in this browser, not shared with your team."
+        action={<RestoreAppearanceButton />}
       />
-
-      <Section
-        title="Theme"
-        description="Applies to this browser only, not shared with your team."
-      >
-        <ThemeSetting />
-      </Section>
+      <AppearanceView />
     </Page>
   );
 }

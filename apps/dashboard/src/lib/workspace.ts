@@ -121,8 +121,7 @@ export async function loadWorkspace(
  * The signed-in caller and their workspace, which may still be unconfigured.
  *
  * Setup now happens inside the app shell rather than behind a wizard, so the
- * dashboard layout admits users who have not finished it; the pages that need
- * a model are the ones that turn them away.
+ * dashboard layout admits users who have not finished it.
  */
 export async function requireSession(): Promise<{
   user: { id: string; name: string; email: string; image?: string | null };
@@ -141,15 +140,20 @@ export async function requireSession(): Promise<{
 }
 
 /**
- * Same, but for pages that cannot function without a model — they send the
- * user to finish setup instead of failing on the first request.
+ * Same, but for pages that need a workspace to exist.
+ *
+ * Someone with no workspace yet (nothing named, or invitations still
+ * unanswered) is sent to set one up, since every page here reads from one. A
+ * workspace with no model is let through: the whole product stays open to
+ * look around in, and the one place a model is needed, sending a message,
+ * says so there.
  */
-export async function requireConfiguredWorkspace(): Promise<{
+export async function requireWorkspace(): Promise<{
   user: { id: string; name: string; email: string; image?: string | null };
-  workspace: Workspace & { llmConfig: NonNullable<Workspace["llmConfig"]> };
+  workspace: Workspace;
 }> {
   const { user, workspace } = await requireSession();
-  if (!workspace?.llmConfig) redirect("/onboarding");
+  if (!workspace) redirect("/onboarding");
 
-  return { user, workspace: workspace as never };
+  return { user, workspace };
 }

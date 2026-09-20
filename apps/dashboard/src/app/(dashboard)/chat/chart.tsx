@@ -16,7 +16,7 @@ import {
   type ChartSeries,
   type ChartSpec,
 } from "@onirix/llm/chart";
-import { CheckIcon, CopyIcon, TableIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, TableIcon } from "@onirix/ui/lib/icons";
 import { useMemo, useState, type CSSProperties } from "react";
 import {
   Area,

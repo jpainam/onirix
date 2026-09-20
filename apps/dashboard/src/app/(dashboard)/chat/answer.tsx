@@ -165,6 +165,15 @@ export function AnswerWithCitations({
  * Split out so each run memoises on its own text: a chart landing mid-answer
  * must not invalidate the markdown above it.
  */
+/**
+ * Streamdown sanitises the HTML it renders, and the sanitiser drops `data-*`
+ * attributes it has not been told about. Without this the marker's number
+ * never reaches the `sup` renderer above, and every citation falls through to
+ * a plain superscript instead of a chip. Both spellings are listed: the
+ * attribute goes into the round trip hyphenated and comes out camel-cased.
+ */
+const ALLOWED_TAGS = { sup: ["dataCitation", CITATION_ATTRIBUTE] };
+
 function Prose({
   text,
   components,
@@ -182,6 +191,7 @@ function Prose({
           wrapper memoises on `children` alone, so it would not re-render when
           the open citation changes and the highlight would go stale. */}
       <Streamdown
+        allowedTags={ALLOWED_TAGS}
         className="
           [&_a]:text-info [&_a]:underline [&_a]:underline-offset-2
           [&_code]:bg-tint-02 [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs

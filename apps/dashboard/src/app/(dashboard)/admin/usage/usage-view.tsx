@@ -26,7 +26,7 @@ import {
   SparklesIcon,
   UsersIcon,
   type LucideIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 import { Badge } from "@onirix/ui/components/badge";

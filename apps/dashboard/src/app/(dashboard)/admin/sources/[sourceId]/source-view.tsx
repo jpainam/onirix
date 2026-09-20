@@ -16,7 +16,7 @@ import {
   PlugIcon,
   RefreshCwIcon,
   Trash2Icon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";

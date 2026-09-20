@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from "react";
 
-import { requireConfiguredWorkspace } from "@/lib/workspace";
+import { requireWorkspace } from "@/lib/workspace";
 
 /**
  * The settings panel shares the dashboard shell so the sidebar can slide between
@@ -8,7 +8,7 @@ import { requireConfiguredWorkspace } from "@/lib/workspace";
  * configured workspace — the guard lives here rather than in each page.
  */
 export default async function AdminLayout(props: PropsWithChildren) {
-  await requireConfiguredWorkspace();
+  await requireWorkspace();
 
   return props.children;
 }

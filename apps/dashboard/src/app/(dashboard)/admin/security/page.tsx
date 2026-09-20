@@ -1,10 +1,10 @@
-import { GlobeIcon, KeyRoundIcon, LockIcon, MailIcon } from "lucide-react";
+import { GlobeIcon, KeyRoundIcon, LockIcon, MailIcon } from "@onirix/ui/lib/icons";
 
 import { Badge } from "@onirix/ui/components/badge";
 
 import { Page, PageHeader, Row, Section } from "@/components/page";
 import { env } from "@/env.server";
-import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
+import { requireWorkspace, workspaceCan } from "@/lib/workspace";
 
 import { SessionsView } from "./security-view";
 
@@ -21,7 +21,7 @@ import { SessionsView } from "./security-view";
  * a client component because it reads and writes through tRPC.
  */
 export default async function SecurityPage() {
-  const { workspace } = await requireConfiguredWorkspace();
+  const { workspace } = await requireWorkspace();
 
   // Same condition `createAuth` applies: a provider with no credentials is not
   // registered, so the button on the login page fails rather than redirects.

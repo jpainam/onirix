@@ -1,4 +1,4 @@
-import { BrainIcon, PlusIcon } from "lucide-react";
+import { BrainIcon, PlusIcon } from "@onirix/ui/lib/icons";
 
 import { Button } from "@onirix/ui/components/button";
 import {
@@ -10,10 +10,10 @@ import {
 } from "@onirix/ui/components/empty";
 
 import { Page, PageHeader } from "@/components/page";
-import { requireConfiguredWorkspace } from "@/lib/workspace";
+import { requireWorkspace } from "@/lib/workspace";
 
 export default async function AgentsPage() {
-  await requireConfiguredWorkspace();
+  await requireWorkspace();
 
   return (
     <Page>

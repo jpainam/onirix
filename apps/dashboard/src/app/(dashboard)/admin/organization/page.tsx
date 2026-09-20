@@ -1,14 +1,14 @@
-import { BuildingIcon, ShieldIcon } from "lucide-react";
+import { BuildingIcon, ShieldIcon } from "@onirix/ui/lib/icons";
 
 import { Badge } from "@onirix/ui/components/badge";
 
 import { Page, PageHeader, Row, Section } from "@/components/page";
-import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
+import { requireWorkspace, workspaceCan } from "@/lib/workspace";
 
 import { RenameOrganization } from "./organization-view";
 
 export default async function OrganizationPage() {
-  const { user, workspace } = await requireConfiguredWorkspace();
+  const { user, workspace } = await requireWorkspace();
   const roleLabel = workspace.role.charAt(0).toUpperCase() + workspace.role.slice(1);
 
   // Rendering decision only. Better Auth re-checks the same grant on the write,

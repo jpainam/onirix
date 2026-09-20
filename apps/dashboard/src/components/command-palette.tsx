@@ -13,7 +13,7 @@ import {
   ShieldIcon,
   SquarePenIcon,
   UsersIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 

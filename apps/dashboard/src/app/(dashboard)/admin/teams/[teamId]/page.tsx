@@ -1,4 +1,4 @@
-import { requireConfiguredWorkspace, workspaceCan } from "@/lib/workspace";
+import { requireWorkspace, workspaceCan } from "@/lib/workspace";
 
 import { TeamView } from "./team-view";
 
@@ -8,7 +8,7 @@ export default async function TeamPage({
   params: Promise<{ teamId: string }>;
 }) {
   const { teamId } = await params;
-  const { workspace } = await requireConfiguredWorkspace();
+  const { workspace } = await requireWorkspace();
 
   // Rendering decision only. Better Auth re-authorizes every write against the
   // same grant, and the roster itself is scoped to this organization by the

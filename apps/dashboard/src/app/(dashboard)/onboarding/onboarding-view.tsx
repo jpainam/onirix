@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRightIcon,
@@ -8,7 +9,7 @@ import {
   CpuIcon,
   MailOpenIcon,
   RepeatIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -236,6 +237,22 @@ export function OnboardingView({
             </div>
           )}
         </section>
+
+        {/* Setup never stands in the way of looking around. Skipping needs a
+            workspace to look around in, so it is offered once one is named;
+            the missing model is raised later, by the first message sent. */}
+        {named ? (
+          <div className="mb-6 flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/chat" />}
+            >
+              Skip for now
+            </Button>
+          </div>
+        ) : null}
 
         {/* The composer the setup is in aid of, inert until it can answer. */}
         <InputGroup size="lg">

@@ -2,16 +2,17 @@
 
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   BrainIcon,
   PanelLeftIcon,
   RocketIcon,
   SearchIcon,
   SettingsIcon,
   SquarePenIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, type ReactNode } from "react";
 
 import {
   Sidebar,
@@ -20,10 +21,10 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
+  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
   useSidebar,
 } from "@onirix/ui/components/sidebar";
 import {
@@ -39,9 +40,9 @@ import {
   useCommandPalette,
 } from "@/components/command-palette";
 import { NavUser } from "@/components/nav-user";
-import { OnirixMark, OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
+import { OnirixWordmark } from "@onirix/ui/brand/onirix-mark";
 import { RecentConversations } from "@/components/recent-conversations";
-import { useDesktopMac } from "@/hooks/use-desktop-mac";
+import { useDesktop, useDesktopMac } from "@/hooks/use-desktop-mac";
 
 /** The entry point that starts work, pinned above the sections. */
 const PRIMARY_ITEMS = [
@@ -55,6 +56,7 @@ const AGENT_ITEMS = [
 /** Where the Setting panel entry lands; `/admin` also decides which menu shows. */
 const ADMIN_HOME = "/admin/language-models";
 
+
 export function AppSidebar({
   organizationName,
   setupComplete,
@@ -66,65 +68,48 @@ export function AppSidebar({
   user: { name: string; email: string; avatar?: string | null };
 }) {
   const pathname = usePathname();
-  const { toggleSidebar, state } = useSidebar();
+  const { toggleSidebar, state, isMobile } = useSidebar();
   const palette = useCommandPalette();
 
-  // The macOS window controls are wider than the icon rail, so they would
-  // hang off its edge onto the page. There the sidebar closes all the way and
-  // a title strip beside the controls takes over opening it again.
+  // Closed, the sidebar is gone entirely rather than shrunk to a strip of
+  // icons, so the page gets the whole window. On a phone it is a sheet, which
+  // is closed until asked for. Either way something has to open it again.
+  const closed = state === "collapsed" || isMobile;
+
+  // In the macOS desktop window the toggle lives beside the window controls
+  // whether the sidebar is open or closed, so it never moves under the
+  // pointer. The sidebar's own header then carries the wordmark alone.
   const desktopMac = useDesktopMac();
-  const collapsed = state === "collapsed" && !desktopMac;
 
   // The admin menu is not a separate layout: both menus live in one sliding
   // track so moving between them animates instead of swapping in place.
   const inAdmin = pathname.startsWith("/admin");
+  const [settingsQuery, setSettingsQuery] = useState("");
 
   return (
     <>
-      <Sidebar collapsible={desktopMac ? "offcanvas" : "icon"}>
+      <Sidebar collapsible="offcanvas">
         <SidebarHeader>
-          {/* Collapsed, the mark *is* the unfold control: it swaps to the panel
-              icon on hover, so the sidebar can still be opened on touch, where
-              there is no hover to reveal anything. */}
-          <div className="group/brand flex h-8 items-center justify-between">
-            {collapsed ? (
+          <div className="flex h-8 items-center justify-between">
+            <Link href="/chat" aria-label="Onirix home">
+              <OnirixWordmark />
+            </Link>
+            {desktopMac ? null : (
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <button
                       type="button"
                       onClick={toggleSidebar}
-                      aria-label="Open sidebar"
-                      className="hover:bg-sidebar-accent mx-auto flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
+                      aria-label="Close sidebar"
+                      className="text-ink-02 hover:bg-sidebar-accent hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
                     />
                   }
                 >
-                  <OnirixMark className="size-5.5 group-hover/brand:hidden" />
-                  <PanelLeftIcon className="text-ink-03 hidden size-4.5 group-hover/brand:block" />
+                  <PanelLeftIcon className="size-4.5" />
                 </TooltipTrigger>
-                <TooltipContent side="right">Open sidebar</TooltipContent>
+                <TooltipContent side="bottom">Close sidebar</TooltipContent>
               </Tooltip>
-            ) : (
-              <>
-                <Link href="/chat" aria-label="Onirix home">
-                  <OnirixWordmark />
-                </Link>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        type="button"
-                        onClick={toggleSidebar}
-                        aria-label="Close sidebar"
-                        className="text-ink-02 hover:bg-sidebar-accent hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
-                      />
-                    }
-                  >
-                    <PanelLeftIcon className="size-4.5" />
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Close sidebar</TooltipContent>
-                </Tooltip>
-              </>
             )}
           </div>
         </SidebarHeader>
@@ -196,7 +181,7 @@ export function AppSidebar({
                 </SidebarMenu>
               </SidebarGroup>
 
-              <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+              <SidebarGroup>
                 <SidebarGroupLabel>Recents</SidebarGroupLabel>
                 {/* Nothing can have been said yet without a model, so an
                     unconfigured workspace does not pay for the request. */}
@@ -224,38 +209,31 @@ export function AppSidebar({
 
           <Pane hidden={!inAdmin} offset={inAdmin ? "none" : "right"}>
             <SidebarContent>
+              {/* The way out comes first, where the eye lands as the menu
+                  slides in, and the search under it narrows the rows below. */}
               <SidebarGroup>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      tooltip="Search"
-                      onClick={() => palette.setOpen(true)}
-                    >
-                      <SearchIcon />
-                      <span>Search</span>
-                    </SidebarMenuButton>
+                      render={
+                        <Link href="/chat">
+                          <ArrowLeftIcon />
+                          <span>Back to app</span>
+                        </Link>
+                      }
+                    />
                   </SidebarMenuItem>
                 </SidebarMenu>
+                <SidebarInput
+                  type="search"
+                  value={settingsQuery}
+                  onChange={(event) => setSettingsQuery(event.target.value)}
+                  placeholder="Search settings"
+                  aria-label="Search settings"
+                />
               </SidebarGroup>
-              <AdminNav pathname={pathname} />
+              <AdminNav pathname={pathname} query={settingsQuery} />
             </SidebarContent>
-
-            <SidebarFooter className="pb-0">
-              <SidebarSeparator />
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Exit settings"
-                    render={
-                      <Link href="/chat">
-                        <ArrowLeftIcon />
-                        <span>Exit Settings</span>
-                      </Link>
-                    }
-                  />
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarFooter>
           </Pane>
         </div>
 
@@ -268,53 +246,92 @@ export function AppSidebar({
 
         <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
       </Sidebar>
-      {desktopMac && state === "collapsed" ? (
-        <DesktopTitleBar onOpenSidebar={toggleSidebar} />
+      {closed || desktopMac ? (
+        <ShellControls overContent={closed} onToggleSidebar={toggleSidebar} />
       ) : null}
     </>
   );
 }
 
 /**
- * What stands in for the closed sidebar in the macOS desktop window: the two
- * controls worth keeping in reach, on the same line as the window controls.
- * The strip is also the handle the window is dragged by (see globals.css),
- * and sits above the thin drag strip there so its buttons take the click.
+ * The controls in the top-left corner: the sidebar's toggle, the back and
+ * forward arrows a desktop window has no browser toolbar to supply, and a way
+ * to start a session while the sidebar that holds one is shut.
+ *
+ * In a browser they appear only while the sidebar is closed, standing in for
+ * its header. In the macOS desktop window they are always there, beside the
+ * window controls, and double as the handle the window is dragged by.
+ *
+ * `overContent` says they are over the page rather than over the open
+ * sidebar. A page with a header row of its own then makes room for them in it,
+ * and a page without one moves down to clear them; globals.css arranges both,
+ * keyed on this slot.
  */
-function DesktopTitleBar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
+function ShellControls({
+  overContent,
+  onToggleSidebar,
+}: {
+  overContent: boolean;
+  onToggleSidebar: () => void;
+}) {
+  const router = useRouter();
+  const desktop = useDesktop();
   const button =
     "text-ink-02 hover:bg-tint-02 hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors";
 
   return (
     <div
-      data-slot="desktop-titlebar"
-      className="animate-in fade-in fixed inset-x-0 top-0 z-101 flex h-11.5 items-center gap-1 pl-22 duration-200"
+      data-slot="shell-controls"
+      data-over-content={overContent}
+      className="animate-in fade-in fixed top-0 left-0 z-20 flex h-shell items-center gap-0.5 pl-3 duration-200"
     >
       <Tooltip>
         <TooltipTrigger
           render={
             <button
               type="button"
-              onClick={onOpenSidebar}
-              aria-label="Open sidebar"
+              onClick={onToggleSidebar}
+              aria-label="Toggle sidebar"
               className={button}
             />
           }
         >
           <PanelLeftIcon className="size-4.5" />
         </TooltipTrigger>
-        <TooltipContent side="bottom">Open sidebar</TooltipContent>
+        <TooltipContent side="bottom">Toggle sidebar</TooltipContent>
       </Tooltip>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Link href="/chat" aria-label="New session" className={button} />
-          }
-        >
-          <SquarePenIcon className="size-4.5" />
-        </TooltipTrigger>
-        <TooltipContent side="bottom">New session</TooltipContent>
-      </Tooltip>
+      {desktop ? (
+        <>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            aria-label="Back"
+            className={button}
+          >
+            <ArrowLeftIcon className="size-4.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => router.forward()}
+            aria-label="Forward"
+            className={button}
+          >
+            <ArrowRightIcon className="size-4.5" />
+          </button>
+        </>
+      ) : null}
+      {overContent ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link href="/chat" aria-label="New session" className={button} />
+            }
+          >
+            <SquarePenIcon className="size-4.5" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom">New session</TooltipContent>
+        </Tooltip>
+      ) : null}
     </div>
   );
 }

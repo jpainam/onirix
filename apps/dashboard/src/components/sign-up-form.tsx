@@ -4,7 +4,7 @@ import { Button } from "@onirix/ui/components/button";
 import { Input } from "@onirix/ui/components/input";
 import { Label } from "@onirix/ui/components/label";
 import { useForm } from "@tanstack/react-form";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@onirix/ui/lib/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";

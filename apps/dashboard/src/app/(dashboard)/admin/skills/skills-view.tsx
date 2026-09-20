@@ -10,7 +10,7 @@ import {
   SearchIcon,
   Trash2Icon,
   UserIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 

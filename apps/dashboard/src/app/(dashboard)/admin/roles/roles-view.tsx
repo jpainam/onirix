@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { PencilIcon, PlusIcon, ShieldIcon, Trash2Icon } from "lucide-react";
+import { PencilIcon, PlusIcon, ShieldIcon, Trash2Icon } from "@onirix/ui/lib/icons";
 import { useState } from "react";
 
 import {
