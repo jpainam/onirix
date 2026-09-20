@@ -34,7 +34,12 @@ export function ServerForm({
 
   const ready = address.trim().length > 0;
   useEffect(() => onReadyChange?.(ready), [onReadyChange, ready]);
-  useEffect(() => onBusyChange?.(busy), [onBusyChange, busy]);
+  // Leaving reports "not busy" too, so a caller never keeps a spinner for a
+  // form that is gone.
+  useEffect(() => {
+    onBusyChange?.(busy);
+    return () => onBusyChange?.(false);
+  }, [onBusyChange, busy]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();

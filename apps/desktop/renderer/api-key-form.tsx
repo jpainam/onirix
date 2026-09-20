@@ -53,7 +53,12 @@ export function ApiKeyForm({
   const ready = apiKey.trim().length > 0 && model.length > 0;
 
   useEffect(() => onReadyChange?.(ready), [onReadyChange, ready]);
-  useEffect(() => onBusyChange?.(busy), [onBusyChange, busy]);
+  // A saved key moves the dialog on and unmounts this form before `busy` can
+  // settle, so leaving reports it too: the footer must not keep spinning.
+  useEffect(() => {
+    onBusyChange?.(busy);
+    return () => onBusyChange?.(false);
+  }, [onBusyChange, busy]);
 
   function chooseProvider(next: ApiProviderId) {
     setProvider(next);
