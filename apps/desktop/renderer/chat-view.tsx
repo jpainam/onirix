@@ -11,6 +11,7 @@
  * setup can type and send like anyone else; what comes back is a plain note
  * in the conversation that no model is set up, with the button that fixes it.
  */
+import { DOCUMENT_ACCEPT } from "@onirix/ui/lib/folder-files";
 import { ArrowUpIcon, PanelRightIcon, PaperclipIcon, SquareIcon } from "@onirix/ui/lib/icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -40,7 +41,7 @@ import {
 } from "../src/local-bridge";
 
 import { Answer } from "./answer";
-import { errorMessage, getBridge } from "./bridge";
+import { addDocuments, errorMessage, getBridge } from "./bridge";
 import { citedIndices } from "./citations";
 import { DocumentsPane } from "./documents-pane";
 import { modelLabel } from "./model-label";
@@ -196,9 +197,11 @@ export function ChatView({
     setDockTab("documents");
     setDockOpen(true);
     try {
-      const result = await getBridge().documents.add(files.slice(0, LIMITS.documentsPerCall));
-      await onLibraryChange();
-      await attach(result.documents.map((row) => row.id));
+      // Attached a call at a time, so a folder fills the panel as it is read.
+      const result = await addDocuments(files, async (batch) => {
+        await onLibraryChange();
+        await attach(batch.documents.map((row) => row.id));
+      });
       if (result.refused.length > 0) setAddError(result.refused.join(" "));
     } catch (failure) {
       setAddError(errorMessage(failure));
@@ -353,7 +356,7 @@ export function ChatView({
         type="file"
         multiple
         hidden
-        accept=".pdf,.docx,.xlsx,.xls,.csv,.md,.markdown,.html,.htm,.json,.txt,.text,.log,.rst"
+        accept={DOCUMENT_ACCEPT}
         onChange={(event) => {
           if (event.target.files) void addFiles([...event.target.files]);
           event.target.value = "";

@@ -12,7 +12,11 @@
  * inline as [1], [2], so every claim can be checked against the passage it
  * came from. Only those few passages go to the model, never whole files.
  * How an answer is written comes from the local skills (local-skills.ts).
- * There are no tools here: charts and database sources are a server's.
+ *
+ * The one tool here is the provider's own web search, handed over when the
+ * person allows websites (web-access.ts). The provider runs it on its side, so
+ * this process still only ever talks to the model. Charts and database sources
+ * are a server's.
  */
 import { APICallError, type ModelMessage, generateText, streamText } from "ai";
 
@@ -22,6 +26,7 @@ import {
   createChatModel,
   reasoningEffortOptions,
 } from "@onirix/llm/factory";
+import { webSearchTools } from "@onirix/llm/web-search";
 
 import type {
   ApiProviderId,
@@ -35,6 +40,7 @@ import * as documents from "./local-documents";
 import * as localModel from "./local-model";
 import * as skills from "./local-skills";
 import * as store from "./local-store";
+import { readSettings } from "./settings";
 
 const IDENTITY = [
   "You are Onirix, a private AI assistant running in a desktop app on the person's own computer.",
@@ -42,10 +48,31 @@ const IDENTITY = [
 ].join(" ");
 
 /** With nothing attached, the honest position is that there is nothing to read. */
-const NO_DOCUMENTS = [
-  "No documents are attached to this conversation, and you cannot see the person's files or the internet.",
-  "If a question needs those, say so plainly and mention that documents can be attached from the panel on the right.",
-].join(" ");
+function noDocuments(searches: boolean): string {
+  return [
+    searches
+      ? "No documents are attached to this conversation, and you cannot see the person's files. You can search the web."
+      : "No documents are attached to this conversation, and you cannot see the person's files or the internet.",
+    "If a question needs those, say so plainly and mention that documents can be attached from the panel on the right.",
+  ].join(" ");
+}
+
+/** How many of the pages a search read are listed under the answer. */
+const WEB_SOURCE_LIMIT = 8;
+
+/**
+ * The pages a search read, as a short list to end the answer with. Most
+ * providers name them beside the text rather than in it, and an answer from
+ * the web that cannot be checked is not one this app should give. Pages the
+ * answer already links are left out.
+ */
+function webSourcesBlock(text: string, pages: Map<string, string>): string {
+  const lines = [...pages]
+    .filter(([url]) => !text.includes(url))
+    .slice(0, WEB_SOURCE_LIMIT)
+    .map(([url, title]) => `- [${title.replace(/[[\]]/g, "")}](${url})`);
+  return lines.length > 0 ? `\n\nSources\n\n${lines.join("\n")}` : "";
+}
 
 /** How many passages an answer reads. Enough to answer from, few enough to fit
  *  the context of a small local model alongside the conversation. */
@@ -56,10 +83,10 @@ const SOURCE_LIMIT = 6;
  * the person has left switched on. The two that only mean something beside
  * documents are left out when there are none.
  */
-function systemPrompt(sources: MessageSource[]): string {
+function systemPrompt(sources: MessageSource[], searches: boolean): string {
   const guidance = skills.promptFor({ hasContext: sources.length > 0 });
   if (sources.length === 0) {
-    return [IDENTITY, NO_DOCUMENTS, guidance].filter(Boolean).join("\n\n");
+    return [IDENTITY, noDocuments(searches), guidance].filter(Boolean).join("\n\n");
   }
   // The same block shape the server sends (`buildContextBlock` in
   // packages/llm/src/prompts.ts), so a model behaves the same in both. Only
@@ -217,14 +244,19 @@ function answer(chat: Chat, emit: Emit): SendResult {
   const sources = documents.retrieve(chat.documentIds, retrievalQuery(chat), SOURCE_LIMIT);
   if (sources.length > 0) emit({ type: "sources", chatId: chat.id, sources });
 
+  const { webAccess } = readSettings();
+  const tools = webAccess.enabled ? webSearchTools(credentials.provider, webAccess.sites) : null;
+
   void (async () => {
     let text = "";
     let failure: ChatFailure | null = null;
+    const pages = new Map<string, string>();
     try {
       const result = streamText({
         model: createChatModel(credentials, model),
-        system: systemPrompt(sources),
+        system: systemPrompt(sources, tools !== null),
         messages: toModelMessages(chat),
+        ...(tools ? { tools } : {}),
         providerOptions: reasoningEffortOptions(credentials, model, "low"),
         abortSignal: controller.signal,
         maxRetries: 1,
@@ -235,9 +267,16 @@ function answer(chat: Chat, emit: Emit): SendResult {
         if (part.type === "text-delta") {
           text += part.text;
           emit({ type: "delta", chatId: chat.id, text: part.text });
+        } else if (part.type === "source" && part.sourceType === "url") {
+          if (!pages.has(part.url)) pages.set(part.url, part.title || part.url);
         } else if (part.type === "error") {
           throw part.error;
         }
+      }
+      const listed = text.trim() ? webSourcesBlock(text, pages) : "";
+      if (listed) {
+        text += listed;
+        emit({ type: "delta", chatId: chat.id, text: listed });
       }
       if (!text.trim() && !controller.signal.aborted) {
         failure = { code: "failed", message: "The model returned an empty answer. Try again." };

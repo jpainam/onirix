@@ -12,7 +12,12 @@ import { headers } from "next/headers";
 import { resolveDocumentAcl } from "@onirix/db/access";
 import { resolvePrincipal } from "@onirix/db/principal";
 import { document, documentTeam, source, sourceDefaultTeam } from "@onirix/db/schema";
-import { buildFileKey, isSupportedMimeType, putFile } from "@onirix/ingestion";
+import {
+  buildFileKey,
+  isSupportedMimeType,
+  mimeTypeForFileName,
+  putFile,
+} from "@onirix/ingestion";
 import { enqueue } from "@onirix/jobs";
 
 import { env } from "@/env.server";
@@ -77,8 +82,18 @@ export async function POST(request: Request) {
       rejected.push({ name: file.name, reason: "File exceeds the 50 MB limit." });
       continue;
     }
-    if (!isSupportedMimeType(file.type) && !file.type.startsWith("text/")) {
-      rejected.push({ name: file.name, reason: `Unsupported file type "${file.type}".` });
+    // A browser names the type from its own table of extensions, and for
+    // `.md`, `.log` or `.rst` that table often has nothing. The file name
+    // settles those, which matters most for a folder of notes.
+    const mimeType =
+      isSupportedMimeType(file.type) || file.type.startsWith("text/")
+        ? file.type
+        : mimeTypeForFileName(file.name);
+    if (!mimeType) {
+      rejected.push({
+        name: file.name,
+        reason: file.type ? `Unsupported file type "${file.type}".` : "Unsupported file type.",
+      });
       continue;
     }
 
@@ -86,7 +101,7 @@ export async function POST(request: Request) {
     const fileKey = buildFileKey(organizationId, documentId, file.name);
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    await putFile(storage, env.S3_BUCKET, fileKey, buffer, file.type);
+    await putFile(storage, env.S3_BUCKET, fileKey, buffer, mimeType);
 
     await db.transaction(async (tx) => {
       await tx.insert(document).values({
@@ -95,7 +110,7 @@ export async function POST(request: Request) {
         sourceId: uploadSource.id,
         title: file.name,
         fileKey,
-        mimeType: file.type,
+        mimeType,
         sizeBytes: file.size,
         status: "pending",
         visibility,

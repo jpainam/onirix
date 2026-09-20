@@ -104,8 +104,8 @@ export function ModelStore({
             </span>
             <span className="text-ink-03">
               {missing
-                ? "Ollama is the free, open source runtime that runs models on this computer. Onirix can download it into its own folder. Nothing else on the computer is changed."
-                : "Start it to see the models on this computer and download new ones."}
+                ? "A free runtime, installed in Onirix's own folder."
+                : "Start it to see and download models."}
             </span>
           </div>
           {runtime.busy === "install" && downloading ? (

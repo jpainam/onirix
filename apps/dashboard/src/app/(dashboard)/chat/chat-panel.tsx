@@ -35,6 +35,7 @@ import {
 } from "@/lib/chat-message";
 import { displayTitle } from "@/lib/chat-title";
 import { RECENT_CONVERSATIONS_LIMIT, seedRecentConversation } from "@/lib/recents";
+import { uploadFiles } from "@/lib/upload-files";
 import { trpc } from "@/utils/trpc";
 
 import { AnswerWithCitations, UserMessage } from "./answer";
@@ -282,37 +283,30 @@ export function ChatPanel({
   async function attach(files: FileList | File[] | null) {
     if (!files || files.length === 0 || uploadPending.current || submissionPending.current) return;
 
-    const formData = new FormData();
-    for (const file of files) formData.append("files", file);
-
     uploadPending.current = true;
     setUploading(true);
     try {
-      const response = await fetch("/api/upload", { method: "POST", body: formData });
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error(result.error ?? "Upload failed.");
-        return;
-      }
-      const accepted: { id: string; title: string }[] = result.accepted ?? [];
-      if (accepted.length > 0) {
-        // An upload from a conversation belongs to that conversation: it is
-        // attached here and shown in the panel, where its progress is visible,
-        // rather than announced and then left for the reader to go and find.
-        await sessionDocuments.attach(
-          accepted.map(
-            (row): SessionDocument => ({ ...row, status: "pending" }),
-          ),
-        );
-        setDockTab("documents");
-        setDockOpen(true);
-      }
-      for (const rejected of result.rejected ?? []) {
-        toast.error(`${rejected.name}: ${rejected.reason}`);
-      }
-    } catch {
-      toast.error("Could not upload your files. Please try again.");
+      // A folder arrives as many requests. Each one is attached as it lands,
+      // so the panel fills while the rest are still uploading.
+      await uploadFiles([...files], async ({ accepted, rejected }) => {
+        if (accepted.length > 0) {
+          // An upload from a conversation belongs to that conversation: it is
+          // attached here and shown in the panel, where its progress is visible,
+          // rather than announced and then left for the reader to go and find.
+          await sessionDocuments.attach(
+            accepted.map((row): SessionDocument => ({ ...row, status: "pending" })),
+          );
+          setDockTab("documents");
+          setDockOpen(true);
+        }
+        for (const file of rejected) toast.error(`${file.name}: ${file.reason}`);
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message !== "Failed to fetch"
+          ? error.message
+          : "Could not upload your files. Please try again.",
+      );
     } finally {
       uploadPending.current = false;
       setUploading(false);

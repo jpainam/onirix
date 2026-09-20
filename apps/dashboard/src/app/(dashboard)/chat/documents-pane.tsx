@@ -3,6 +3,7 @@
 import {
   EyeIcon,
   FileTextIcon,
+  FolderPlusIcon,
   PlusIcon,
   SearchIcon,
   UploadIcon,
@@ -13,12 +14,14 @@ import { useDeferredValue, useRef, useState, type DragEvent } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
+import { useFolderPicker } from "@onirix/ui/components/folder-picker";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@onirix/ui/components/input-group";
 import { Spinner } from "@onirix/ui/components/spinner";
+import { readDrop } from "@onirix/ui/lib/folder-files";
 import { cn } from "@onirix/ui/lib/utils";
 
 import { trpc } from "@/utils/trpc";
@@ -46,6 +49,9 @@ function StatusBadge({ status }: { status: SessionDocument["status"] }) {
  * it here; picking attaches one that is already in the workspace, which is how
  * a file uploaded once is reused instead of uploaded again. Both lists only
  * ever hold what this reader is allowed to see.
+ *
+ * A folder, picked or dropped, is shown first and uploaded second: the reader
+ * chooses which of its files go in.
  *
  * Either kind of row can also be opened and read. In the workspace list that
  * is a separate control, because the row itself already means "attach".
@@ -83,10 +89,14 @@ export function DocumentsPane({
     (row) => !attachedIds.has(row.id),
   );
 
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
+  const folder = useFolderPicker({ onConfirm: onUpload });
+
+  async function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDropping(false);
-    if (event.dataTransfer.files.length > 0) onUpload(event.dataTransfer.files);
+    const dropped = await readDrop(event.dataTransfer);
+    if (dropped.files.length > 0) onUpload(dropped.files);
+    folder.review(dropped.folders);
   }
 
   return (
@@ -97,8 +107,9 @@ export function DocumentsPane({
         setDropping(true);
       }}
       onDragLeave={() => setDropping(false)}
-      onDrop={handleDrop}
+      onDrop={(event) => void handleDrop(event)}
     >
+      {folder.element}
       <input
         ref={fileInput}
         type="file"
@@ -159,8 +170,18 @@ export function DocumentsPane({
           )}
         >
           {uploading ? <Spinner /> : <UploadIcon className="size-4" />}
-          {uploading ? "Uploading" : "Drop files here, or browse"}
+          {uploading ? "Uploading" : "Drop files or a folder, or browse"}
         </button>
+        <Button
+          variant="muted"
+          size="sm"
+          disabled={uploading}
+          onClick={folder.pick}
+          className="self-start"
+        >
+          <FolderPlusIcon />
+          Add a folder
+        </Button>
       </section>
 
       <section className="flex min-h-0 flex-col gap-2 border-t p-4">

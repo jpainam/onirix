@@ -49,6 +49,7 @@ import * as localStore from "./local-store";
 import * as runtime from "./runtime";
 import { readSettings, writeSettings } from "./settings";
 import { RELEASES_PAGE, checkForUpdates, watchForUpdates } from "./updates";
+import { normalizeWebAccess } from "./web-access";
 
 const DEFAULT_SERVER = process.env.ONIRIX_DEFAULT_SERVER ?? "http://localhost:3001";
 const isMac = process.platform === "darwin";
@@ -646,6 +647,7 @@ function registerLocalIpc(
       onboardingCompleted: settings.onboardingCompletedAt !== null,
       appearance: APPEARANCES.includes(settings.appearance) ? settings.appearance : "system",
       model: localModel.currentChoice(),
+      webAccess: settings.webAccess,
       suggestedServer: settings.serverUrl ?? settings.lastServerUrl ?? DEFAULT_SERVER,
       intent,
     };
@@ -662,6 +664,11 @@ function registerLocalIpc(
     if (!APPEARANCES.includes(appearance as Appearance)) throw new Error("Unknown appearance.");
     writeSettings({ appearance: appearance as Appearance });
     applyAppearance("local");
+  });
+
+  handle("local:webAccess:set", (webAccess: unknown) => {
+    if (!webAccess || typeof webAccess !== "object") throw new Error("Unknown setting.");
+    return writeSettings({ webAccess: normalizeWebAccess(webAccess) }).webAccess;
   });
 
   handle("local:model:useLocal", async (model: unknown) => {

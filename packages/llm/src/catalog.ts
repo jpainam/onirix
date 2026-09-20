@@ -47,10 +47,20 @@ export type EmbeddingModelSpec = {
   downloadGb?: number;
 };
 
+/**
+ * What a provider's own web search can be asked to do (`web-search.ts`).
+ *
+ * `sites` searches and keeps to a list of websites when given one.
+ * `all-or-nothing` searches the whole web or not at all. `none` has no search
+ * this code can switch on.
+ */
+export type WebSearchSupport = "sites" | "all-or-nothing" | "none";
+
 export type ProviderSpec = {
   id: ProviderId;
   label: string;
   description: string;
+  webSearch: WebSearchSupport;
   /** False for providers that run locally and need no credential. */
   requiresApiKey: boolean;
   /** True when the deployment can reach it without leaving the network. */
@@ -75,6 +85,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   openai: {
     id: "openai",
     label: "OpenAI",
+    webSearch: "sites",
     description: "GPT models via the OpenAI API.",
     requiresApiKey: true,
     selfHosted: false,
@@ -91,6 +102,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   anthropic: {
     id: "anthropic",
     label: "Anthropic",
+    webSearch: "sites",
     description: "Claude models via the Anthropic API.",
     requiresApiKey: true,
     selfHosted: false,
@@ -105,6 +117,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   google: {
     id: "google",
     label: "Google",
+    webSearch: "all-or-nothing",
     description: "Gemini models via the Google Generative AI API.",
     requiresApiKey: true,
     selfHosted: false,
@@ -119,6 +132,9 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   xai: {
     id: "xai",
     label: "xAI",
+    // Its search tool belongs to its Responses API, and the factory builds its
+    // chat model.
+    webSearch: "none",
     description: "Grok models via the xAI API.",
     requiresApiKey: true,
     selfHosted: false,
@@ -133,6 +149,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   ollama: {
     id: "ollama",
     label: "Ollama (self-hosted)",
+    webSearch: "none",
     description: "Models running on your own infrastructure. No data leaves your network.",
     requiresApiKey: false,
     selfHosted: true,

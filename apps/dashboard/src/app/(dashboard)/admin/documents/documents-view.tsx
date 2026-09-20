@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { UploadIcon } from "@onirix/ui/lib/icons";
+import { FolderPlusIcon, UploadIcon } from "@onirix/ui/lib/icons";
 
 import { Button } from "@onirix/ui/components/button";
 import { Spinner } from "@onirix/ui/components/spinner";
@@ -46,10 +46,16 @@ export function DocumentsView({
         }
         // Anyone in the workspace may add a file, here as from a chat.
         action={
-          <Button variant="outline" onClick={files.pick} disabled={files.uploading}>
-            {files.uploading ? <Spinner /> : <UploadIcon />}
-            Add files
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={files.pickFolder} disabled={files.uploading}>
+              <FolderPlusIcon />
+              Add folder
+            </Button>
+            <Button variant="outline" onClick={files.pick} disabled={files.uploading}>
+              {files.uploading ? <Spinner /> : <UploadIcon />}
+              Add files
+            </Button>
+          </div>
         }
       />
       {files.input}

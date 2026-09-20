@@ -35,6 +35,13 @@ export type ModelChoice =
 
 export type Appearance = "system" | "light" | "dark";
 
+/** Whether answers may read the web, and where (see web-access.ts). */
+export type WebAccess = {
+  enabled: boolean;
+  /** Hosts such as `example.com`, subdomains included. Empty means any website. */
+  sites: string[];
+};
+
 /**
  * One passage an answer was given to read, kept with the answer.
  *
@@ -138,6 +145,7 @@ export type LocalState = {
   onboardingCompleted: boolean;
   appearance: Appearance;
   model: ModelChoice | null;
+  webAccess: WebAccess;
   /** What the server address field starts with: the last one used, or the build's default. */
   suggestedServer: string;
   /**
@@ -164,6 +172,10 @@ export type LocalBridge = {
   };
   appearance: {
     set: (appearance: Appearance) => Promise<void>;
+  };
+  webAccess: {
+    /** Answers with what was stored: addresses come back as bare hosts. */
+    set: (webAccess: WebAccess) => Promise<WebAccess>;
   };
   model: {
     useLocal: (model: string) => Promise<ModelChoice>;
@@ -268,6 +280,8 @@ export const LIMITS = {
   skillInstructionsChars: 20_000,
   /** Every enabled skill is in every prompt, so the list has an end. */
   skills: 50,
+  /** The most a provider's search takes as a domain filter. */
+  webSites: 100,
 } as const;
 
 declare global {

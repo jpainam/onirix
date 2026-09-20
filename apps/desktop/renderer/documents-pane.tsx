@@ -6,17 +6,22 @@
  * Two ways in, on purpose. Adding a file copies it into the library and
  * attaches it here; picking attaches one that is already in the library, which
  * is how a file added once is reused instead of added again.
+ *
+ * A folder, picked or dropped, is listed first and added second: the person
+ * chooses which of its files go in.
  */
-import { FileTextIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon, XIcon } from "@onirix/ui/lib/icons";
+import { FileTextIcon, FolderPlusIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon, XIcon } from "@onirix/ui/lib/icons";
 import { type DragEvent, useRef, useState } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
+import { useFolderPicker } from "@onirix/ui/components/folder-picker";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@onirix/ui/components/input-group";
 import { Spinner } from "@onirix/ui/components/spinner";
+import { DOCUMENT_ACCEPT, readDrop } from "@onirix/ui/lib/folder-files";
 import { cn } from "@onirix/ui/lib/utils";
 
-import type { LibraryDocument } from "../src/local-bridge";
+import { LIMITS, type LibraryDocument } from "../src/local-bridge";
 
 /** How many library documents the picker offers before it asks for a search. */
 const PICKER_LIMIT = 20;
@@ -72,10 +77,15 @@ export function DocumentsPane({
     .filter((row) => !query || row.title.toLowerCase().includes(query))
     .slice(0, PICKER_LIMIT);
 
-  function handleDrop(event: DragEvent<HTMLDivElement>) {
+  // A session holds only so many documents, so a folder is picked down to that.
+  const folder = useFolderPicker({ onConfirm: onAdd, maxFiles: LIMITS.documentsPerChat });
+
+  async function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setDropping(false);
-    if (event.dataTransfer.files.length > 0) onAdd([...event.dataTransfer.files]);
+    const dropped = await readDrop(event.dataTransfer);
+    if (dropped.files.length > 0) onAdd(dropped.files);
+    folder.review(dropped.folders);
   }
 
   return (
@@ -86,14 +96,15 @@ export function DocumentsPane({
         setDropping(true);
       }}
       onDragLeave={() => setDropping(false)}
-      onDrop={handleDrop}
+      onDrop={(event) => void handleDrop(event)}
     >
+      {folder.element}
       <input
         ref={fileInput}
         type="file"
         multiple
         hidden
-        accept=".pdf,.docx,.xlsx,.xls,.csv,.md,.markdown,.html,.htm,.json,.txt,.text,.log,.rst"
+        accept={DOCUMENT_ACCEPT}
         onChange={(event) => {
           if (event.target.files) onAdd([...event.target.files]);
           event.target.value = "";
@@ -146,9 +157,15 @@ export function DocumentsPane({
           )}
         >
           {adding ? <Spinner /> : <UploadIcon className="size-4" />}
-          {adding ? "Reading" : "Drop or browse files"}
+          {adding ? "Reading" : "Drop files or a folder, or browse"}
         </button>
-        <p className="text-ink-02 text-xs">PDF, Word, Excel or text, up to 50 MB.</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-ink-02 text-xs">PDF, Word, Excel or text, up to 50 MB.</p>
+          <Button variant="muted" size="sm" disabled={adding} onClick={folder.pick}>
+            <FolderPlusIcon />
+            Add a folder
+          </Button>
+        </div>
 
         {error ? (
           <p className="text-destructive text-sm select-text" role="alert">

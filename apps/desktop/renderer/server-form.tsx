@@ -97,9 +97,6 @@ export function ServerFields({ children }: { children?: ReactNode }) {
         placeholder="onirix.example.com"
         aria-invalid={form.error ? true : undefined}
       />
-      <p className="text-ink-03 text-xs">
-        Chats and documents here stay on this computer. The server has its own sign-in and history.
-      </p>
       {form.error ? (
         <p className="text-destructive text-sm select-text" role="alert">
           {form.error}

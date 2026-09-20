@@ -88,8 +88,8 @@ export function ModelLibrary({
       ? null
       : {
           message: missing
-            ? "Open models run on Ollama, a free, open source runtime. Install it once and every model here can be downloaded. Onirix puts it in its own folder and changes nothing else on the computer."
-            : "Ollama is installed but not running. Start it to download models.",
+            ? "Open models need Ollama, a free runtime."
+            : "Ollama is not running.",
           action: (
             <Button
               className="shrink-0 rounded-full px-4"

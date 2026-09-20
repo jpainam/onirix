@@ -9,6 +9,8 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { writeJsonAtomic } from "./atomic-write";
+import type { WebAccess } from "./local-bridge";
+import { DEFAULT_WEB_ACCESS, normalizeWebAccess } from "./web-access";
 
 export type Appearance = "system" | "light" | "dark";
 
@@ -27,6 +29,8 @@ export type Settings = {
   onboardingCompletedAt: string | null;
   /** Local mode only. A server workspace keeps its own theme. */
   appearance: Appearance;
+  /** Local mode only. A server decides this for its own workspace. */
+  webAccess: WebAccess;
   bounds: { x?: number; y?: number; width: number; height: number } | null;
   runtime: {
     shareOnNetwork: boolean;
@@ -41,6 +45,7 @@ const DEFAULTS: Settings = {
   lastServerUrl: null,
   onboardingCompletedAt: null,
   appearance: "system",
+  webAccess: DEFAULT_WEB_ACCESS,
   bounds: null,
   runtime: { shareOnNetwork: false, keepRunning: false, pid: null },
 };
@@ -58,6 +63,9 @@ export function readSettings(): Settings {
     cache = {
       ...DEFAULTS,
       ...stored,
+      // Hand-editable like the rest of the file, so read as carefully as it
+      // is written.
+      webAccess: normalizeWebAccess(stored.webAccess),
       runtime: { ...DEFAULTS.runtime, ...stored.runtime },
     };
   } catch {

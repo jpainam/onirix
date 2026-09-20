@@ -24,6 +24,7 @@ import type {
   ModelChoice,
   SendResult,
   ShellIntent,
+  WebAccess,
 } from "../src/local-bridge";
 
 import { errorMessage, getBridge } from "./bridge";
@@ -257,6 +258,14 @@ export function App() {
     void bridge.appearance.set(appearance);
   }
 
+  function setWebAccess(webAccess: WebAccess) {
+    setState((current) => (current ? { ...current, webAccess } : current));
+    // What comes back is what was stored: addresses reduced to hosts.
+    void bridge.webAccess.set(webAccess).then((stored) => {
+      setState((current) => (current ? { ...current, webAccess: stored } : current));
+    });
+  }
+
   function closeOnboarding() {
     setOnboarding((current) => ({ ...current, open: false }));
     setState((current) => (current ? { ...current, onboardingCompleted: true } : current));
@@ -375,6 +384,7 @@ export function App() {
             onLibraryChange={refreshLibrary}
             onModelChange={setModel}
             onAppearanceChange={setAppearance}
+            onWebAccessChange={setWebAccess}
             onChangeModel={() => openOnboarding("choice")}
             onReplaySetup={() => openOnboarding("welcome")}
           />
@@ -427,7 +437,7 @@ export function App() {
         <div className="flex flex-col gap-1.5">
           <ModalTitle className="text-base font-semibold">Connect to a server</ModalTitle>
           <ModalDescription className="text-ink-03">
-            An Onirix server adds shared company knowledge, connectors, teams and database sources.
+            Shared knowledge, connectors and teams.
           </ModalDescription>
         </div>
         {serverFormOpen ? (

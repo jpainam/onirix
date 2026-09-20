@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
+import { useFolderPicker } from "@onirix/ui/components/folder-picker";
 import {
   InputGroup,
   InputGroupAddon,
@@ -18,15 +19,17 @@ import {
 import { Spinner } from "@onirix/ui/components/spinner";
 import {
   FileTextIcon,
+  FolderPlusIcon,
   SearchIcon,
   Trash2Icon,
   UploadIcon,
 } from "@onirix/ui/lib/icons";
+import { DOCUMENT_ACCEPT } from "@onirix/ui/lib/folder-files";
 import { cn } from "@onirix/ui/lib/utils";
 
-import { LIMITS, type LibraryDocument } from "../src/local-bridge";
+import type { LibraryDocument } from "../src/local-bridge";
 
-import { errorMessage, getBridge } from "./bridge";
+import { addDocuments, errorMessage, getBridge } from "./bridge";
 import { Section } from "@onirix/ui/components/settings-section";
 import { TILE } from "./tokens";
 
@@ -86,9 +89,8 @@ export function DocumentsSettings({
     setAdding(true);
     setError(null);
     try {
-      const result = await getBridge().documents.add(
-        files.slice(0, LIMITS.documentsPerCall),
-      );
+      // The list grows a call at a time, which is what a folder needs.
+      const result = await addDocuments(files, onLibraryChange);
       if (result.refused.length > 0) setError(result.refused.join(" "));
     } catch (failure) {
       setError(errorMessage(failure));
@@ -97,6 +99,8 @@ export function DocumentsSettings({
       setAdding(false);
     }
   }
+
+  const folder = useFolderPicker({ onConfirm: (files) => void add(files) });
 
   async function remove(id: string) {
     await getBridge().documents.remove(id);
@@ -114,12 +118,13 @@ export function DocumentsSettings({
           type="file"
           multiple
           hidden
-          accept=".pdf,.docx,.xlsx,.xls,.csv,.md,.markdown,.html,.htm,.json,.txt,.text,.log,.rst"
+          accept={DOCUMENT_ACCEPT}
           onChange={(event) => {
             if (event.target.files) void add([...event.target.files]);
             event.target.value = "";
           }}
         />
+        {folder.element}
         <div className="flex items-center gap-2">
           <InputGroup className="flex-1">
             <InputGroupAddon>
@@ -132,6 +137,15 @@ export function DocumentsSettings({
               aria-label="Search your library"
             />
           </InputGroup>
+          <Button
+            variant="outline"
+            className="rounded-full px-4"
+            disabled={adding}
+            onClick={folder.pick}
+          >
+            <FolderPlusIcon />
+            Add folder
+          </Button>
           <Button
             variant="outline"
             className="rounded-full px-4"

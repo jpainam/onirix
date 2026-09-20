@@ -8,14 +8,21 @@
  * right there (`needsServer`). Documents and skills are not among those: they
  * work here.
  */
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { PROVIDERS } from "@onirix/llm/catalog";
 import { AppearanceSettings } from "@onirix/ui/components/appearance-settings";
 import { Button } from "@onirix/ui/components/button";
+import { Switch } from "@onirix/ui/components/switch";
 import { cn } from "@onirix/ui/lib/utils";
 
-import type { Appearance, LibraryDocument, LocalState, ModelChoice } from "../src/local-bridge";
+import type {
+  Appearance,
+  LibraryDocument,
+  LocalState,
+  ModelChoice,
+  WebAccess,
+} from "../src/local-bridge";
 
 import { errorMessage, getBridge } from "./bridge";
 import { describeChoice } from "./model-label";
@@ -26,6 +33,7 @@ import { type SettingsPage, serverOnlyReason, settingsTitle } from "@onirix/ui/l
 import { PageHeading, Row, Section } from "@onirix/ui/components/settings-section";
 import { SkillsSettings } from "./settings-skills";
 import { OPTION, TILE } from "./tokens";
+import { WebAccessDialog } from "./web-access-dialog";
 
 /** The sentence under a page's title, on the pages that have one to say. */
 const LEAD: Partial<Record<SettingsPage, string>> = {
@@ -39,6 +47,26 @@ const SHORTCUTS: readonly { keys: string; what: string }[] = [
   { keys: ",", what: "Settings" },
 ];
 
+/**
+ * What the website setting comes to for the model in use. A provider with a
+ * key searches by itself, so the setting is handed to it; how far each one can
+ * follow it is in the catalog (`webSearch`). A model on this computer has
+ * nothing to follow it with until it gets a web fetch tool, and the row says
+ * so instead of looking like a switch that works.
+ */
+function webAccessSummary(model: ModelChoice | null, { enabled, sites }: WebAccess): string {
+  if (model?.kind === "local") return "Not used by local models yet.";
+  if (model && PROVIDERS[model.provider].webSearch === "none") {
+    return `Not used by ${PROVIDERS[model.provider].label} models yet.`;
+  }
+  if (!enabled) return "Off";
+  if (sites.length === 0) return "Any website";
+  if (model && PROVIDERS[model.provider].webSearch === "all-or-nothing") {
+    return `${PROVIDERS[model.provider].label} cannot keep to a list, so it does not search.`;
+  }
+  return sites.length === 1 ? sites[0]! : `${sites.length} websites`;
+}
+
 export function SettingsView({
   page,
   banner,
@@ -47,6 +75,7 @@ export function SettingsView({
   onLibraryChange,
   onModelChange,
   onAppearanceChange,
+  onWebAccessChange,
   onChangeModel,
   onReplaySetup,
 }: {
@@ -58,11 +87,13 @@ export function SettingsView({
   onLibraryChange: () => Promise<void>;
   onModelChange: (choice: ModelChoice | null) => void;
   onAppearanceChange: (appearance: Appearance) => void;
+  onWebAccessChange: (webAccess: WebAccess) => void;
   /** Opens the setup at the choice of Local, API key, or Server. */
   onChangeModel: () => void;
   onReplaySetup: () => void;
 }) {
-  const { model } = state;
+  const { model, webAccess } = state;
+  const [managingSites, setManagingSites] = useState(false);
   const needsServer = serverOnlyReason(page);
   const modifier = state.platform === "darwin" ? "Cmd" : "Ctrl";
 
@@ -121,7 +152,34 @@ export function SettingsView({
             <>
               {/* Short on purpose. Local mode has few switches, and a page
                   padded with ones that do nothing would be worse than a short
-                  page. What it does have is keys worth knowing. */}
+                  page. Besides those it has keys worth knowing. */}
+              <Section title="Web">
+                <div className={TILE}>
+                  <Row
+                    title="External website access"
+                    description={webAccessSummary(model, webAccess)}
+                  >
+                    <Button
+                      variant="outline"
+                      className="rounded-full px-4"
+                      onClick={() => setManagingSites(true)}
+                    >
+                      Manage
+                    </Button>
+                    <Switch
+                      aria-label="External website access"
+                      checked={webAccess.enabled}
+                      onCheckedChange={(enabled) => onWebAccessChange({ ...webAccess, enabled })}
+                    />
+                  </Row>
+                </div>
+              </Section>
+              <WebAccessDialog
+                open={managingSites}
+                onOpenChange={setManagingSites}
+                sites={webAccess.sites}
+                onSitesChange={(sites) => onWebAccessChange({ ...webAccess, sites })}
+              />
               <Section title="Keyboard">
                 <div className={cn("divide-y", TILE)}>
                   {SHORTCUTS.map((shortcut) => (
@@ -136,6 +194,15 @@ export function SettingsView({
                   </Row>
                   <Row title="Add a line to a message">
                     <kbd className="text-ink-03 font-mono text-xs">Shift Enter</kbd>
+                  </Row>
+                </div>
+              </Section>
+              <Section title="Setup">
+                <div className={TILE}>
+                  <Row title="Welcome tour">
+                    <Button variant="outline" className="rounded-full px-4" onClick={onReplaySetup}>
+                      Replay
+                    </Button>
                   </Row>
                 </div>
               </Section>
@@ -248,11 +315,6 @@ export function SettingsView({
                     onClick={() => void getBridge().app.openDataFolder()}
                   >
                     Open the folder
-                  </Button>
-                </Row>
-                <Row title="Welcome tour">
-                  <Button variant="outline" className="rounded-full px-4" onClick={onReplaySetup}>
-                    Replay
                   </Button>
                 </Row>
               </div>

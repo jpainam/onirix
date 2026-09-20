@@ -16,6 +16,9 @@ export type SessionDocument = {
 /** How often a document that is still being read is asked about again. */
 const INDEXING_POLL_MS = 4000;
 
+/** The most ids `chat.attachDocuments` takes in one call; a folder can hold more. */
+const ATTACH_BATCH = 50;
+
 const settled = (status: SessionDocument["status"]) =>
   status === "indexed" || status === "failed";
 
@@ -46,7 +49,21 @@ export function useSessionDocuments(chatId: string, created: boolean) {
     [queryClient, chatId],
   );
 
-  const attachMutation = useMutation(trpc.chat.attachDocuments.mutationOptions());
+  const { mutateAsync: attachDocuments } = useMutation(
+    trpc.chat.attachDocuments.mutationOptions(),
+  );
+
+  const write = useCallback(
+    async (documentIds: string[]) => {
+      for (let start = 0; start < documentIds.length; start += ATTACH_BATCH) {
+        await attachDocuments({
+          chatId,
+          documentIds: documentIds.slice(start, start + ATTACH_BATCH),
+        });
+      }
+    },
+    [chatId, attachDocuments],
+  );
   const detachMutation = useMutation(trpc.chat.detachDocument.mutationOptions());
 
   const attach = useCallback(
@@ -62,16 +79,13 @@ export function useSessionDocuments(chatId: string, created: boolean) {
       }
 
       try {
-        await attachMutation.mutateAsync({
-          chatId,
-          documentIds: documents.map((row) => row.id),
-        });
+        await write(documents.map((row) => row.id));
         await refresh();
       } catch {
         toast.error("Could not attach that document.");
       }
     },
-    [created, chatId, attachMutation, refresh],
+    [created, write, refresh],
   );
 
   const detach = useCallback(
@@ -97,13 +111,10 @@ export function useSessionDocuments(chatId: string, created: boolean) {
    */
   const flush = useCallback(async () => {
     if (held.length === 0) return;
-    await attachMutation.mutateAsync({
-      chatId,
-      documentIds: held.map((row) => row.id),
-    });
+    await write(held.map((row) => row.id));
     setHeld([]);
     await refresh();
-  }, [held, chatId, attachMutation, refresh]);
+  }, [held, write, refresh]);
 
   const documents: SessionDocument[] = created
     ? // The held rows bridge the moment between the row being written and the

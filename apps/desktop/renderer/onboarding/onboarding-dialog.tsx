@@ -61,7 +61,7 @@ const DESCRIPTIONS: Record<Exclude<Step, "done">, string> = {
   local:
     "Open source models that run on this computer. Larger ones answer better and need more memory.",
   api: "Onirix talks to the provider straight from this computer, with your key.",
-  server: "An Onirix server adds shared company knowledge, connectors, teams and database sources.",
+  server: "Shared knowledge, connectors and teams.",
 };
 
 function Setup({
