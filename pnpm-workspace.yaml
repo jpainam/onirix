@@ -24,8 +24,8 @@ catalog:
   "@tanstack/react-query": ^5.102.8
   better-auth: 1.7.3
   "@tanstack/react-form": ^1.33.5
-  ai: ^7.0.93
-  "@ai-sdk/react": ^4.0.96
+  ai: ^7.0.107
+  "@ai-sdk/react": ^4.0.110
   "@tailwindcss/postcss": ^4.3.3
   "@types/react-dom": ^19.2.7
   tailwindcss: ^4.3.3

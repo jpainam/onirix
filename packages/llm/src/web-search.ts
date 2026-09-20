@@ -13,14 +13,6 @@ import type { ToolSet } from "ai";
 
 import { PROVIDERS, type ProviderId } from "./catalog";
 
-/**
- * The OpenAI and Anthropic packages are a major behind `ai`, so their tools
- * are typed against the previous tool interface. What `ai` reads off a
- * provider tool (`type`, `id`, `args`) is the same in both, so only the type
- * needs carrying over. Drop this once those packages are on the same major.
- */
-type SearchTool = ToolSet[string];
-
 /** How many searches one answer may run, where the provider lets that be said. */
 const MAX_SEARCHES = 3;
 
@@ -41,16 +33,11 @@ export function webSearchTools(provider: ProviderId, sites: readonly string[]): 
   switch (provider) {
     case "openai":
       return {
-        web_search: openai.tools.webSearch(
-          allowedDomains ? { filters: { allowedDomains } } : {},
-        ) as SearchTool,
+        web_search: openai.tools.webSearch(allowedDomains ? { filters: { allowedDomains } } : {}),
       };
     case "anthropic":
       return {
-        web_search: anthropic.tools.webSearch_20250305({
-          maxUses: MAX_SEARCHES,
-          allowedDomains,
-        }) as SearchTool,
+        web_search: anthropic.tools.webSearch_20250305({ maxUses: MAX_SEARCHES, allowedDomains }),
       };
     case "google":
       return { google_search: google.tools.googleSearch({}) };
