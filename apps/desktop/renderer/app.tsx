@@ -350,14 +350,6 @@ export function App() {
         onRename={(id, title) => void renameChat(id, title)}
         onDelete={(id) => void deleteChat(id)}
       />
-      <ShellControls
-        mac={mac}
-        canGoBack={trail.at > 0}
-        canGoForward={trail.at < trail.views.length - 1}
-        onBack={() => step(-1)}
-        onForward={() => step(1)}
-        onNewSession={() => navigate(HOME)}
-      />
       <SidebarInset className="h-full min-h-0 min-w-0">
         {view.kind === "settings" ? (
           <SettingsView
@@ -395,6 +387,23 @@ export function App() {
           />
         )}
       </SidebarInset>
+
+      {/* After the content on purpose, though they are fixed in the corner and
+          it makes no difference to where they appear. The window's draggable
+          area is built by walking the page in document order, each drag
+          region adding its box and each `no-drag` one taking its box away. Put
+          ahead of the page, these buttons are taken away first and then the
+          page's header row, a drag region, is added straight back over them:
+          with the sidebar shut they sit on that row, look fine, and never
+          receive a click. */}
+      <ShellControls
+        mac={mac}
+        canGoBack={trail.at > 0}
+        canGoForward={trail.at < trail.views.length - 1}
+        onBack={() => step(-1)}
+        onForward={() => step(1)}
+        onNewSession={() => navigate(HOME)}
+      />
 
       <Modal open={serverFormOpen} onOpenChange={setServerFormOpen} className="w-[480px] gap-5 p-6">
         <div className="flex flex-col gap-1.5">

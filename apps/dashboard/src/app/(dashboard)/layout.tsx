@@ -3,7 +3,7 @@ import type { PropsWithChildren } from "react";
 
 import { SidebarInset, SidebarProvider } from "@onirix/ui/components/sidebar";
 
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar, ShellControls } from "@/components/app-sidebar";
 import { requireSession } from "@/lib/workspace";
 
 export default async function Layout(props: PropsWithChildren) {
@@ -34,6 +34,8 @@ export default async function Layout(props: PropsWithChildren) {
       <SidebarInset className="min-h-0 overflow-hidden">
         {props.children}
       </SidebarInset>
+      {/* Last in the document on purpose; see ShellControls. */}
+      <ShellControls />
     </SidebarProvider>
   );
 }

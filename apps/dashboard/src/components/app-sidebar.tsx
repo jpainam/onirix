@@ -68,13 +68,8 @@ export function AppSidebar({
   user: { name: string; email: string; avatar?: string | null };
 }) {
   const pathname = usePathname();
-  const { toggleSidebar, state, isMobile } = useSidebar();
+  const { toggleSidebar } = useSidebar();
   const palette = useCommandPalette();
-
-  // Closed, the sidebar is gone entirely rather than shrunk to a strip of
-  // icons, so the page gets the whole window. On a phone it is a sheet, which
-  // is closed until asked for. Either way something has to open it again.
-  const closed = state === "collapsed" || isMobile;
 
   // In the macOS desktop window the toggle lives beside the window controls
   // whether the sidebar is open or closed, so it never moves under the
@@ -246,9 +241,6 @@ export function AppSidebar({
 
         <CommandPalette open={palette.open} onOpenChange={palette.setOpen} />
       </Sidebar>
-      {closed || desktopMac ? (
-        <ShellControls overContent={closed} onToggleSidebar={toggleSidebar} />
-      ) : null}
     </>
   );
 }
@@ -266,18 +258,27 @@ export function AppSidebar({
  * sidebar. A page with a header row of its own then makes room for them in it,
  * and a page without one moves down to clear them; globals.css arranges both,
  * keyed on this slot.
+ *
+ * The layout renders this after the page, not beside the sidebar. The window's
+ * draggable area is built by walking the document in order, drag regions
+ * adding their box and `no-drag` ones taking theirs away, so buttons placed
+ * ahead of a page whose header row is a drag region are taken away first and
+ * then covered again: they look fine and never receive a click.
  */
-function ShellControls({
-  overContent,
-  onToggleSidebar,
-}: {
-  overContent: boolean;
-  onToggleSidebar: () => void;
-}) {
+export function ShellControls() {
   const router = useRouter();
+  const { toggleSidebar: onToggleSidebar, state, isMobile } = useSidebar();
+  const desktopMac = useDesktopMac();
+  // Closed, the sidebar is gone entirely rather than shrunk to a strip of
+  // icons, so the page gets the whole window. On a phone it is a sheet, which
+  // is closed until asked for. Either way something has to open it again.
+  const overContent = state === "collapsed" || isMobile;
+
   const desktop = useDesktop();
   const button =
     "text-ink-02 hover:bg-tint-02 hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors";
+
+  if (!overContent && !desktopMac) return null;
 
   return (
     <div
