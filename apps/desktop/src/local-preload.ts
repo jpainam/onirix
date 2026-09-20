@@ -61,6 +61,13 @@ if (window.location.origin === LOCAL_ORIGIN) {
       remove: (id) => ipcRenderer.invoke("local:documents:remove", id),
       storage: () => ipcRenderer.invoke("local:documents:storage"),
     },
+    skills: {
+      list: () => ipcRenderer.invoke("local:skills:list"),
+      create: (draft) => ipcRenderer.invoke("local:skills:create", draft),
+      update: (id, draft) => ipcRenderer.invoke("local:skills:update", id, draft),
+      reset: (id) => ipcRenderer.invoke("local:skills:reset", id),
+      remove: (id) => ipcRenderer.invoke("local:skills:remove", id),
+    },
     app: {
       openDataFolder: () => ipcRenderer.invoke("local:app:openDataFolder"),
       checkForUpdates: () => ipcRenderer.invoke("local:app:checkForUpdates"),

@@ -80,6 +80,23 @@ export type LibraryDocument = {
   error: string | null;
 };
 
+/**
+ * An instruction the local answers follow (see local-skills.ts). Every enabled
+ * one is in every prompt: there is no loading on demand without tools.
+ */
+export type LocalSkill = {
+  id: string;
+  name: string;
+  description: string;
+  instructions: string;
+  enabled: boolean;
+  /** Shipped with the app rather than written here: resettable, not deletable. */
+  builtIn: boolean;
+};
+
+/** The editable half of a skill. A built-in ignores `name`. */
+export type SkillDraft = Omit<LocalSkill, "id" | "builtIn">;
+
 export type ChatSummary = {
   id: string;
   title: string;
@@ -192,6 +209,14 @@ export type LocalBridge = {
     /** Where the library lives and how much room it takes, for Settings. */
     storage: () => Promise<{ path: string; totalBytes: number }>;
   };
+  skills: {
+    list: () => Promise<LocalSkill[]>;
+    create: (draft: SkillDraft) => Promise<LocalSkill>;
+    update: (id: string, draft: SkillDraft) => Promise<LocalSkill>;
+    /** Puts a built-in back the way it shipped. */
+    reset: (id: string) => Promise<LocalSkill>;
+    remove: (id: string) => Promise<void>;
+  };
   app: {
     /** Shows the folder holding chats, documents and settings in the file manager. */
     openDataFolder: () => Promise<void>;
@@ -237,6 +262,12 @@ export const LIMITS = {
   /** Files in one drop, and documents attached to one session. */
   documentsPerCall: 20,
   documentsPerChat: 50,
+  /** The server's limits for a skill, so one written here fits there. */
+  skillNameChars: 64,
+  skillDescriptionChars: 200,
+  skillInstructionsChars: 20_000,
+  /** Every enabled skill is in every prompt, so the list has an end. */
+  skills: 50,
 } as const;
 
 declare global {

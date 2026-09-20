@@ -3,9 +3,10 @@
  * settings-nav.ts), shown in the content area while the sidebar holds the
  * menu. The header row names the page, as it names a conversation elsewhere.
  *
- * What needs a server is said once, on the Server page, rather than as a row
- * of pages that open onto "connect a server first". Documents are not on that
- * list: they work here.
+ * The menu is the workspace's, whole. A page that needs a server still opens:
+ * it says what it is for and what it needs, with the form that connects one
+ * right there (see `needsServer` in settings-nav.ts). Documents and skills are
+ * not among those: they work here.
  */
 import type { ReactNode } from "react";
 
@@ -21,8 +22,9 @@ import { describeChoice } from "./model-label";
 import { ModelStore } from "./model-store";
 import { ServerForm } from "./server-form";
 import { DocumentsSettings } from "./settings-documents";
-import { type SettingsPage, settingsTitle } from "./settings-nav";
+import { type SettingsPage, serverOnlyReason, settingsTitle } from "./settings-nav";
 import { Section } from "./settings-section";
+import { SkillsSettings } from "./settings-skills";
 import { OPTION, TILE } from "./tokens";
 
 /** One line of a settings tile: what it is on the left, the control on the right. */
@@ -76,6 +78,7 @@ export function SettingsView({
   onReplaySetup: () => void;
 }) {
   const { model } = state;
+  const needsServer = serverOnlyReason(page);
   const modifier = state.platform === "darwin" ? "Cmd" : "Ctrl";
 
   async function useLocalModel(name: string) {
@@ -212,6 +215,16 @@ export function SettingsView({
 
           {page === "documents" ? (
             <DocumentsSettings library={library} onLibraryChange={onLibraryChange} />
+          ) : null}
+
+          {page === "skills" ? <SkillsSettings /> : null}
+
+          {needsServer ? (
+            <Section title="This needs an Onirix server" description={needsServer}>
+              <div className={cn("p-4", TILE)}>
+                <ServerForm defaultAddress={state.suggestedServer} />
+              </div>
+            </Section>
           ) : null}
 
           {page === "server" ? (

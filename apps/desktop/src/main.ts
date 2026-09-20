@@ -43,6 +43,7 @@ import {
 import * as localChat from "./local-chat";
 import * as localDocuments from "./local-documents";
 import * as localModel from "./local-model";
+import * as localSkills from "./local-skills";
 import * as localStore from "./local-store";
 import * as runtime from "./runtime";
 import { readSettings, writeSettings } from "./settings";
@@ -732,6 +733,19 @@ function registerLocalIpc(
     localDocuments.removeDocument(localDocuments.assertDocumentId(id)),
   );
   handle("local:documents:storage", () => localDocuments.storage());
+
+  // The drafts are checked field by field in local-skills.ts.
+  handle("local:skills:list", () => localSkills.listSkills());
+  handle("local:skills:create", (draft: unknown) => localSkills.createSkill(draft));
+  handle("local:skills:update", (id: unknown, draft: unknown) =>
+    localSkills.updateSkill(localSkills.assertSkillId(id), draft),
+  );
+  handle("local:skills:reset", (id: unknown) =>
+    localSkills.resetSkill(localSkills.assertSkillId(id)),
+  );
+  handle("local:skills:remove", (id: unknown) =>
+    localSkills.removeSkill(localSkills.assertSkillId(id)),
+  );
 
   // Neither takes anything from the page: which folder opens, and what is
   // checked, are the shell's to decide.

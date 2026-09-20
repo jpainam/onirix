@@ -351,6 +351,9 @@
   --shadow-lg: 0 2px 12px 0 var(--shadow-02), 0 0 4px 1px var(--shadow-02);
   --shadow-xl: 0 2px 24px 0 var(--shadow-03), 0 0 12px 1px var(--shadow-03);
   --shadow-2xl: 0 2px 24px 0 var(--shadow-03), 0 0 12px 1px var(--shadow-03);
+  /* The chat composer: a tight contact shadow plus a soft, pulled-in drop, so
+     the field lifts off a page that is the same white as its own surface. */
+  --shadow-composer: 0 1px 2px 0 var(--shadow-01), 0 6px 20px -6px var(--shadow-02);
 
   /* The countdown across the open tab of the public site's product tour. The
      duration is the tour's rotation interval (ROTATE_MS in product-tour.tsx). */

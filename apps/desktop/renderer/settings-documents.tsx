@@ -10,9 +10,18 @@ import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@onirix/ui/components/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@onirix/ui/components/input-group";
 import { Spinner } from "@onirix/ui/components/spinner";
-import { FileTextIcon, SearchIcon, Trash2Icon, UploadIcon } from "@onirix/ui/lib/icons";
+import {
+  FileTextIcon,
+  SearchIcon,
+  Trash2Icon,
+  UploadIcon,
+} from "@onirix/ui/lib/icons";
 import { cn } from "@onirix/ui/lib/utils";
 
 import { LIMITS, type LibraryDocument } from "../src/local-bridge";
@@ -31,7 +40,11 @@ function added(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? ""
-    : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    : date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
 }
 
 export function DocumentsSettings({
@@ -45,7 +58,10 @@ export function DocumentsSettings({
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [storage, setStorage] = useState<{ path: string; totalBytes: number } | null>(null);
+  const [storage, setStorage] = useState<{
+    path: string;
+    totalBytes: number;
+  } | null>(null);
 
   // Measured again whenever the library changes: that is when it can differ.
   useEffect(() => {
@@ -61,14 +77,18 @@ export function DocumentsSettings({
   }, [library]);
 
   const query = search.trim().toLowerCase();
-  const shown = library.filter((row) => !query || row.title.toLowerCase().includes(query));
+  const shown = library.filter(
+    (row) => !query || row.title.toLowerCase().includes(query),
+  );
 
   async function add(files: File[]) {
     if (files.length === 0 || adding) return;
     setAdding(true);
     setError(null);
     try {
-      const result = await getBridge().documents.add(files.slice(0, LIMITS.documentsPerCall));
+      const result = await getBridge().documents.add(
+        files.slice(0, LIMITS.documentsPerCall),
+      );
       if (result.refused.length > 0) setError(result.refused.join(" "));
     } catch (failure) {
       setError(errorMessage(failure));
@@ -136,7 +156,10 @@ export function DocumentsSettings({
         ) : (
           <ul className={cn("divide-y overflow-hidden", TILE)}>
             {shown.map((row) => (
-              <li key={row.id} className="flex min-h-14 items-center gap-3 px-4 py-2.5">
+              <li
+                key={row.id}
+                className="flex min-h-14 items-center gap-3 px-4 py-2.5"
+              >
                 <FileTextIcon className="text-ink-02 size-4 shrink-0" />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm" title={row.title}>
@@ -148,7 +171,9 @@ export function DocumentsSettings({
                       : `${size(row.sizeBytes)}, ${row.chunkCount} ${row.chunkCount === 1 ? "passage" : "passages"}, added ${added(row.addedAt)}`}
                   </span>
                 </div>
-                {row.status === "failed" ? <Badge variant="destructive">Failed</Badge> : null}
+                {row.status === "failed" ? (
+                  <Badge variant="destructive">Failed</Badge>
+                ) : null}
                 {row.status === "processing" ? (
                   <Badge variant="muted">
                     <Spinner /> Reading
@@ -157,12 +182,12 @@ export function DocumentsSettings({
                 {/* Asks nothing first: the original file is untouched, so
                     this only undoes an "add". */}
                 <Button
-                  variant="muted"
+                  variant="ghost"
                   size="icon-sm"
                   aria-label={`Delete ${row.title} from your library`}
                   onClick={() => void remove(row.id)}
                 >
-                  <Trash2Icon />
+                  <Trash2Icon className="text-destructive" />
                 </Button>
               </li>
             ))}
@@ -175,10 +200,16 @@ export function DocumentsSettings({
           <div className="flex min-h-14 items-center gap-4 px-4 py-3">
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="text-sm">
-                {library.length} {library.length === 1 ? "document" : "documents"}
-                {storage ? `, ${size(storage.totalBytes)} on this computer` : ""}
+                {library.length}{" "}
+                {library.length === 1 ? "document" : "documents"}
+                {storage
+                  ? `, ${size(storage.totalBytes)} on this computer`
+                  : ""}
               </span>
-              <span className="text-ink-03 truncate font-mono text-xs select-text" title={storage?.path}>
+              <span
+                className="text-ink-03 truncate font-mono text-xs select-text"
+                title={storage?.path}
+              >
                 {storage?.path ?? ""}
               </span>
             </div>

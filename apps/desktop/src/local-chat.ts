@@ -11,7 +11,8 @@
  * (local-documents.ts), handed to the model as numbered sources, and cited
  * inline as [1], [2], so every claim can be checked against the passage it
  * came from. Only those few passages go to the model, never whole files.
- * There are no tools here: charts, skills and database sources are a server's.
+ * How an answer is written comes from the local skills (local-skills.ts).
+ * There are no tools here: charts and database sources are a server's.
  */
 import { APICallError, type ModelMessage, generateText, streamText } from "ai";
 
@@ -32,12 +33,12 @@ import type {
 } from "./local-bridge";
 import * as documents from "./local-documents";
 import * as localModel from "./local-model";
+import * as skills from "./local-skills";
 import * as store from "./local-store";
 
 const IDENTITY = [
   "You are Onirix, a private AI assistant running in a desktop app on the person's own computer.",
   "You are truthful, precise, and concise.",
-  "Answer the question directly first, then supply the supporting detail, in Markdown where structure helps.",
 ].join(" ");
 
 /** With nothing attached, the honest position is that there is nothing to read. */
@@ -46,28 +47,20 @@ const NO_DOCUMENTS = [
   "If a question needs those, say so plainly and mention that documents can be attached from the panel on the right.",
 ].join(" ");
 
-/**
- * The server's grounding and citation rules (the built-in skills in
- * packages/db/src/skills.ts), reworded for one person's documents. The `[n]`
- * format is a contract, not a style: the window turns those markers into the
- * chips that open a passage, so rewording it away costs the answer its
- * citations.
- */
-const GROUNDING = `# Grounding
-- Answer from the person's documents supplied below, in preference to your general knowledge.
-- Make it clear which parts of an answer come from the documents, which are your inference, and which are general knowledge.
-- If the documents do not contain the answer, say so plainly. Never invent a source, a quotation, or a citation.
-- If the documents disagree with each other, surface the disagreement instead of silently picking one.
-
-# Citations
-CRITICAL: When referencing knowledge from the documents, cite the relevant statements INLINE using the format [1], [2], [3], matching the "index" of the supplied documents. Cite as you go rather than collecting citations at the end, and do not append links after a citation.`;
-
 /** How many passages an answer reads. Enough to answer from, few enough to fit
  *  the context of a small local model alongside the conversation. */
 const SOURCE_LIMIT = 6;
 
+/**
+ * Grounding, citations and style are skills now, so what is sent is whatever
+ * the person has left switched on. The two that only mean something beside
+ * documents are left out when there are none.
+ */
 function systemPrompt(sources: MessageSource[]): string {
-  if (sources.length === 0) return `${IDENTITY}\n\n${NO_DOCUMENTS}`;
+  const guidance = skills.promptFor({ hasContext: sources.length > 0 });
+  if (sources.length === 0) {
+    return [IDENTITY, NO_DOCUMENTS, guidance].filter(Boolean).join("\n\n");
+  }
   // The same block shape the server sends (`buildContextBlock` in
   // packages/llm/src/prompts.ts), so a model behaves the same in both. Only
   // the framing differs: these are one person's files, not an organization's.
@@ -84,7 +77,7 @@ function systemPrompt(sources: MessageSource[]): string {
     )
     .join("\n\n");
   const context = `Here are the most relevant passages from the documents attached to this conversation:\n\n${rendered}`;
-  return `${IDENTITY}\n\n${GROUNDING}\n\n${context}`;
+  return [IDENTITY, guidance, context].filter(Boolean).join("\n\n");
 }
 
 /**
