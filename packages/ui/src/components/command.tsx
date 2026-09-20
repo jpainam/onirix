@@ -15,7 +15,7 @@ import {
   InputGroup,
   InputGroupAddon,
 } from "@onirix/ui/components/input-group"
-import { SearchIcon, CheckIcon } from "lucide-react"
+import { SearchIcon, CheckIcon } from "@onirix/ui/lib/icons"
 
 function Command({
   className,

@@ -3,7 +3,7 @@
 import { Button } from "@onirix/ui/components/button";
 import { cn } from "@onirix/ui/lib/utils";
 import type { UIMessage } from "ai";
-import { ArrowDownIcon, DownloadIcon } from "lucide-react";
+import { ArrowDownIcon, DownloadIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";

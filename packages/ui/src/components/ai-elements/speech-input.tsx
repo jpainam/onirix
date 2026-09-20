@@ -3,7 +3,7 @@
 import { Button } from "@onirix/ui/components/button";
 import { Spinner } from "@onirix/ui/components/spinner";
 import { cn } from "@onirix/ui/lib/utils";
-import { MicIcon, SquareIcon } from "lucide-react";
+import { MicIcon, SquareIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 

@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@onirix/ui/components/select";
 import { cn } from "@onirix/ui/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, CSSProperties, HTMLAttributes } from "react";
 import {
   createContext,

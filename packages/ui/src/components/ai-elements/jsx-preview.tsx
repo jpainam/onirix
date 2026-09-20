@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@onirix/ui/lib/utils";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle } from "@onirix/ui/lib/icons";
 import type { ComponentProps, ReactNode } from "react";
 import {
   createContext,

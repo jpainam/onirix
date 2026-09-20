@@ -2,7 +2,7 @@
 
 import { Badge } from "@onirix/ui/components/badge";
 import { cn } from "@onirix/ui/lib/utils";
-import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
+import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "@onirix/ui/lib/icons";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
 

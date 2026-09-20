@@ -8,7 +8,7 @@ import {
   InputGroupText,
 } from "@onirix/ui/components/input-group";
 import { cn } from "@onirix/ui/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 import {
   createContext,

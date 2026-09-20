@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
 } from "@onirix/ui/components/tooltip";
 import { cn } from "@onirix/ui/lib/utils";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, ReactNode } from "react";
 import {
   createContext,

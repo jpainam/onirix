@@ -20,7 +20,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@onirix/ui/components/dropdown-menu"
-import { CheckIcon } from "lucide-react"
+import { CheckIcon } from "@onirix/ui/lib/icons"
 
 function Menubar({ className, ...props }: MenubarPrimitive.Props) {
   return (

@@ -13,7 +13,7 @@ import {
   CircleDotIcon,
   CircleIcon,
   XCircleIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
 

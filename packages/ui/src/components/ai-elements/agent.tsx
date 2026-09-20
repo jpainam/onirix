@@ -9,7 +9,7 @@ import {
 import { Badge } from "@onirix/ui/components/badge";
 import { cn } from "@onirix/ui/lib/utils";
 import type { Tool } from "ai";
-import { BrainIcon } from "lucide-react";
+import { BrainIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 import { memo } from "react";
 

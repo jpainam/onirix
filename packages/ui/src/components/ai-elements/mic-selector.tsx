@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@onirix/ui/components/popover";
 import { cn } from "@onirix/ui/lib/utils";
-import { ChevronsUpDownIcon } from "lucide-react";
+import { ChevronsUpDownIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, ReactNode } from "react";
 import {
   createContext,

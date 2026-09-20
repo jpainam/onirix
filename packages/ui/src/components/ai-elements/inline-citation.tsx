@@ -13,7 +13,7 @@ import {
   HoverCardTrigger,
 } from "@onirix/ui/components/hover-card";
 import { cn } from "@onirix/ui/lib/utils";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 import {
   createContext,

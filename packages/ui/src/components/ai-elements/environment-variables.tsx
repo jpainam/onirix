@@ -4,7 +4,7 @@ import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
 import { Switch } from "@onirix/ui/components/switch";
 import { cn } from "@onirix/ui/lib/utils";
-import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, EyeIcon, EyeOffIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 import {
   createContext,

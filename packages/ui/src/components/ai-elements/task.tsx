@@ -6,7 +6,7 @@ import {
   CollapsibleTrigger,
 } from "@onirix/ui/components/collapsible";
 import { cn } from "@onirix/ui/lib/utils";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, SearchIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 
 export type TaskItemFileProps = ComponentProps<"div">;

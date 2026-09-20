@@ -8,8 +8,8 @@ import {
   TooltipTrigger,
 } from "@onirix/ui/components/tooltip";
 import { cn } from "@onirix/ui/lib/utils";
-import type { LucideIcon } from "lucide-react";
-import { XIcon } from "lucide-react";
+import type { LucideIcon } from "@onirix/ui/lib/icons";
+import { XIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 
 export type ArtifactProps = HTMLAttributes<HTMLDivElement>;

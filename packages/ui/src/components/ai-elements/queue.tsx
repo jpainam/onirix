@@ -8,7 +8,7 @@ import {
 } from "@onirix/ui/components/collapsible";
 import { ScrollArea } from "@onirix/ui/components/scroll-area";
 import { cn } from "@onirix/ui/lib/utils";
-import { ChevronDownIcon, PaperclipIcon } from "lucide-react";
+import { ChevronDownIcon, PaperclipIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 
 export interface QueueMessagePart {

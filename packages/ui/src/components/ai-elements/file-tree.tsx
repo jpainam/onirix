@@ -11,7 +11,7 @@ import {
   FileIcon,
   FolderIcon,
   FolderOpenIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import type { HTMLAttributes, ReactNode } from "react";
 import {
   createContext,

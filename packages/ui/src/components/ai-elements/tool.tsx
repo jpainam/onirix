@@ -15,7 +15,7 @@ import {
   ClockIcon,
   WrenchIcon,
   XCircleIcon,
-} from "lucide-react";
+} from "@onirix/ui/lib/icons";
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 

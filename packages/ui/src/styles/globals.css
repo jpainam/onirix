@@ -73,20 +73,30 @@
   --purple-50: #9948e3;
 
   /* --- semantic surfaces ------------------------------------------------ */
-  /* Tints stack from the page (00) up through the chrome (02) to dividers. */
-  --tint-00: var(--grey-00);
-  --tint-01: var(--stone-02);
-  --tint-02: var(--stone-05);
-  --tint-03: var(--stone-10);
-  --tint-04: var(--stone-20);
+  /* The palette below is Synara's (MIT, Copyright (c) 2026 T3 Tools Inc. and
+     Emanuele Di Pietro), measured off its running app: a white page, one
+     near-black ink, and every surface and line in between made by mixing a
+     little of that ink into the page. Nothing here is a picked grey, which is
+     what lets the Appearance screen re-derive the lot from two colours
+     (lib/appearance.ts holds the same percentages and must be kept in step). */
+  --page: #ffffff;
+  --ink-base: #0d0d0d;
+  --accent-base: #0169cc;
+
+  /* Tints stack from the page (00) up through hovered and pressed rows. */
+  --tint-00: var(--page);
+  --tint-01: color-mix(in srgb, var(--ink-base) 3%, var(--page));
+  --tint-02: color-mix(in srgb, var(--ink-base) 5%, var(--page));
+  --tint-03: color-mix(in srgb, var(--ink-base) 8%, var(--page));
+  --tint-04: color-mix(in srgb, var(--ink-base) 16%, var(--page));
 
   /* Text is alpha-on-surface, not opaque grey, so it reads correctly on any
      tint without a per-surface variant. */
-  --ink-05: #000000f2;
-  --ink-04: #000000d9;
-  --ink-03: #0000008c;
-  --ink-02: #00000073;
-  --ink-01: #00000033;
+  --ink-05: color-mix(in srgb, var(--ink-base) 95%, transparent);
+  --ink-04: color-mix(in srgb, var(--ink-base) 87%, transparent);
+  --ink-03: color-mix(in srgb, var(--ink-base) 60%, transparent);
+  --ink-02: color-mix(in srgb, var(--ink-base) 45%, transparent);
+  --ink-01: color-mix(in srgb, var(--ink-base) 22%, transparent);
 
   --shadow-01: #0000000d;
   --shadow-02: #0000001a;
@@ -95,12 +105,12 @@
   /* --- shadcn semantics ------------------------------------------------- */
   --background: var(--tint-00);
   --foreground: var(--ink-04);
-  --card: var(--grey-00);
+  --card: var(--tint-00);
   --card-foreground: var(--ink-04);
-  --popover: var(--grey-00);
+  --popover: var(--tint-00);
   --popover-foreground: var(--ink-04);
-  --primary: #1c1c1c;
-  --primary-foreground: #fffffff2;
+  --primary: color-mix(in srgb, var(--ink-base) 94%, var(--page));
+  --primary-foreground: var(--page);
   --secondary: var(--tint-01);
   --secondary-foreground: var(--ink-03);
   --muted: var(--tint-01);
@@ -109,16 +119,20 @@
   --accent-foreground: var(--ink-04);
   --destructive: var(--red-50);
   --destructive-foreground: var(--grey-00);
-  --border: var(--grey-10);
-  --input: var(--grey-10);
-  --ring: var(--blue-50);
+  /* Lines are faint on purpose: structure comes from the sidebar's change of
+     surface and from spacing, and a hairline only confirms it. */
+  --border: color-mix(in srgb, var(--ink-base) 5%, var(--page));
+  --input: color-mix(in srgb, var(--ink-base) 8%, var(--page));
+  /* Focus is a neutral ring, not the accent: the accent is kept for links and
+     for the things a person has actually selected. */
+  --ring: #a3a3a3;
 
   --success: var(--green-60);
   --success-subtle: var(--green-05);
   --warning: var(--orange-55);
   --warning-subtle: var(--orange-05);
-  --info: var(--blue-50);
-  --info-subtle: var(--blue-05);
+  --info: var(--accent-base);
+  --info-subtle: color-mix(in srgb, var(--accent-base) 10%, var(--page));
   --danger-subtle: var(--red-05);
 
   /* Categorical series identity, in fixed slot order — a chart assigns slot 1
@@ -149,78 +163,103 @@
      the page so the band reads as coloured paper, not a tint of the accent. */
   --wash-sand: color-mix(in oklab, var(--orange-50) 7%, var(--grey-00));
 
-  /* Buttons and inputs sit at 12px; cards and panels at 16px (`rounded-xl`). */
-  --radius: 0.75rem;
+  /* Buttons and inputs sit at 10px; cards and panels step up from it. */
+  --radius: 0.625rem;
 
-  /* The chrome is a tint darker than the page, and the selected tab is a plain
-     white chip on top of it — the inverse of the usual "tinted active row". */
-  --sidebar: var(--tint-02);
-  --sidebar-foreground: var(--ink-03);
-  --sidebar-primary: #1c1c1c;
-  --sidebar-primary-foreground: #fffffff2;
-  --sidebar-accent: var(--tint-03);
-  --sidebar-accent-foreground: var(--ink-04);
-  --sidebar-active: var(--grey-00);
+  /* The sidebar is the one surface with its own colour: a cool grey well
+     clear of the white page, so the two read apart without a line between
+     them. Its rows darken it a step on hover and another when selected; there
+     is no raised chip. */
+  --sidebar: color-mix(in srgb, #0d1a26 6%, var(--page));
+  --sidebar-foreground: var(--ink-04);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in srgb, var(--ink-base) 5%, var(--sidebar));
+  --sidebar-accent-foreground: var(--ink-05);
+  --sidebar-active: color-mix(in srgb, var(--ink-base) 8%, var(--sidebar));
   --sidebar-active-foreground: var(--ink-05);
-  --sidebar-border: var(--stone-10);
-  --sidebar-ring: var(--blue-50);
+  --sidebar-border: color-mix(in srgb, var(--ink-base) 7%, var(--sidebar));
+  --sidebar-ring: var(--ring);
+
+  /* The interface is set in the platform's own face, as a desktop tool's is.
+     An app that wants a brand face (the public site) supplies it in
+     `--font-brand-*` and takes over from here. */
+  --font-sans: var(
+    --font-brand-sans,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif
+  );
+  --font-mono: var(
+    --font-brand-mono,
+    "JetBrains Mono Variable", "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace
+  );
 }
 
 .dark {
-  --tint-00: var(--grey-100);
-  --tint-01: var(--stone-95);
-  --tint-02: var(--stone-90);
-  --tint-03: var(--stone-85);
-  --tint-04: var(--stone-80);
+  --page: #111111;
+  --ink-base: #fcfcfc;
+  --accent-base: #339cff;
 
-  --ink-05: #fffffff2;
-  --ink-04: #ffffffd9;
-  --ink-03: #ffffff99;
-  --ink-02: #ffffff73;
-  --ink-01: #ffffff33;
+  /* Everything below is declared again rather than left to follow from the
+     three colours above. A custom property inherits as a finished value, so a
+     dark band set inside a light page (the public site does this) would keep
+     the light page's tints and inks unless each one is worked out afresh here.
+
+     The steps sit a little closer together than in light: a mix that is barely
+     there on white is already a visible lift on near-black. */
+  --tint-00: var(--page);
+  --tint-01: color-mix(in srgb, var(--ink-base) 2.5%, var(--page));
+  --tint-02: color-mix(in srgb, var(--ink-base) 5%, var(--page));
+  --tint-03: color-mix(in srgb, var(--ink-base) 8%, var(--page));
+  --tint-04: color-mix(in srgb, var(--ink-base) 14%, var(--page));
+
+  --ink-05: color-mix(in srgb, var(--ink-base) 95%, transparent);
+  --ink-04: color-mix(in srgb, var(--ink-base) 87%, transparent);
+  --ink-03: color-mix(in srgb, var(--ink-base) 62%, transparent);
+  --ink-02: color-mix(in srgb, var(--ink-base) 45%, transparent);
+  --ink-01: color-mix(in srgb, var(--ink-base) 22%, transparent);
 
   --shadow-01: #00000040;
   --shadow-02: #00000059;
   --shadow-03: #00000080;
 
-  --background: var(--grey-100);
+  --background: var(--tint-00);
   --foreground: var(--ink-04);
-  --card: var(--stone-95);
+  --card: var(--tint-01);
   --card-foreground: var(--ink-04);
-  --popover: var(--stone-95);
+  --popover: var(--tint-01);
   --popover-foreground: var(--ink-04);
-  --primary: #e9e9e9;
-  --primary-foreground: var(--grey-100);
-  --secondary: var(--stone-95);
+  --primary: color-mix(in srgb, var(--ink-base) 92%, var(--page));
+  --primary-foreground: var(--page);
+  --secondary: var(--tint-01);
   --secondary-foreground: var(--ink-03);
-  --muted: var(--stone-95);
+  --muted: var(--tint-01);
   --muted-foreground: var(--ink-03);
-  --accent: var(--stone-90);
+  --accent: var(--tint-02);
   --accent-foreground: var(--ink-04);
   --destructive: #f23a36;
   --destructive-foreground: var(--grey-00);
-  --border: var(--grey-80);
-  --input: var(--grey-80);
-  --ring: var(--blue-50);
+  --border: color-mix(in srgb, var(--ink-base) 5%, var(--page));
+  --input: color-mix(in srgb, var(--ink-base) 8%, var(--page));
+  --ring: #737373;
 
   --success: #2eaa4d;
   --success-subtle: #002207;
   --warning: #e1642f;
   --warning-subtle: #320d01;
-  --info: var(--blue-40);
-  --info-subtle: #091938;
+  --info: var(--accent-base);
+  --info-subtle: color-mix(in srgb, var(--accent-base) 16%, var(--page));
   --danger-subtle: #330b09;
 
-  --sidebar: var(--stone-90);
-  --sidebar-foreground: var(--ink-03);
-  --sidebar-primary: #e9e9e9;
-  --sidebar-primary-foreground: var(--grey-100);
-  --sidebar-accent: var(--stone-85);
-  --sidebar-accent-foreground: var(--ink-04);
-  --sidebar-active: var(--grey-100);
+  --sidebar: color-mix(in srgb, var(--ink-base) 2.5%, var(--page));
+  --sidebar-foreground: var(--ink-04);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in srgb, var(--ink-base) 4%, var(--sidebar));
+  --sidebar-accent-foreground: var(--ink-05);
+  --sidebar-active: color-mix(in srgb, var(--ink-base) 7%, var(--sidebar));
   --sidebar-active-foreground: var(--ink-05);
-  --sidebar-border: var(--stone-85);
-  --sidebar-ring: var(--blue-50);
+  --sidebar-border: color-mix(in srgb, var(--ink-base) 7%, var(--sidebar));
+  --sidebar-ring: var(--ring);
 }
 
 @theme inline {
@@ -302,6 +341,10 @@
   --tracking-display: -0.0125em;
   --tracking-hero: -0.015em;
 
+  /* How the sidebars and the chat's side panel travel: quick off the mark and
+     long to settle, so a panel reads as sliding rather than being swapped. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   --shadow-xs: 0 0 2px 1px var(--shadow-01);
   --shadow-sm: 0 0 2px 1px var(--shadow-01);
   --shadow-md: 0 2px 12px 0 var(--shadow-02), 0 0 4px 1px var(--shadow-02);
@@ -320,6 +363,21 @@
       transform: scaleX(1);
     }
   }
+
+  /* The public site's one easing curve and one entrance. Use the entrance
+     behind `motion-safe:` so reduced motion switches it off. */
+  --ease-house: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-rise-in: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 @layer base {
@@ -331,11 +389,17 @@
     @apply font-sans;
   }
 
+  /* The product is a dense tool and runs a step smaller than a web page:
+     with the root at 15px, `text-sm` lands on the 13px its interface is drawn
+     at, and spacing tightens with it. Only the app opts in (the class is set
+     by the dashboard and the desktop window); the public site reads at the
+     browser's own size. The Appearance screen's text size moves this. */
+  html.onirix-app {
+    font-size: 15px;
+  }
+
   body {
     @apply bg-background font-sans text-foreground;
-    /* Opal's body copy is 450-weight Hanken Grotesk; the variable font gives us
-       the exact step, which is meaningfully lighter than `font-medium`. */
-    font-weight: 450;
     font-synthesis-weight: none;
     -webkit-font-smoothing: antialiased;
     overscroll-behavior-y: none;
@@ -355,8 +419,17 @@
   }
 
   ::selection {
-    background-color: color-mix(in srgb, var(--blue-50) 22%, transparent);
+    background-color: color-mix(in srgb, var(--accent-base) 24%, transparent);
   }
+}
+
+/* The row along the top of the window: the sidebar's controls, a page's own
+   header, the side panel's tabs. In px, not rem, because in the macOS desktop
+   window it has to centre on the window controls, which the system draws at a
+   fixed size wherever the app's type scale has put the root. 46px puts its
+   centre line at 23px, on the centre of those controls. */
+@utility h-shell {
+  height: 46px;
 }
 
 @utility no-scrollbar {
@@ -420,7 +493,7 @@
    interactive inside one opts back out. */
 html.onirix-desktop-darwin {
   [data-slot="sidebar-header"] {
-    padding-top: 2.75rem;
+    padding-top: 46px;
     -webkit-app-region: drag;
 
     :is(a, button, input) {
@@ -436,32 +509,86 @@ html.onirix-desktop-darwin {
     position: fixed;
     inset: 0 0 auto 0;
     z-index: 100;
-    height: 0.75rem;
+    height: 12px;
     -webkit-app-region: drag;
   }
 
   body:not(:has([data-slot="sidebar-wrapper"]))::before {
-    height: 2.5rem;
+    height: 40px;
   }
 
-  /* The controls are wider than the icon rail, so here the sidebar closes
-     completely (see app-sidebar.tsx) and a title strip beside the controls
-     holds the button that reopens it. The content column moves down to clear
-     both, in step with the sidebar sliding away. */
-  [data-slot="desktop-titlebar"] {
+  /* The sidebar's toggle and the back and forward arrows sit beside the window
+     controls at all times here, open or closed, so they never move under the
+     pointer. They are above the thin drag strip so their buttons take the
+     click. */
+  [data-slot="shell-controls"] {
+    z-index: 101;
+    padding-left: 88px;
+
+    /* They sit over the sidebar's header, which is a drag region, and macOS
+       works out drag regions by area rather than by what is on top. A button
+       that does not opt out is simply part of the handle: it looks fine, it
+       hovers fine, and it never receives the click. */
+    :is(a, button) {
+      -webkit-app-region: no-drag;
+    }
+  }
+
+  /* A page's own header row is what the window is dragged by... */
+  [data-slot="shell-header"] {
+    -webkit-app-region: drag;
+
+    :is(a, button, input) {
+      -webkit-app-region: no-drag;
+    }
+  }
+
+  [data-slot="sidebar-wrapper"]:has([data-slot="shell-controls"][data-over-content="true"])
+    [data-slot="shell-header"] {
+    padding-left: 200px;
+  }
+
+  /* ...and on a page without one, the strip holding the controls is, so it
+     runs the full width of the window. */
+  body:not(:has([data-slot="shell-header"]))
+    [data-slot="shell-controls"][data-over-content="true"] {
+    right: 0;
     -webkit-app-region: drag;
 
     :is(a, button) {
       -webkit-app-region: no-drag;
     }
   }
+}
 
-  [data-slot="sidebar-inset"] {
-    transition: padding-top 200ms linear;
+/* The sidebar closes completely (see app-sidebar.tsx), and the controls that
+   stand in for it take the top-left corner. They mark themselves
+   `data-over-content` while they overlap the page (sidebar closed, or a phone,
+   where it is a sheet) rather than the open sidebar. A page with a header row
+   then makes room for them in that row; any other page moves down to clear
+   them. Both move on the sidebar's own curve, so they arrive together. */
+[data-slot="shell-header"] {
+  transition: padding-left 300ms var(--ease-drawer);
+}
+
+[data-slot="sidebar-inset"] {
+  transition: padding-top 300ms var(--ease-drawer);
+}
+
+[data-slot="sidebar-wrapper"]:has([data-slot="shell-controls"][data-over-content="true"]) {
+  [data-slot="shell-header"] {
+    padding-left: 5rem;
   }
 
-  [data-slot="sidebar"][data-collapsible="offcanvas"] ~ [data-slot="sidebar-inset"] {
-    padding-top: 2.75rem;
+  [data-slot="sidebar-inset"]:not(:has([data-slot="shell-header"])) {
+    padding-top: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="shell-header"],
+  [data-slot="sidebar-inset"] {
+    transition: none;
   }
 }
 

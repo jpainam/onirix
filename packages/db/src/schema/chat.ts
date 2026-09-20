@@ -12,6 +12,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -104,6 +105,36 @@ export const citation = pgTable(
   (table) => [index("citation_message_idx").on(table.messageId)],
 );
 
+/**
+ * The documents a conversation has been pointed at.
+ *
+ * Attaching grants nothing. A document already belongs to the workspace and
+ * is already searched by every conversation that is allowed to see it; this
+ * row only says "read these first" for one conversation. Visibility is checked
+ * when the row is written and again on every read and every retrieval, so a
+ * document whose audience narrows afterwards simply stops answering here.
+ *
+ * The same document may be attached to any number of conversations, which is
+ * what lets a file uploaded once be reused rather than uploaded again.
+ */
+export const chatDocument = pgTable(
+  "chat_document",
+  {
+    chatId: text("chat_id")
+      .notNull()
+      .references(() => chat.id, { onDelete: "cascade" }),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => document.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.chatId, table.documentId] }),
+    // "Which conversations use this document" starts from the document.
+    index("chat_document_document_idx").on(table.documentId),
+  ],
+);
+
 export const chatRelations = relations(chat, ({ one, many }) => ({
   organization: one(organization, {
     fields: [chat.organizationId],
@@ -111,6 +142,15 @@ export const chatRelations = relations(chat, ({ one, many }) => ({
   }),
   user: one(user, { fields: [chat.userId], references: [user.id] }),
   messages: many(message),
+  documents: many(chatDocument),
+}));
+
+export const chatDocumentRelations = relations(chatDocument, ({ one }) => ({
+  chat: one(chat, { fields: [chatDocument.chatId], references: [chat.id] }),
+  document: one(document, {
+    fields: [chatDocument.documentId],
+    references: [document.id],
+  }),
 }));
 
 export const messageRelations = relations(message, ({ one, many }) => ({

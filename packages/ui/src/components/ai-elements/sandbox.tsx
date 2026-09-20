@@ -13,7 +13,7 @@ import {
 } from "@onirix/ui/components/tabs";
 import { cn } from "@onirix/ui/lib/utils";
 import type { ToolUIPart } from "ai";
-import { ChevronDownIcon, Code } from "lucide-react";
+import { ChevronDownIcon, Code } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 
 import { getStatusBadge } from "./tool";

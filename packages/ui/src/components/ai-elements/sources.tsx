@@ -7,7 +7,7 @@ import {
 } from "@onirix/ui/components/collapsible";
 import { cn } from "@onirix/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
-import { BookIcon, ChevronDownIcon } from "lucide-react";
+import { BookIcon, ChevronDownIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps } from "react";
 
 // Widened from `ComponentProps<"div">` so the Collapsible's own props —

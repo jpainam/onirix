@@ -22,10 +22,19 @@ const RETRIEVAL_CANDIDATES = 30;
 /** Chunks passed to the model. Bounded to keep the prompt affordable. */
 export const DEFAULT_CONTEXT_CHUNKS = 8;
 
+/**
+ * How many of the context slots a conversation's attached documents may take.
+ * Half, so that pointing a conversation at a file still leaves room for the
+ * rest of the workspace to answer what that file does not cover.
+ */
+const ATTACHED_SHARE = 0.5;
+
 export type RetrievalResult = {
   hits: SearchHit[];
   context: RetrievedContext[];
 };
+
+const chunkKey = (hit: SearchHit) => `${hit.document_id}:${hit.chunk_index}`;
 
 export async function retrieveContext(options: {
   queryText: string;
@@ -34,6 +43,12 @@ export async function retrieveContext(options: {
   index: DocumentIndex;
   embeddingCredentials: ProviderCredentials;
   embeddingModelId: string;
+  /**
+   * Documents the conversation was pointed at. They are searched on their own,
+   * under the same filters as everything else, and their passages go first. An
+   * id the caller cannot see matches nothing, so this can only narrow.
+   */
+  attachedDocumentIds?: string[];
 }): Promise<RetrievalResult> {
   const limit = options.limit ?? DEFAULT_CONTEXT_CHUNKS;
 
@@ -42,16 +57,35 @@ export async function retrieveContext(options: {
     value: options.queryText,
   });
 
-  const raw = await options.index.hybridSearch({
-    queryText: options.queryText,
-    queryVector: embedding,
-    numHits: RETRIEVAL_CANDIDATES,
-    filters: options.filters,
-  });
+  const attachedIds = options.attachedDocumentIds ?? [];
+  const [raw, rawAttached] = await Promise.all([
+    options.index.hybridSearch({
+      queryText: options.queryText,
+      queryVector: embedding,
+      numHits: RETRIEVAL_CANDIDATES,
+      filters: options.filters,
+    }),
+    attachedIds.length > 0
+      ? options.index.hybridSearch({
+          queryText: options.queryText,
+          queryVector: embedding,
+          numHits: RETRIEVAL_CANDIDATES,
+          filters: { ...options.filters, documentIds: attachedIds },
+        })
+      : [],
+  ]);
+
+  // Attached documents are not collapsed to one passage each: someone who
+  // attaches a single long file wants it read in depth, not sampled once.
+  const attached = rerank(rawAttached).slice(0, Math.ceil(limit * ATTACHED_SHARE));
+  const taken = new Set(attached.map(chunkKey));
 
   // One document should not occupy every citation slot, so collapse to the
   // best chunk per document before truncating.
-  const hits = dedupeByDocument(rerank(raw)).slice(0, limit);
+  const general = dedupeByDocument(rerank(raw)).filter(
+    (hit) => !taken.has(chunkKey(hit)),
+  );
+  const hits = [...attached, ...general].slice(0, limit);
 
   const context: RetrievedContext[] = hits.map((hit, i) => ({
     document: i + 1,

@@ -8,8 +8,8 @@ import {
   TooltipTrigger,
 } from "@onirix/ui/components/tooltip";
 import { cn } from "@onirix/ui/lib/utils";
-import type { LucideProps } from "lucide-react";
-import { BookmarkIcon } from "lucide-react";
+import type { LucideProps } from "@onirix/ui/lib/icons";
+import { BookmarkIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 
 export type CheckpointProps = HTMLAttributes<HTMLDivElement>;

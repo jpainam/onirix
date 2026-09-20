@@ -3,7 +3,7 @@
 import { Button } from "@onirix/ui/components/button";
 import { cn } from "@onirix/ui/lib/utils";
 import Ansi from "ansi-to-react";
-import { CheckIcon, CopyIcon, TerminalIcon, Trash2Icon } from "lucide-react";
+import { CheckIcon, CopyIcon, TerminalIcon, Trash2Icon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 import {
   createContext,

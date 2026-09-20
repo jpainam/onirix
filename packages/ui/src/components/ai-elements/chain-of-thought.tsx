@@ -8,8 +8,8 @@ import {
   CollapsibleTrigger,
 } from "@onirix/ui/components/collapsible";
 import { cn } from "@onirix/ui/lib/utils";
-import type { LucideIcon } from "lucide-react";
-import { BrainIcon, ChevronDownIcon, DotIcon } from "lucide-react";
+import type { LucideIcon } from "@onirix/ui/lib/icons";
+import { BrainIcon, ChevronDownIcon, DotIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
 

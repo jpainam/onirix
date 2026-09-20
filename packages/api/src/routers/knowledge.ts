@@ -276,6 +276,8 @@ export const knowledgeRouter = router({
          * file from.
          */
         collectionId: z.string().nullish(),
+        /** Narrows by title, for pickers that search as the reader types. */
+        query: z.string().trim().max(200).nullish(),
         limit: z.number().min(1).max(100).default(50),
       }),
     )
@@ -285,6 +287,11 @@ export const knowledgeRouter = router({
         visibleToPrincipal(ctx.principal.accessControlList),
       ];
       if (input.sourceId) conditions.push(eq(document.sourceId, input.sourceId));
+      if (input.query) {
+        // The wildcards in what was typed are literals, not patterns.
+        const escaped = input.query.replace(/[\\%_]/g, (match) => `\\${match}`);
+        conditions.push(ilike(document.title, `%${escaped}%`));
+      }
       if (input.collectionId === "unassigned") {
         conditions.push(isNull(document.collectionId));
       } else if (input.collectionId) {

@@ -7,7 +7,7 @@ import {
   CollapsibleTrigger,
 } from "@onirix/ui/components/collapsible";
 import { cn } from "@onirix/ui/lib/utils";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "@onirix/ui/lib/icons";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
 
