@@ -1,4 +1,4 @@
-import { CheckIcon, DownloadIcon } from "lucide-react";
+import { CheckIcon, DownloadIcon } from "@onirix/ui/lib/icons";
 
 import { ProviderLogo } from "@/components/provider-logo";
 

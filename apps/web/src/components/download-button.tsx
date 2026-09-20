@@ -1,10 +1,9 @@
 "use client";
 
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon } from "@onirix/ui/lib/icons";
 import { useSyncExternalStore } from "react";
 
-import { Button } from "@onirix/ui/components/button";
-
+import { CtaLink, CtaPlaceholder } from "@/components/cta-link";
 import type { DesktopDownload, DesktopOs } from "@/lib/desktop-downloads";
 
 function detectOs(): DesktopOs {
@@ -17,7 +16,7 @@ function detectOs(): DesktopOs {
 const subscribe = () => () => {};
 
 /**
- * The hero's one download button, for the visitor's own platform.
+ * The one download button, for the visitor's own platform.
  *
  * The server cannot know the platform, so it renders the macOS build and the
  * client corrects it after hydration. A browser does not reveal whether a Mac
@@ -35,17 +34,13 @@ export function DownloadButton({
   const download = downloads.find((entry) => entry.os === os) ?? downloads[0];
 
   if (!download || !published) {
-    return (
-      <Button size="lg" disabled>
-        Coming soon
-      </Button>
-    );
+    return <CtaPlaceholder>Coming soon</CtaPlaceholder>;
   }
 
   return (
-    <Button size="lg" nativeButton={false} render={<a href={download.href} download />}>
-      <DownloadIcon data-icon="inline-start" />
+    <CtaLink href={download.href} download>
+      <DownloadIcon className="size-4" aria-hidden />
       Download for {download.platform}
-    </Button>
+    </CtaLink>
   );
 }

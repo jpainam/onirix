@@ -1,29 +1,35 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   ArrowRightIcon,
-  CheckIcon,
+  DatabaseIcon,
   FileSearchIcon,
   FilesIcon,
-  LockIcon,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+  HistoryIcon,
+  RefreshCwIcon,
+  ShieldCheckIcon,
+} from "@onirix/ui/lib/icons";
 
-import { Button } from "@onirix/ui/components/button";
-
+import { ClosingCta } from "@/components/closing-cta";
+import { CtaLink } from "@/components/cta-link";
 import { DownloadButton } from "@/components/download-button";
-import { FeatureCards } from "@/components/feature-cards";
+import { Faq } from "@/components/faq";
+import { HomepageRail } from "@/components/homepage-rail";
+import { PrivacySection } from "@/components/privacy-section";
 import { ProductTour } from "@/components/product-tour";
-import { ProviderLogo } from "@/components/provider-logo";
+import { ProviderMarkRow } from "@/components/provider-mark-row";
 import {
   Container,
-  Eyebrow,
+  HairlineCell,
+  HairlineGrid,
   Heading,
   Lead,
+  MediaPanel,
   Section,
   SectionIntro,
 } from "@/components/section";
-import { SIGN_IN_URL, SIGN_UP_URL } from "@/lib/app-url";
+import { ChartMock, CitedAnswerMock, ModelsMock } from "@/components/showcase-mocks";
+import { SplitShowcase } from "@/components/split-showcase";
+import { SIGN_UP_URL } from "@/lib/app-url";
 import { desktopDownloads, desktopDownloadsPublished } from "@/lib/desktop-downloads";
 
 export const metadata: Metadata = {
@@ -36,21 +42,6 @@ export const metadata: Metadata = {
 // keeps its own answer); re-rendering each minute picks up a release soon
 // after it lands.
 export const revalidate = 60;
-
-const FACTS = [
-  { value: "5", label: "model providers, your credentials" },
-  { value: "9", label: "document formats indexed" },
-  { value: "3", label: "visibility levels, enforced in the query" },
-  { value: "0", label: "outbound requests with Ollama" },
-] as const;
-
-const PROVIDERS = [
-  { id: "openai", label: "OpenAI" },
-  { id: "anthropic", label: "Anthropic" },
-  { id: "google", label: "Google" },
-  { id: "xai", label: "xAI" },
-  { id: "ollama", label: "Ollama" },
-] as const;
 
 const PLATFORMS = [
   { platform: "macOS", detail: "Apple silicon and Intel" },
@@ -70,9 +61,10 @@ const STACK = [
 /**
  * The front door.
  *
- * Headline, then the product itself in the tour, then what it does, where it
- * runs, and how to get it. Nothing on this page is promised that the product
- * does not do today.
+ * Headline and the product itself, then the reason the product exists
+ * (privacy), then what it does, where it runs, and how to get it. The bands
+ * alternate paper, ink, stone and sand so no two neighbours share a colour.
+ * Nothing on this page is promised that the product does not do today.
  */
 export default async function LandingPage() {
   const downloads = desktopDownloads();
@@ -80,210 +72,205 @@ export default async function LandingPage() {
 
   return (
     <>
-      {/* Hero: one centred column, so the eye runs headline, promise, button.
-          The product visual is the tour right below it. */}
-      <Container className="pt-16 pb-14 sm:pt-24 sm:pb-20">
-        <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center">
-          <Heading as="h1" className="text-5xl leading-none tracking-hero sm:text-7xl lg:text-8xl">
-            Ask your company.
-            <br />
-            See the evidence.
-          </Heading>
-          <Lead className="max-w-2xl sm:text-xl">
-            Cited answers and source-backed charts from your private documents,
-            on the models and servers you choose.
-          </Lead>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button size="lg" nativeButton={false} render={<a href={SIGN_UP_URL} />}>
-              Create a workspace
-              <ArrowRightIcon data-icon="inline-end" />
-            </Button>
-            <Button variant="outline" size="lg" nativeButton={false} render={<Link href="/#self-host" />}>
-              Self-host
-            </Button>
+      {/* Hero, on paper: left-aligned, a modest headline, and the product. */}
+      <section id="overview" aria-labelledby="overview-heading" className="scroll-mt-14">
+        <Container className="pt-10 pb-14 sm:pt-16 sm:pb-20">
+          <div className="motion-safe:animate-rise-in">
+            <ProviderMarkRow />
+            <Heading
+              as="h1"
+              id="overview-heading"
+              className="mt-8 text-3xl sm:mt-10 sm:text-4xl"
+            >
+              Ask your company. See the evidence.
+            </Heading>
+            <Lead className="mt-5">
+              Private AI for your company&apos;s documents and databases. Cited
+              answers, from the model you choose, on servers you control.
+            </Lead>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <CtaLink href={SIGN_UP_URL}>
+                Create a workspace
+                <ArrowRightIcon className="size-4" aria-hidden />
+              </CtaLink>
+              <CtaLink href="/#self-host" variant="secondary">
+                Self-host it
+              </CtaLink>
+            </div>
           </div>
-          <ul className="text-ink-03 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm">
-            <HeroCheck>Your own model keys</HeroCheck>
-            <HeroCheck>Runs in Docker</HeroCheck>
-            <HeroCheck>Fully local with Ollama</HeroCheck>
-          </ul>
-          <ul className="flex items-center gap-2" aria-label="Supported model providers">
-            {PROVIDERS.map((provider) => (
-              <li key={provider.id} title={provider.label}>
-                <ProviderLogo id={provider.id} label={provider.label} className="size-9 rounded-xl" />
-                <span className="sr-only">{provider.label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </Container>
 
-      <ProductTour />
-
-      {/* Facts: the ink band the tour's horizon resolves into */}
-      <div className="dark bg-tint-01 text-foreground">
-        <Container>
-          <dl className="grid grid-cols-2 gap-y-8 py-12 md:grid-cols-4">
-            {FACTS.map((fact) => (
-              <div key={fact.label} className="flex flex-col gap-1 pr-6">
-                <dd className="font-mono text-4xl font-medium tabular-nums">{fact.value}</dd>
-                <dt className="text-ink-03 text-sm leading-5">{fact.label}</dt>
-              </div>
-            ))}
-          </dl>
+          <div id="tour" className="mt-10 scroll-mt-20 sm:mt-14">
+            <h2 className="sr-only">Onirix product tour</h2>
+            <ProductTour />
+          </div>
         </Container>
-      </div>
+      </section>
 
-      {/* Features */}
-      <Section id="features">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 text-center">
-          <Eyebrow>Features</Eyebrow>
-          <Heading className="text-4xl sm:text-5xl">Answers your team can check.</Heading>
-          <Lead>
-            Every answer and every number stays connected to the file it came
-            from.
-          </Lead>
-        </div>
+      {/* Privacy, on ink */}
+      <PrivacySection />
 
-        <div className="mt-16">
-          <FeatureCards />
-        </div>
+      {/* What it does, on paper */}
+      <Section id="features" labelledBy="features-heading">
+        <SectionIntro
+          eyebrow="Features"
+          title="Answers your team can check."
+          titleId="features-heading"
+          lead="Every answer and every number stays connected to the file it came from."
+        />
 
-        <div className="mt-20 grid gap-10 border-t pt-12 md:grid-cols-3">
-          <Claim
-            icon={FileSearchIcon}
-            title="Says when it does not know"
-            body="Missing evidence is stated. Two documents that disagree are surfaced, not quietly resolved."
-          />
-          <Claim
-            icon={LockIcon}
-            title="Permissions before retrieval"
-            body="Organization, team, or private visibility is enforced in the query. Admins do not read every team's documents."
-          />
-          <Claim
-            icon={FilesIcon}
-            title="The files you already have"
-            body="PDF, DOCX, XLSX, CSV, Markdown, HTML, JSON, and text, up to 50 MB each, with page and sheet anchors."
-          />
+        <div className="mt-4 divide-y">
+          <SplitShowcase
+            kicker="01 / citations"
+            title="Open the passage behind a claim"
+            description="Citation markers open the cited passage beside the answer, with a link to the original file. When two documents disagree, the answer says so."
+            tone="sand"
+          >
+            <CitedAnswerMock />
+          </SplitShowcase>
+
+          <SplitShowcase
+            kicker="02 / charts"
+            title="Chart the numbers in your files"
+            description="Spreadsheets and reports become bar, line, area, pie, or scatter charts. Each series cites its sheet, and you can open the table or copy the data."
+            reverse
+          >
+            <ChartMock />
+          </SplitShowcase>
+
+          <SplitShowcase
+            kicker="03 / models"
+            title="Pick the model, change it later"
+            description="Connect OpenAI, Anthropic, Google, xAI, or your own Ollama server. Enable several at once and set the default."
+            tone="sand"
+          >
+            <ModelsMock />
+          </SplitShowcase>
         </div>
       </Section>
 
-      {/* Self-host, on ink */}
-      <Section id="self-host" className="dark bg-tint-01 text-foreground">
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-center">
-          <div className="flex flex-col gap-6">
+      {/* The rest of the product, on stone */}
+      <Section id="details" labelledBy="details-heading" className="bg-tint-01">
+        <SectionIntro
+          eyebrow="In the box"
+          title="Built for the files a company really has."
+          titleId="details-heading"
+        />
+        <HairlineGrid className="mt-12">
+          <HairlineCell icon={FilesIcon} title="The formats you already use" aside="50 MB per file">
+            PDF, Word, Excel, CSV, Markdown, HTML, JSON, and text, indexed with
+            page and sheet anchors.
+          </HairlineCell>
+          <HairlineCell icon={RefreshCwIcon} title="Connected sources" aside="scheduled sync">
+            Websites, Google Drive, OneDrive, and S3 buckets sync on a schedule,
+            and only what changed is indexed again.
+          </HairlineCell>
+          <HairlineCell icon={DatabaseIcon} title="Databases, read-only" aside="PostgreSQL">
+            Ask questions of a connected database. Each query is a single
+            SELECT in a read-only transaction with a row cap and a timeout.
+          </HairlineCell>
+          <HairlineCell icon={FileSearchIcon} title="Says when it does not know">
+            Missing evidence is stated, and sourced facts are kept apart from
+            inference.
+          </HairlineCell>
+          <HairlineCell icon={HistoryIcon} title="Answers stay auditable">
+            Cited passages are saved with the conversation, so last month&apos;s
+            answer can still be checked after a reindex.
+          </HairlineCell>
+          <HairlineCell icon={ShieldCheckIcon} title="Roles apart from reading rights">
+            Owner, admin, member, and custom roles govern administration.
+            Reading a document depends on teams and visibility only.
+          </HairlineCell>
+        </HairlineGrid>
+      </Section>
+
+      {/* Self-host, on sand */}
+      <Section id="self-host" labelledBy="self-host-heading" className="bg-wash-sand">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
+          <div className="flex flex-col items-start gap-8">
             <SectionIntro
               eyebrow="Self-hosting"
               title="Your infrastructure. Your model."
-              lead="The whole stack runs in Docker on servers you operate. With Ollama, nothing leaves the network."
+              titleId="self-host-heading"
+              lead="One compose file brings up the application, its worker, and the four services they depend on."
             />
             <div className="flex flex-wrap gap-3">
-              <Button nativeButton={false} render={<Link href="/security" />}>
-                Read the security overview
-              </Button>
-              <Button variant="secondary" nativeButton={false} render={<Link href="/security#hosting" />}>
-                Hosting and providers
-              </Button>
+              <CtaLink href="/security#hosting">Hosting and providers</CtaLink>
+              <CtaLink href="/security" variant="secondary">
+                Security overview
+              </CtaLink>
             </div>
           </div>
 
-          <div className="bg-tint-02 overflow-hidden rounded-2xl border shadow-md">
-            <div className="flex items-center justify-between border-b px-4 py-2.5">
-              <span className="text-ink-03 font-mono text-xs">docker compose</span>
-              <span className="text-success flex items-center gap-1.5 font-mono text-xs">
-                <span className="bg-success size-1.5 rounded-full" aria-hidden />
-                6 services
-              </span>
+          <MediaPanel tone="paper">
+            <div className="bg-card overflow-hidden rounded-lg border sm:rounded-xl">
+              <div className="flex items-center justify-between border-b px-4 py-2.5">
+                <span className="text-ink-03 font-mono text-xs">docker compose</span>
+                <span className="text-success flex items-center gap-1.5 font-mono text-xs">
+                  <span className="bg-success size-1.5 rounded-full" aria-hidden />
+                  6 services
+                </span>
+              </div>
+              <ul className="divide-y">
+                {STACK.map((service) => (
+                  <li key={service.name} className="flex items-baseline gap-4 px-4 py-3">
+                    <span className="w-24 shrink-0 font-mono text-sm">{service.name}</span>
+                    <span className="text-ink-03 text-sm">{service.role}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="bg-tint-01 flex items-center gap-2 border-t px-4 py-3 font-mono text-xs">
+                <span className="text-ink-03">$</span>
+                <span>pnpm run docker:up</span>
+              </div>
             </div>
-            <ul className="divide-y">
-              {STACK.map((service) => (
-                <li key={service.name} className="flex items-center gap-4 px-4 py-3">
-                  <span className="text-ink-04 w-24 shrink-0 font-mono text-sm">{service.name}</span>
-                  <span className="text-ink-03 text-sm">{service.role}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="bg-tint-03 flex items-center gap-2 px-4 py-3 font-mono text-xs">
-              <span className="text-ink-02">$</span>
-              <span className="text-ink-04">pnpm run docker:up</span>
-            </div>
-          </div>
+          </MediaPanel>
         </div>
       </Section>
 
-      {/* Download */}
-      <Section id="download" className="bg-tint-01">
-        <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-          <div className="flex flex-col items-start gap-6">
+      {/* Desktop app, on paper */}
+      <Section id="download" labelledBy="download-heading">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
+          <div className="flex flex-col items-start gap-8">
             <SectionIntro
               eyebrow="Desktop app"
               title="Onirix on your desktop."
+              titleId="download-heading"
               lead="Your workspace in its own window. Open models download and run on the same computer."
             />
             <div className="flex flex-wrap items-center gap-3">
               <DownloadButton downloads={downloads} published={published} />
-              <Button variant="outline" size="lg" nativeButton={false} render={<Link href="/download" />}>
+              <CtaLink href="/download" variant="secondary">
                 All platforms
-              </Button>
+              </CtaLink>
             </div>
           </div>
 
-          <ul className="bg-card divide-y overflow-hidden rounded-2xl border">
-            {PLATFORMS.map((entry) => (
-              <li key={entry.platform} className="flex items-center justify-between gap-4 px-5 py-4">
-                <span className="font-medium">{entry.platform}</span>
-                <span className="text-ink-03 text-sm">{entry.detail}</span>
+          <MediaPanel>
+            <ul className="bg-card divide-y overflow-hidden rounded-lg border sm:rounded-xl">
+              {PLATFORMS.map((entry) => (
+                <li
+                  key={entry.platform}
+                  className="flex items-center justify-between gap-4 px-5 py-4"
+                >
+                  <span className="font-medium">{entry.platform}</span>
+                  <span className="text-ink-03 text-sm">{entry.detail}</span>
+                </li>
+              ))}
+              <li className="text-ink-03 bg-tint-01 px-5 py-3 font-mono text-xs">
+                A client for an Onirix server. Free.
               </li>
-            ))}
-            <li className="text-ink-03 bg-tint-01 px-5 py-3 font-mono text-xs">
-              A client for an Onirix server. Free.
-            </li>
-          </ul>
+            </ul>
+          </MediaPanel>
         </div>
       </Section>
 
-      {/* Closing */}
-      <Section
-        backdrop={
-          <div
-            className="paper-grid absolute inset-0 mask-t-from-20% mask-t-to-90%"
-            aria-hidden
-          />
-        }
-      >
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 text-center">
-          <Heading className="text-4xl sm:text-5xl">Ask your first question.</Heading>
-          <Lead>Create a workspace, connect a provider, upload a folder.</Lead>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button size="lg" nativeButton={false} render={<a href={SIGN_UP_URL} />}>
-              Create a workspace
-              <ArrowRightIcon data-icon="inline-end" />
-            </Button>
-            <Button variant="ghost" size="lg" nativeButton={false} render={<a href={SIGN_IN_URL} />}>
-              Sign in
-            </Button>
-          </div>
-        </div>
-      </Section>
+      {/* FAQ, on stone */}
+      <Faq />
+
+      {/* Closing, on ink */}
+      <ClosingCta />
+
+      <HomepageRail />
     </>
-  );
-}
-
-function HeroCheck({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-center gap-1.5">
-      <CheckIcon className="size-4 shrink-0" aria-hidden />
-      {children}
-    </li>
-  );
-}
-
-function Claim({ icon: Icon, title, body }: { icon: LucideIcon; title: string; body: string }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <Icon className="text-ink-03 size-5" strokeWidth={1.75} aria-hidden />
-      <h3 className="text-lg font-semibold tracking-heading">{title}</h3>
-      <p className="text-ink-03 leading-7">{body}</p>
-    </div>
   );
 }
