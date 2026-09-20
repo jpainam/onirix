@@ -86,7 +86,7 @@ export function SourcesView({
     <Page>
       <PageHeader
         title="Sources"
-        description="Where the workspace's knowledge comes from: connected systems and live databases. Files added by hand are under Documents."
+        description="Connected systems and live databases."
         action={
           canCreate ? (
             <Button onClick={() => setAdding(true)}>
@@ -102,7 +102,7 @@ export function SourcesView({
       <div className="flex flex-col gap-10">
         <Section
           title="Connected sources"
-          description="Read on a schedule. Open one to see its settings, its sync history and its documents."
+          description="Read on a schedule."
         >
           {connectors.isPending ? (
             <div className="flex justify-center py-8">
@@ -117,8 +117,8 @@ export function SourcesView({
                 <EmptyTitle>Nothing connected yet</EmptyTitle>
                 <EmptyDescription>
                   {canCreate
-                    ? "Connect a website, Google Drive, OneDrive or an S3 bucket, and Onirix keeps it indexed."
-                    : "An administrator has not connected any external source."}
+                    ? "Connect a website, Google Drive, OneDrive or an S3 bucket."
+                    : "No external source is connected."}
                 </EmptyDescription>
               </EmptyHeader>
               {canCreate ? (

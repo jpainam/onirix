@@ -94,7 +94,7 @@ export function TeamView({
 
       <PageHeader
         title={name}
-        description={`${members.length} ${members.length === 1 ? "member" : "members"}${joined ? " · you are one of them" : ""}. Everyone here reaches what ${name} is shared with.`}
+        description={`${members.length} ${members.length === 1 ? "member" : "members"}${joined ? " · you are one of them" : ""}`}
         action={
           canManage ? (
             <Button onClick={() => setAdding(true)}>

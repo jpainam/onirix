@@ -230,7 +230,7 @@ export function SourceView({
 
         <Section
           title="Visible to"
-          description="Every document this source brings in takes this audience. Change it under Edit."
+          description="Applies to every document from this source."
         >
           <div className="bg-card flex items-center gap-3 rounded-xl border px-4 py-3.5 text-sm">
             <SourceIcon type={data.type} />
@@ -293,7 +293,7 @@ export function SourceView({
         </Section>
 
         {canDelete ? (
-          <Section title="Remove" description="Takes the source and every document it brought in out of search.">
+          <Section title="Remove" description="Removes the source and its documents from search.">
             <div>
               <Button variant="outline" onClick={() => setRemoving(true)}>
                 <Trash2Icon className="text-destructive" />

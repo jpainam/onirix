@@ -12,7 +12,7 @@ export default async function AppearancePage() {
     <Page>
       <PageHeader
         title="Appearance"
-        description="Customize the theme, typography and contrast. Kept in this browser, not shared with your team."
+        description="Theme, typography and contrast, kept in this browser."
         action={<RestoreAppearanceButton />}
       />
       <AppearanceView />

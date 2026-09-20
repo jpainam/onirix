@@ -45,7 +45,7 @@ export function SkillsView({ canManage }: { canManage: boolean }) {
     <Page>
       <PageHeader
         title="Skills"
-        description="Instructions the assistant follows when it answers. Built-in skills ship with Onirix; the rest are your workspace's own."
+        description="Instructions the assistant follows when it answers."
       />
       <SkillsSettings
         skills={skills.data ?? null}

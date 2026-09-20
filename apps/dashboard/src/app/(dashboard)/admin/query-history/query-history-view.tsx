@@ -142,7 +142,7 @@ export function QueryHistoryView() {
     <Page wide className="max-w-6xl">
       <PageHeader
         title="Query History"
-        description="Every conversation in this workspace, and what people asked for."
+        description="Every conversation in this workspace."
       />
 
       <Section

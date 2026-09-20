@@ -52,7 +52,7 @@ export function TeamsView({ canManage }: { canManage: boolean }) {
     <Page>
       <PageHeader
         title="Teams"
-        description="Teams group users (Engineering, Sales, HR) and decide what each can reach."
+        description="Group users and decide what each team can reach."
         action={
           canManage ? (
             <Button onClick={() => setCreating(true)}>

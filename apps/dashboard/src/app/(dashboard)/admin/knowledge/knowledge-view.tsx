@@ -125,7 +125,7 @@ export function KnowledgeView({
     <Page wide>
       <PageHeader
         title="Knowledge"
-        description="Collections are how indexed documents are grouped by subject, such as Engineering or HR, whatever source they arrived from."
+        description="Group indexed documents by subject."
         action={
           canCreate ? (
             <Button onClick={() => setCreating(true)}>
@@ -139,13 +139,13 @@ export function KnowledgeView({
       <div className="flex flex-col gap-10">
         <Notice
           icon={LayersIcon}
-          title="A collection groups knowledge, it does not restrict it"
-          description="Who can read a document is decided by its visibility on the Sources page. Filing it here changes what it is about, never who can reach it."
+          title="Collections group, they do not restrict"
+          description="Who can read a document is set on the Sources page."
         />
 
         <Section
           title="Collections"
-          description="A document belongs to one collection at a time, so filing it in a second moves it out of the first."
+          description="A document sits in one collection at a time."
         >
           {collections.isPending ? (
             <div className="flex justify-center py-8">
@@ -160,8 +160,8 @@ export function KnowledgeView({
                 <EmptyTitle>No collections yet</EmptyTitle>
                 <EmptyDescription>
                   {canCreate
-                    ? "Create one for a subject your workspace asks about, then file documents into it."
-                    : "An administrator has not grouped this workspace's knowledge yet."}
+                    ? "Create one per subject, then file documents into it."
+                    : "Nothing has been grouped yet."}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -192,7 +192,7 @@ export function KnowledgeView({
         {(collections.data?.length ?? 0) > 0 && unfiled.length > 0 ? (
           <Section
             title="Not in a collection"
-            description="These documents are still searchable. They are just not grouped under a subject yet."
+            description="Still searchable, just ungrouped."
           >
             <div className="bg-card flex flex-wrap gap-1.5 rounded-xl border px-4 py-3.5">
               {unfiled.slice(0, 40).map((doc) => (
@@ -243,8 +243,7 @@ export function KnowledgeView({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The documents in it are kept and stay searchable. They simply stop
-              being grouped under this subject.
+              Its documents are kept and stay searchable.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
