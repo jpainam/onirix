@@ -10,6 +10,7 @@
   "scripts": {
     "bundle": "node scripts/bundle.mjs",
     "start": "node scripts/bundle.mjs && electron .",
+    "watch": "node scripts/dev.mjs",
     "check-types": "tsc --noEmit",
     "icon": "node scripts/icon.mjs",
     "pack": "node scripts/bundle.mjs && electron-builder --dir",

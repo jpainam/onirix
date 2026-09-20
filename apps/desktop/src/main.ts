@@ -25,6 +25,7 @@ import {
   protocol,
   shell,
 } from "electron";
+import { watch } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 
@@ -385,6 +386,30 @@ const MIME_TYPES: Record<string, string> = {
   ".svg": "image/svg+xml",
   ".png": "image/png",
 };
+
+/**
+ * Development only: loads the local window again when its build changes.
+ *
+ * `pnpm dev:desktop` (scripts/dev.mjs) rebuilds `dist/renderer` as the sources are
+ * saved. The page cannot be told from outside, since it has no network, but
+ * the shell can see the directory. One save writes several files (the script,
+ * its chunks, the stylesheet), so the reload waits for them to stop arriving.
+ */
+function watchRenderer(): void {
+  if (app.isPackaged) return;
+  let pending: NodeJS.Timeout | null = null;
+  try {
+    watch(join(__dirname, "renderer"), { recursive: true }, (_event, file) => {
+      // Source maps change with every build and the page never reads them.
+      if (file?.endsWith(".map")) return;
+      if (pending) clearTimeout(pending);
+      pending = setTimeout(() => local?.webContents.reloadIgnoringCache(), 200);
+    });
+  } catch {
+    // Recursive watching is not everywhere (older Linux). Without it the app
+    // runs as it always did, and a change takes a restart.
+  }
+}
 
 /**
  * Serves `dist/renderer`, and only that.
@@ -928,6 +953,7 @@ if (!app.requestSingleInstanceLock()) {
     buildMenu();
     syncLoginItem();
     watchForUpdates();
+    watchRenderer();
     void runtime.resume();
     void launch();
 

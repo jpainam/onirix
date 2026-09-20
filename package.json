@@ -12,7 +12,7 @@
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "dev:native": "turbo run dev -F native --",
-    "dev:desktop": "pnpm --filter desktop start",
+    "dev:desktop": "pnpm --filter desktop run watch",
     "desktop:dist": "pnpm --filter desktop dist",
     "dev:web": "turbo run dev -F web --",
     "dev:dashboard": "pnpm infra:up && turbo run dev -F dashboard --",

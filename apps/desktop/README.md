@@ -24,6 +24,11 @@ pnpm dev:desktop    # the desktop app, in local mode
 pnpm dev            # optional: an Onirix server, on http://localhost:3001
 ```
 
+`pnpm dev:desktop` keeps building (`scripts/dev.mjs`). A change under
+`renderer/`, or to a shared component it imports, reloads the local window. A
+change under `src/` restarts Electron. `pnpm --filter desktop start` is the
+old way: one build, no watching.
+
 There is no "which server?" screen. A fresh install opens the local window
 with the setup dialog over it. A saved server is probed at launch
 (`/api/health`): if it answers, its workspace opens; if it does not, the local
