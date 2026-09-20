@@ -58,6 +58,11 @@ export type BrowserProgress = {
   totalBytes: number
 }
 
+export type BrowserBlocked = {
+  message: React.ReactNode
+  action?: React.ReactNode
+}
+
 export type BrowserModelState = {
   /** Size on disk once downloaded, null while it is not. */
   installedBytes: number | null
@@ -181,7 +186,7 @@ export function ModelBrowser({
    * disabled, so it is plain that the step is one for the page and not one per
    * model.
    */
-  blocked?: { message: React.ReactNode; action?: React.ReactNode } | null
+  blocked?: BrowserBlocked | null
   /** Someone who may look but not download or remove. */
   readOnly?: boolean
   error?: string | null

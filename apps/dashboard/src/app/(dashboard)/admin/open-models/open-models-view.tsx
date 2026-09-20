@@ -9,7 +9,11 @@ import { toast } from "sonner";
 import { browseOpenModels } from "@onirix/llm/open-models";
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
-import { type BrowserModel, ModelBrowser } from "@onirix/ui/components/model-browser";
+import {
+  type BrowserBlocked,
+  type BrowserModel,
+  ModelBrowser,
+} from "@onirix/ui/components/model-browser";
 import { Spinner } from "@onirix/ui/components/spinner";
 
 import { PageHeader } from "@/components/page";
@@ -59,7 +63,7 @@ export function OpenModelsView({ canManage }: { canManage: boolean }) {
     );
   }
 
-  let blocked: { message: ReactNode; action?: ReactNode } | null = null;
+  let blocked: BrowserBlocked | null = null;
   if (data?.state === "none") {
     blocked = {
       message:
