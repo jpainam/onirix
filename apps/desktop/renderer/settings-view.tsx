@@ -220,11 +220,7 @@ export function SettingsView({
               description="Your own documents work here. Shared company knowledge, connectors, teams and database sources live on an Onirix server."
             >
               <div className={cn("p-4", TILE)}>
-                <ServerForm
-                  formId="settings-server"
-                  defaultAddress={state.suggestedServer}
-                  showSubmit
-                />
+                <ServerForm defaultAddress={state.suggestedServer} />
               </div>
             </Section>
           ) : null}

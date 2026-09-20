@@ -70,10 +70,12 @@ export function App() {
   /** The answer so far, for every chat that has one arriving. */
   const [streams, setStreams] = useState<Record<string, string>>({});
   const [failures, setFailures] = useState<Record<string, ChatFailure>>({});
-  const [onboarding, setOnboarding] = useState<{ open: boolean; start: OnboardingStart }>({
-    open: false,
-    start: "welcome",
-  });
+  /** `run` counts openings: it keys the dialog, so each one starts fresh. */
+  const [onboarding, setOnboarding] = useState<{
+    open: boolean;
+    start: OnboardingStart;
+    run: number;
+  }>({ open: false, start: "welcome", run: 0 });
 
   const activeChatId = view.kind === "chat" ? view.chatId : null;
   // Events arrive outside React's render cycle and need the current value.
@@ -116,6 +118,10 @@ export function App() {
     });
   }, []);
 
+  const openOnboarding = useCallback((start: OnboardingStart) => {
+    setOnboarding((current) => ({ open: true, start, run: current.run + 1 }));
+  }, []);
+
   const applyIntent = useCallback((intent: ShellIntent) => {
     if (intent.type === "unreachable") setUnreachable(intent.origin);
     else setServerFormOpen(true);
@@ -126,12 +132,12 @@ export function App() {
       const loaded = await bridge.state();
       setState(loaded);
       // First launch: the app is already there behind it, and usable.
-      if (!loaded.onboardingCompleted) setOnboarding({ open: true, start: "welcome" });
+      if (!loaded.onboardingCompleted) openOnboarding("welcome");
       if (loaded.intent) applyIntent(loaded.intent);
     })();
     void refreshChats();
     void refreshLibrary();
-  }, [bridge, refreshChats, refreshLibrary, applyIntent]);
+  }, [bridge, refreshChats, refreshLibrary, applyIntent, openOnboarding]);
 
   useEffect(() => bridge.shell.onIntent(applyIntent), [bridge, applyIntent]);
 
@@ -360,8 +366,8 @@ export function App() {
             onLibraryChange={refreshLibrary}
             onModelChange={setModel}
             onAppearanceChange={setAppearance}
-            onChangeModel={() => setOnboarding({ open: true, start: "choice" })}
-            onReplaySetup={() => setOnboarding({ open: true, start: "welcome" })}
+            onChangeModel={() => openOnboarding("choice")}
+            onReplaySetup={() => openOnboarding("welcome")}
           />
         ) : (
           <ChatView
@@ -383,7 +389,7 @@ export function App() {
             onCancel={() => {
               if (activeChatId) void bridge.chats.cancel(activeChatId);
             }}
-            onSetUpModel={() => setOnboarding({ open: true, start: "choice" })}
+            onSetUpModel={() => openOnboarding("choice")}
           />
         )}
       </SidebarInset>
@@ -413,11 +419,12 @@ export function App() {
           </ModalDescription>
         </div>
         {serverFormOpen ? (
-          <ServerForm formId="change-server" defaultAddress={state.suggestedServer} showSubmit />
+          <ServerForm defaultAddress={state.suggestedServer} />
         ) : null}
       </Modal>
 
       <OnboardingDialog
+        key={onboarding.run}
         open={onboarding.open}
         start={onboarding.start}
         state={state}

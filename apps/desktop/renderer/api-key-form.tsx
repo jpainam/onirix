@@ -6,19 +6,22 @@
  * it was pasted into, with a sentence about what is wrong. Once saved it never
  * comes back to this page: the field is for entering a key, not for reading
  * one.
+ *
+ * The form's state lives in `ApiKeyFormProvider`, not in the fields, so a
+ * button drawn somewhere else (the setup dialog's footer) reads the same
+ * `busy` and `ready` the fields do, and the state outlives the fields when a
+ * saved key moves the dialog on.
  */
 import { EyeIcon, EyeOffIcon } from "@onirix/ui/lib/icons";
-import { type FormEvent, useEffect, useState } from "react";
+import { createContext, type FormEvent, type ReactNode, useContext, useId, useState } from "react";
 
 import { PROVIDERS } from "@onirix/llm/catalog";
-import { Button } from "@onirix/ui/components/button";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
 } from "@onirix/ui/components/input-group";
-import { Spinner } from "@onirix/ui/components/spinner";
 import { cn } from "@onirix/ui/lib/utils";
 
 import { API_PROVIDER_IDS, type ApiProviderId, LIMITS, type ModelChoice } from "../src/local-bridge";
@@ -26,39 +29,46 @@ import { API_PROVIDER_IDS, type ApiProviderId, LIMITS, type ModelChoice } from "
 import { errorMessage, getBridge } from "./bridge";
 import { OPTION } from "./tokens";
 
-export function ApiKeyForm({
-  formId,
-  initialProvider,
-  onSaved,
-  onBusyChange,
-  onReadyChange,
-  showSubmit = false,
-}: {
-  /** Lets a button outside the form (the setup dialog's footer) submit it. */
+type ApiKeyFormState = {
+  /** What a submit button outside the form points its `form` attribute at. */
   formId: string;
+  provider: ApiProviderId;
+  model: string;
+  apiKey: string;
+  busy: boolean;
+  ready: boolean;
+  error: string | null;
+  chooseProvider: (provider: ApiProviderId) => void;
+  setModel: (model: string) => void;
+  setApiKey: (apiKey: string) => void;
+  submit: (event: FormEvent) => Promise<void>;
+};
+
+const ApiKeyFormContext = createContext<ApiKeyFormState | null>(null);
+
+export function useApiKeyForm(): ApiKeyFormState {
+  const form = useContext(ApiKeyFormContext);
+  if (!form) throw new Error("useApiKeyForm must be used inside ApiKeyFormProvider");
+  return form;
+}
+
+export function ApiKeyFormProvider({
+  initialProvider = "openai",
+  onSaved,
+  children,
+}: {
   initialProvider?: ApiProviderId;
   onSaved: (choice: ModelChoice) => void;
-  onBusyChange?: (busy: boolean) => void;
-  onReadyChange?: (ready: boolean) => void;
-  showSubmit?: boolean;
+  children: ReactNode;
 }) {
-  const [provider, setProvider] = useState<ApiProviderId>(initialProvider ?? "openai");
-  const [model, setModel] = useState(PROVIDERS[initialProvider ?? "openai"].chatModels[0]?.id ?? "");
+  const formId = useId();
+  const [provider, setProvider] = useState<ApiProviderId>(initialProvider);
+  const [model, setModel] = useState(PROVIDERS[initialProvider].chatModels[0]?.id ?? "");
   const [apiKey, setApiKey] = useState("");
-  const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const spec = PROVIDERS[provider];
   const ready = apiKey.trim().length > 0 && model.length > 0;
-
-  useEffect(() => onReadyChange?.(ready), [onReadyChange, ready]);
-  // A saved key moves the dialog on and unmounts this form before `busy` can
-  // settle, so leaving reports it too: the footer must not keep spinning.
-  useEffect(() => {
-    onBusyChange?.(busy);
-    return () => onBusyChange?.(false);
-  }, [onBusyChange, busy]);
 
   function chooseProvider(next: ApiProviderId) {
     setProvider(next);
@@ -85,8 +95,40 @@ export function ApiKeyForm({
   }
 
   return (
-    <form id={formId} onSubmit={(event) => void submit(event)} className="flex flex-col gap-5">
-      <fieldset className="flex flex-col gap-2" disabled={busy}>
+    <ApiKeyFormContext.Provider
+      value={{
+        formId,
+        provider,
+        model,
+        apiKey,
+        busy,
+        ready,
+        error,
+        chooseProvider,
+        setModel,
+        setApiKey,
+        submit,
+      }}
+    >
+      {children}
+    </ApiKeyFormContext.Provider>
+  );
+}
+
+export function ApiKeyFields() {
+  const form = useApiKeyForm();
+  const [reveal, setReveal] = useState(false);
+
+  const spec = PROVIDERS[form.provider];
+  const keyId = `${form.formId}-key`;
+
+  return (
+    <form
+      id={form.formId}
+      onSubmit={(event) => void form.submit(event)}
+      className="flex flex-col gap-5"
+    >
+      <fieldset className="flex flex-col gap-2" disabled={form.busy}>
         <legend className="mb-2 text-sm font-medium">Provider</legend>
         <div role="radiogroup" aria-label="Provider" className="grid grid-cols-4 gap-2.5">
           {API_PROVIDER_IDS.map((id) => (
@@ -94,8 +136,8 @@ export function ApiKeyForm({
               key={id}
               type="button"
               role="radio"
-              aria-checked={provider === id}
-              onClick={() => chooseProvider(id)}
+              aria-checked={form.provider === id}
+              onClick={() => form.chooseProvider(id)}
               className={cn(OPTION, "flex h-12 items-center justify-center px-3 font-medium")}
             >
               {PROVIDERS[id].label}
@@ -105,21 +147,21 @@ export function ApiKeyForm({
       </fieldset>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor={`${formId}-key`} className="text-sm font-medium">
+        <label htmlFor={keyId} className="text-sm font-medium">
           {spec.label} API key
         </label>
         <InputGroup>
           <InputGroupInput
-            id={`${formId}-key`}
+            id={keyId}
             type={reveal ? "text" : "password"}
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
+            value={form.apiKey}
+            onChange={(event) => form.setApiKey(event.target.value)}
             maxLength={LIMITS.apiKeyChars}
             autoComplete="off"
             spellCheck={false}
-            disabled={busy}
+            disabled={form.busy}
             placeholder="Paste your key"
-            aria-invalid={error ? true : undefined}
+            aria-invalid={form.error ? true : undefined}
             className="font-mono placeholder:font-sans"
           />
           <InputGroupAddon align="inline-end">
@@ -137,7 +179,7 @@ export function ApiKeyForm({
         </p>
       </div>
 
-      <fieldset className="flex flex-col gap-2" disabled={busy}>
+      <fieldset className="flex flex-col gap-2" disabled={form.busy}>
         <legend className="mb-2 text-sm font-medium">Model</legend>
         <div role="radiogroup" aria-label="Model" className="flex flex-wrap gap-2">
           {spec.chatModels.map((entry) => (
@@ -145,8 +187,8 @@ export function ApiKeyForm({
               key={entry.id}
               type="button"
               role="radio"
-              aria-checked={model === entry.id}
-              onClick={() => setModel(entry.id)}
+              aria-checked={form.model === entry.id}
+              onClick={() => form.setModel(entry.id)}
               className={cn(OPTION, "h-9 rounded-full px-4")}
             >
               {entry.label}
@@ -155,19 +197,10 @@ export function ApiKeyForm({
         </div>
       </fieldset>
 
-      {error ? (
+      {form.error ? (
         <p className="text-destructive text-sm select-text" role="alert">
-          {error}
+          {form.error}
         </p>
-      ) : null}
-
-      {showSubmit ? (
-        <div>
-          <Button type="submit" className="rounded-full px-4" disabled={!ready || busy}>
-            {busy ? <Spinner /> : null}
-            {busy ? "Checking the key" : "Check and save"}
-          </Button>
-        </div>
       ) : null}
     </form>
   );

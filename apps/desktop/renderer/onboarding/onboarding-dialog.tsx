@@ -15,19 +15,19 @@
  * steps: the only motion is the dialog arriving and leaving.
  */
 import { CheckIcon } from "@onirix/ui/lib/icons";
-import { type RefObject, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { OnirixMark } from "@onirix/ui/brand/onirix-mark";
 import { cn } from "@onirix/ui/lib/utils";
 
 import type { LocalState, ModelChoice } from "../../src/local-bridge";
 
-import { ApiKeyForm } from "../api-key-form";
+import { ApiKeyFields, ApiKeyFormProvider, useApiKeyForm } from "../api-key-form";
 import { errorMessage, getBridge } from "../bridge";
 import { Modal, ModalDescription, ModalTitle } from "../modal";
 import { describeChoice } from "../model-label";
 import { ModelStore } from "../model-store";
-import { ServerForm } from "../server-form";
+import { ServerFields, ServerFormProvider, useServerForm } from "../server-form";
 import { INSET } from "./layout";
 import { StepFooter } from "./step-footer";
 import { ChoiceStep, DoneStep, type SetupPath, WelcomeStep } from "./steps";
@@ -64,29 +64,32 @@ const DESCRIPTIONS: Record<Exclude<Step, "done">, string> = {
   server: "An Onirix server adds shared company knowledge, connectors, teams and database sources.",
 };
 
-const API_FORM = "onboarding-api-key";
-const SERVER_FORM = "onboarding-server";
-
-function Flow({
-  start,
+function Setup({
+  open,
   state,
+  step,
+  onStepChange,
   onModelChange,
-  onFinish,
-  onBusyChange,
-  busy,
-  primaryRef,
+  onClose,
 }: {
-  primaryRef: RefObject<HTMLButtonElement | null>;
-  start: OnboardingStart;
+  open: boolean;
   state: LocalState;
+  step: Step;
+  onStepChange: (step: Step) => void;
   onModelChange: (choice: ModelChoice) => void;
-  onFinish: () => void;
-  onBusyChange: (busy: boolean) => void;
-  busy: boolean;
+  onClose: () => void;
 }) {
-  const [step, setStep] = useState<Step>(start);
+  const apiForm = useApiKeyForm();
+  const serverForm = useServerForm();
   const [path, setPath] = useState<SetupPath>("local");
-  const [formReady, setFormReady] = useState(false);
+  // Focus opens on the way forward, not on "Skip setup", which is merely the
+  // first control in the markup. Enter then does what the eye expects.
+  const primaryRef = useRef<HTMLButtonElement>(null);
+
+  // A key being checked or a server being probed cannot be called back. If the
+  // dialog closed under one, it would report a skip and then save a model
+  // anyway, so dismissal waits the few seconds it takes to settle.
+  const busy = apiForm.busy || serverForm.busy;
 
   const hero = step === "welcome" || step === "done";
   const description =
@@ -107,13 +110,13 @@ function Flow({
   const footer = (() => {
     switch (step) {
       case "welcome":
-        return { primaryLabel: "Get started", onPrimary: () => setStep("choice") };
+        return { primaryLabel: "Get started", onPrimary: () => onStepChange("choice") };
       case "choice":
-        return { primaryLabel: "Continue", onPrimary: () => setStep(path) };
+        return { primaryLabel: "Continue", onPrimary: () => onStepChange(path) };
       case "local":
         return {
           primaryLabel: "Continue",
-          onPrimary: () => setStep("done"),
+          onPrimary: () => onStepChange("done"),
           // Continue means "this is the model I will use", so it waits for one.
           primaryDisabled: state.model?.kind !== "local",
         };
@@ -121,96 +124,94 @@ function Flow({
         return {
           primaryLabel: "Check and save",
           primaryBusyLabel: "Checking the key",
-          primaryForm: API_FORM,
-          primaryDisabled: !formReady,
+          primaryForm: apiForm.formId,
+          primaryDisabled: !apiForm.ready,
         };
       case "server":
         return {
           primaryLabel: "Connect",
           primaryBusyLabel: "Connecting",
-          primaryForm: SERVER_FORM,
-          primaryDisabled: !formReady,
+          primaryForm: serverForm.formId,
+          primaryDisabled: !serverForm.ready,
         };
       case "done":
-        return { primaryLabel: "Start using Onirix", onPrimary: onFinish };
+        return { primaryLabel: "Start using Onirix", onPrimary: onClose };
     }
   })();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className={cn("flex flex-col gap-1.5 pt-8", INSET, hero && "items-center text-center")}>
-        {step === "welcome" ? <OnirixMark className="mb-3.5 size-11" /> : null}
-        {step === "done" ? (
-          <span
-            aria-hidden
-            className="bg-success-subtle text-success mb-3.5 flex size-11 items-center justify-center rounded-full"
-          >
-            <CheckIcon className="size-5" />
-          </span>
-        ) : null}
-        {hero ? null : (
-          <span className="text-ink-02 text-xs font-medium tracking-[0.04em] uppercase">
-            Step {step === "choice" ? 1 : 2} of 2
-          </span>
-        )}
-        <ModalTitle className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
-          {TITLES[step]}
-        </ModalTitle>
-        <ModalDescription className="text-ink-03 max-w-[560px] text-[15px] leading-normal">
-          {description}
-        </ModalDescription>
-      </div>
+    <Modal
+      initialFocus={primaryRef}
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && !busy) onClose();
+      }}
+      className="h-[540px] w-[800px]"
+    >
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          className={cn("flex flex-col gap-1.5 pt-8", INSET, hero && "items-center text-center")}
+        >
+          {step === "welcome" ? <OnirixMark className="mb-3.5 size-11" /> : null}
+          {step === "done" ? (
+            <span
+              aria-hidden
+              className="bg-success-subtle text-success mb-3.5 flex size-11 items-center justify-center rounded-full"
+            >
+              <CheckIcon className="size-5" />
+            </span>
+          ) : null}
+          {hero ? null : (
+            <span className="text-ink-02 text-xs font-medium tracking-[0.04em] uppercase">
+              Step {step === "choice" ? 1 : 2} of 2
+            </span>
+          )}
+          <ModalTitle className="text-[22px] leading-tight font-semibold tracking-[-0.01em]">
+            {TITLES[step]}
+          </ModalTitle>
+          <ModalDescription className="text-ink-03 max-w-[560px] text-[15px] leading-normal">
+            {description}
+          </ModalDescription>
+        </div>
 
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-y-auto pt-6 pb-1",
-          INSET,
-          hero && "justify-center pb-6",
-        )}
-      >
-        {step === "welcome" ? <WelcomeStep /> : null}
-        {step === "choice" ? (
-          <ChoiceStep value={path} onChange={setPath} onConfirm={() => setStep(path)} />
-        ) : null}
-        {step === "local" ? <ModelStore choice={state.model} onUse={useLocalModel} /> : null}
-        {step === "api" ? (
-          <ApiKeyForm
-            formId={API_FORM}
-            onBusyChange={onBusyChange}
-            onReadyChange={setFormReady}
-            onSaved={(choice) => {
-              onModelChange(choice);
-              setStep("done");
-            }}
-          />
-        ) : null}
-        {step === "server" ? (
-          <ServerForm
-            formId={SERVER_FORM}
-            defaultAddress={state.suggestedServer}
-            onBusyChange={onBusyChange}
-            onReadyChange={setFormReady}
-          />
-        ) : null}
-        {step === "done" ? <DoneStep /> : null}
-      </div>
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-y-auto pt-6 pb-1",
+            INSET,
+            hero && "justify-center pb-6",
+          )}
+        >
+          {step === "welcome" ? <WelcomeStep /> : null}
+          {step === "choice" ? (
+            <ChoiceStep value={path} onChange={setPath} onConfirm={() => onStepChange(path)} />
+          ) : null}
+          {step === "local" ? <ModelStore choice={state.model} onUse={useLocalModel} /> : null}
+          {step === "api" ? <ApiKeyFields /> : null}
+          {step === "server" ? <ServerFields /> : null}
+          {step === "done" ? <DoneStep /> : null}
+        </div>
 
-      <StepFooter
-        position={positionOf(step)}
-        positions={POSITIONS}
-        showBack={step !== "welcome" && step !== "done"}
-        showSkip={step !== "done"}
-        onBack={() => setStep(step === "choice" ? "welcome" : "choice")}
-        onSkip={onFinish}
-        primaryBusy={busy}
-        navigationLocked={busy}
-        primaryRef={primaryRef}
-        {...footer}
-      />
-    </div>
+        <StepFooter
+          position={positionOf(step)}
+          positions={POSITIONS}
+          showBack={step !== "welcome" && step !== "done"}
+          showSkip={step !== "done"}
+          onBack={() => onStepChange(step === "choice" ? "welcome" : "choice")}
+          onSkip={onClose}
+          primaryBusy={busy}
+          navigationLocked={busy}
+          primaryRef={primaryRef}
+          {...footer}
+        />
+      </div>
+    </Modal>
   );
 }
 
+/**
+ * Mount it under a key that changes with every opening, so a replay from
+ * Settings starts at its first step with empty forms.
+ */
 export function OnboardingDialog({
   open,
   start,
@@ -225,35 +226,28 @@ export function OnboardingDialog({
   /** Finished, skipped, or dismissed: the caller records all three alike. */
   onClose: () => void;
 }) {
-  // A key being checked or a server being probed cannot be called back. If the
-  // dialog closed under one, it would report a skip and then save a model
-  // anyway, so dismissal waits the few seconds it takes to settle.
-  const [busy, setBusy] = useState(false);
-  // Focus opens on the way forward, not on "Skip setup", which is merely the
-  // first control in the markup. Enter then does what the eye expects.
-  const primaryRef = useRef<HTMLButtonElement>(null);
+  const [step, setStep] = useState<Step>(start);
 
+  // The forms' state sits above the dialog and its steps: the footer button
+  // and the dismissal guard read it directly, and it is still there to settle
+  // when a saved key moves the flow on to "done".
   return (
-    <Modal
-      initialFocus={primaryRef}
-      open={open}
-      onOpenChange={(next) => {
-        if (!next && !busy) onClose();
+    <ApiKeyFormProvider
+      onSaved={(choice) => {
+        onModelChange(choice);
+        setStep("done");
       }}
-      className="h-[540px] w-[800px]"
     >
-      {/* Mounted per open, so a replay from Settings starts at its first step. */}
-      {open ? (
-        <Flow
-          primaryRef={primaryRef}
-          start={start}
+      <ServerFormProvider defaultAddress={state.suggestedServer}>
+        <Setup
+          open={open}
           state={state}
+          step={step}
+          onStepChange={setStep}
           onModelChange={onModelChange}
-          onFinish={onClose}
-          onBusyChange={setBusy}
-          busy={busy}
+          onClose={onClose}
         />
-      ) : null}
-    </Modal>
+      </ServerFormProvider>
+    </ApiKeyFormProvider>
   );
 }
