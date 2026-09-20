@@ -104,10 +104,7 @@ export function DocumentsPane({
         <h3 className="text-ink-02 text-xs font-medium">In this session</h3>
 
         {attached.length === 0 ? (
-          <p className="text-ink-03 text-sm leading-6">
-            Attach documents and answers will read them first, and cite the passage behind each
-            claim.
-          </p>
+          <p className="text-ink-03 text-sm">Answers cite the documents you attach.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {attached.map((row) => (
@@ -149,12 +146,9 @@ export function DocumentsPane({
           )}
         >
           {adding ? <Spinner /> : <UploadIcon className="size-4" />}
-          {adding ? "Reading" : "Drop files here, or browse"}
+          {adding ? "Reading" : "Drop or browse files"}
         </button>
-        <p className="text-ink-02 text-xs">
-          PDF, Word, Excel, CSV, Markdown, HTML, JSON or text, up to 50 MB each. Files are copied
-          into Onirix on this computer.
-        </p>
+        <p className="text-ink-02 text-xs">PDF, Word, Excel or text, up to 50 MB.</p>
 
         {error ? (
           <p className="text-destructive text-sm select-text" role="alert">
@@ -179,11 +173,7 @@ export function DocumentsPane({
         </InputGroup>
 
         {available.length === 0 ? (
-          <p className="text-ink-03 text-sm leading-6">
-            {query
-              ? "No document matches that."
-              : "Nothing else here yet. Files you add can be reused in any session."}
-          </p>
+          <p className="text-ink-03 text-sm">{query ? "No matches." : "Nothing else yet."}</p>
         ) : (
           <ul className="flex flex-col">
             {available.map((row) => (
