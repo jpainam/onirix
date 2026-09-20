@@ -1,31 +1,100 @@
 # Onirix desktop
 
-A thin desktop client for Onirix, built with Electron. The window shows the web
-app served by an Onirix server, so there is one UI, and accounts, documents,
-and permissions stay on the server. The shell adds two things a browser tab
-cannot have: a native window, and a local model runtime.
+The Onirix desktop app, built with Electron. It works in two ways, in one
+window.
+
+**On its own.** With no server, the app opens straight into a usable product:
+chats, a document library, and answers that cite the passage they came from,
+all kept on this computer. Which model answers is the person's choice, made in
+a first-run setup they are free to skip:
+
+- **Local**: an open source model, downloaded and run here by Ollama.
+- **API key**: their own key for OpenAI, Anthropic, Google or xAI.
+- **Server**: an Onirix server, which replaces the local window (below).
+
+**Attached to a server.** The window shows the web app that server serves, so
+accounts, shared knowledge, connectors, teams and permissions stay on the
+server. The shell adds what a browser tab cannot have: a native window, and a
+local model runtime.
 
 ## Run it
 
 ```bash
-pnpm dev            # the Onirix server, on http://localhost:3001
-pnpm dev:desktop    # the desktop shell
+pnpm dev:desktop    # the desktop app, in local mode
+pnpm dev            # optional: an Onirix server, on http://localhost:3001
 ```
 
-The first launch asks for a server address and checks it against
-`/api/health`. The choice is kept in `settings.json` in the app's data
-directory. "Change Server…" in the app menu goes back to that screen.
+There is no "which server?" screen. A fresh install opens the local window
+with the setup dialog over it. A saved server is probed at launch
+(`/api/health`): if it answers, its workspace opens; if it does not, the local
+window opens with a notice ("Could not reach ...", Try again, Change server)
+and the address stays saved, so a server that was only down comes back on the
+next launch. "Change Server…" in the app menu opens the server form inside the
+local window, and "Use Without a Server" detaches for good.
+
+Everything the shell remembers is in the app's data directory: `settings.json`
+(server, window, appearance, whether setup was seen) and `local/` (chats, the
+model choice, the document library).
 
 ## How it fits together
 
 | File | Role |
 | --- | --- |
-| `src/main.ts` | Windows, navigation rules, menu, IPC |
+| `src/main.ts` | Windows, the `onirix-app://` scheme, navigation rules, menu, IPC |
 | `src/updates.ts` | Checks GitHub releases, downloads, installs on restart |
 | `src/runtime.ts` | Finds, installs, starts Ollama; pulls and removes models |
 | `src/preload.ts` | Publishes `window.onirixDesktop` to the attached server's origin only |
-| `src/connect.html` | The local "which server?" screen |
-| `../dashboard/src/lib/desktop.ts` | The bridge contract, shared by both sides |
+| `src/local-preload.ts` | Publishes `window.onirixLocal` to the local renderer only |
+| `src/local-bridge.ts` | The local bridge contract, shared by preload, main and renderer |
+| `src/local-store.ts` | Local chats: one JSON file each, plus an index |
+| `src/local-model.ts` | The chosen model; API keys encrypted with `safeStorage` |
+| `src/local-chat.ts` | Retrieves passages, builds the grounded prompt, streams the answer |
+| `src/local-documents.ts` | The document library: copy, read, index, search |
+| `src/local-retrieval.ts` | Chunking and BM25, in plain TypeScript |
+| `src/extract-worker.ts` | Reads a file's text in a utility process |
+| `renderer/` | The local UI (React), built into `dist/renderer` |
+| `../dashboard/src/lib/desktop.ts` | The server bridge contract, shared by both sides |
+
+### Local mode
+
+The renderer is a React app served from `onirix-app://local/`, a scheme of the
+shell's own that serves `dist/renderer` and nothing above it. The page has no
+network access at all (`connect-src 'none'`): model calls, file reads and the
+server probe all happen in the main process, behind `window.onirixLocal`. Every
+IPC handler checks that the caller is the top frame of the right window, and
+validates its arguments. It uses the product's own components, tokens and
+icons (`@onirix/ui`), so both modes look like one app. The interface is set in
+the system font; JetBrains Mono, for code, is the one font file shipped.
+
+**Settings.** Opening Settings (the sidebar row, or Cmd/Ctrl+,) slides the
+sidebar over to a settings menu, the way the dashboard's admin menu does:
+"Back to app", a search field that filters the rows, and grouped pages
+(General, Appearance, Language model, Local models, Documents, Server, About).
+Each row is a page in the content area, and the back and forward arrows walk
+them like any other view. The right panel (Documents and Source) starts open
+and remembers whether it was last left open or closed.
+
+**Documents.** A file dropped on the panel beside a conversation (or picked
+with the paperclip) is copied into `local/documents/<id>/`, read, and cut into
+passages of about 1000 characters. The extractors are the server's
+(`@onirix/ingestion`): PDF, Word (.docx), Excel (.xlsx, .xls), CSV, Markdown,
+HTML, JSON and plain text, up to 50 MB a file. Reading happens in a utility
+process, so a large PDF does not freeze the window and a malformed one cannot
+take the app down. A document added once can be attached to any session.
+
+**Answers.** When a session has documents, each question is matched against
+them with BM25, on this computer, with no embeddings: it works offline and
+with every model choice, including providers that serve no embedding model.
+The six best passages go into the prompt as numbered sources, the model cites
+them as `[1]`, `[2]`, and each marker is a chip that opens the passage in the
+Source tab. Only those passages reach the model, never whole files, and with a
+local model nothing leaves the computer at all.
+
+**Keys.** An API key is checked with one small request, then encrypted with
+Electron's `safeStorage` and never sent back to the page. Where the OS has no
+real secret storage, saving is refused rather than faked.
+
+### Server mode
 
 The web app detects the shell through `getDesktopBridge()`. In the shell, the
 Ollama setup dialog gains a "This computer" mode that installs Ollama (checksum
@@ -77,7 +146,7 @@ releases page, which always works.
 
 ### The constraint worth knowing
 
-The Onirix server makes the model calls, not the window. A model served on the
+Attached to a server, the Onirix server makes the model calls, not the window. A model served on the
 user's computer is therefore only usable when the server runs on that same
 computer (Docker or `pnpm dev`). Attached to a remote server, the dialog says
 so and points at "Remote server" instead.
@@ -104,7 +173,7 @@ or a system service is left alone, and the dialog says how to share that one.
 pnpm desktop:dist   # apps/desktop/release/
 ```
 
-`ONIRIX_DEFAULT_SERVER` sets the address a fresh install suggests. Regenerate
+`ONIRIX_DEFAULT_SERVER` sets the address the server form suggests. Regenerate
 the icon from the product mark with `pnpm --filter desktop icon`.
 
 ## Release

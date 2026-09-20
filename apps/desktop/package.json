@@ -17,12 +17,26 @@
     "release": "node scripts/bundle.mjs && electron-builder --publish always"
   },
   "devDependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@onirix/config": "workspace:*",
+    "@onirix/ingestion": "workspace:*",
+    "@onirix/llm": "workspace:*",
+    "@onirix/ui": "workspace:*",
+    "@streamdown/code": "^1.1.1",
+    "@tailwindcss/cli": "^4.3.3",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "ai": "catalog:",
     "electron": "^44.4.1",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "sharp": "^0.34.5",
+    "streamdown": "^2.6.0",
+    "tailwindcss": "catalog:",
     "typescript": "^6.0.3"
   },
   "dependencies": {
