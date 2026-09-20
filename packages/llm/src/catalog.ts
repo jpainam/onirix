@@ -89,10 +89,13 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     description: "GPT models via the OpenAI API.",
     requiresApiKey: true,
     selfHosted: false,
+    // The first entry is what a new setup starts on, so it is the everyday
+    // flagship rather than the dearest model on the list.
     chatModels: [
-      { id: "gpt-5", label: "GPT-5", reasons: true },
-      { id: "gpt-5-mini", label: "GPT-5 mini", reasons: true },
-      { id: "gpt-4.1", label: "GPT-4.1" },
+      { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", reasons: true },
+      { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", reasons: true },
+      { id: "gpt-5.6-luna", label: "GPT-5.6 Luna", reasons: true },
+      { id: "gpt-6-astra", label: "GPT-6 Astra", reasons: true },
     ],
     embeddingModels: [
       { id: "text-embedding-3-small", label: "Embedding 3 small", dimension: 1536 },
@@ -110,6 +113,7 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
       { id: "claude-opus-5", label: "Claude Opus 5", reasons: true },
       { id: "claude-sonnet-5", label: "Claude Sonnet 5", reasons: true },
       { id: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5", reasons: true },
+      { id: "claude-fable-5-1", label: "Claude Fable 5.1", reasons: true },
     ],
     // Anthropic serves no embedding model; pair it with another provider.
     embeddingModels: [],
@@ -122,11 +126,14 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     requiresApiKey: true,
     selfHosted: false,
     chatModels: [
-      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", reasons: true },
-      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", reasons: true },
+      { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash", reasons: true },
+      { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash", reasons: true },
+      { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (preview)", reasons: true },
     ],
+    // `text-embedding-004` was shut down in January 2026. This is its
+    // successor at its default size; the factory asks for no other.
     embeddingModels: [
-      { id: "text-embedding-004", label: "Text Embedding 004", dimension: 768 },
+      { id: "gemini-embedding-001", label: "Gemini Embedding", dimension: 3072 },
     ],
   },
   xai: {
@@ -138,10 +145,12 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
     description: "Grok models via the xAI API.",
     requiresApiKey: true,
     selfHosted: false,
+    // Grok 4.20 comes as two ids instead of one model with a setting, and
+    // both reject the reasoning parameter, so neither is marked `reasons`.
     chatModels: [
-      { id: "grok-4", label: "Grok 4", reasons: true },
-      { id: "grok-3", label: "Grok 3" },
-      { id: "grok-3-mini", label: "Grok 3 mini", reasons: true },
+      { id: "grok-4.6", label: "Grok 4.6", reasons: true },
+      { id: "grok-4.5", label: "Grok 4.5", reasons: true },
+      { id: "grok-4.20-non-reasoning", label: "Grok 4.20 (no reasoning)" },
     ],
     // xAI serves no embedding model; pair it with another provider.
     embeddingModels: [],

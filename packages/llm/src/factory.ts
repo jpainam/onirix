@@ -51,9 +51,9 @@ export type ReasoningProviderOptions = Record<string, Record<string, JSONValue>>
  * Translates an effort into the provider's own dialect.
  *
  * Returns `{}` for models with no reasoning stage, which is not merely a
- * no-op: OpenAI rejects `reasoning_effort` outright on a non-reasoning model,
- * so a workspace pointed at GPT-4.1 would fail every call rather than answer
- * slightly slower.
+ * no-op: providers reject the reasoning parameter outright on a model that
+ * cannot take it, so a workspace pointed at one would fail every call rather
+ * than answer slightly slower.
  *
  * Spread into `providerOptions` at the call site rather than baked into the
  * model instance, since the same workspace model serves both efforts.
@@ -67,30 +67,39 @@ export function reasoningEffortOptions(
 
   switch (credentials.provider) {
     case "openai":
-      // `minimal` rather than `none`: GPT-5 predates `none` and errors on it,
-      // and the difference between them is not worth splitting the catalog.
-      return { openai: { reasoningEffort: effort === "off" ? "minimal" : "low" } };
-
-    case "xai":
-      return { xai: { reasoningEffort: effort === "off" ? "none" : "low" } };
-
-    case "anthropic":
-      // Extended thinking is opt-in, and neither of these flows opts in. Saying
-      // so explicitly keeps a model that starts thinking by default from
-      // quietly reintroducing the latency this exists to remove.
-      return { anthropic: { thinking: { type: "disabled" } } };
-
-    case "google":
-      // Gemini takes a token budget, and 2.5 Pro refuses to be switched off
-      // entirely — the lowest it accepts is 128, so `off` means `as little as
-      // the model allows` rather than `none`.
+      // GPT-5.6 can be told not to reason at all. GPT-6 cannot, and rejects
+      // `none`, so there `off` means as little as the model allows.
       return {
-        google: {
-          thinkingConfig: {
-            thinkingBudget: modelId.includes("pro") ? 128 : effort === "off" ? 0 : 512,
-          },
+        openai: {
+          reasoningEffort: effort === "off" && !modelId.startsWith("gpt-6") ? "none" : "low",
         },
       };
+
+    case "xai":
+      // Grok 4.5 and 4.6 start at `low` and reject `none`.
+      return { xai: { reasoningEffort: "low" } };
+
+    case "anthropic":
+      // Fable always thinks and answers `disabled` with a 400, so effort is
+      // the only dial it has.
+      if (modelId.startsWith("claude-fable")) return { anthropic: { effort: "low" } };
+      // Haiku 4.5 predates effort and rejects it. Its thinking is opt-in, and
+      // saying so explicitly keeps that from changing under us.
+      if (modelId.startsWith("claude-haiku")) {
+        return { anthropic: { thinking: { type: "disabled" } } };
+      }
+      // Opus 5 and Sonnet 5 think by default. Off is safe for the one-line
+      // flows, but the answer calls tools, and with thinking disabled these
+      // models sometimes write a tool call out as text instead of making it.
+      // Thinking stays on there, turned down.
+      return effort === "off"
+        ? { anthropic: { thinking: { type: "disabled" } } }
+        : { anthropic: { effort: "low" } };
+
+    case "google":
+      // Gemini 3 takes a level where 2.5 took a token budget, and has no off.
+      // `low` is the one level every model in the catalog accepts.
+      return { google: { thinkingConfig: { thinkingLevel: "low" } } };
 
     case "ollama":
       // An OpenAI-compatible endpoint that is not OpenAI; it has no agreed

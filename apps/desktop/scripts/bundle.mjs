@@ -53,6 +53,13 @@ const FONTS = [
   ["@fontsource-variable/jetbrains-mono", "jetbrains-mono-latin-ext-wght-normal.woff2"],
 ];
 
+/**
+ * The provider marks, which live once in the dashboard's public folder. The
+ * renderer has no asset pipeline, so they are copied beside the page and
+ * loaded as plain images, which its `img-src 'self'` policy allows.
+ */
+const LOGOS = ["openai.svg", "claude.svg", "google.svg", "x-ai.svg"];
+
 /** `dev` trades size for a build worth debugging: readable, mapped, React's warnings on. */
 export function rendererOptions({ dev = false } = {}) {
   return {
@@ -112,6 +119,7 @@ export async function prepareRenderer() {
   // beside the new ones and ship in the installer.
   await rm("dist/renderer", { recursive: true, force: true });
   await mkdir("dist/renderer/fonts", { recursive: true });
+  await mkdir("dist/renderer/images", { recursive: true });
   // Left behind by builds from before the connect screen was removed.
   await Promise.all(
     ["connect.html", "connect-preload.cjs", "connect-preload.cjs.map"].map((name) =>
@@ -122,6 +130,9 @@ export async function prepareRenderer() {
     cp("renderer/index.html", "dist/renderer/index.html"),
     ...FONTS.map(([name, file]) =>
       cp(join(packageDir(name), "files", file), join("dist/renderer/fonts", file)),
+    ),
+    ...LOGOS.map((file) =>
+      cp(join("../dashboard/public/images", file), join("dist/renderer/images", file)),
     ),
   ]);
 }

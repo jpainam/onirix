@@ -27,6 +27,7 @@ import { cn } from "@onirix/ui/lib/utils";
 import { API_PROVIDER_IDS, type ApiProviderId, LIMITS, type ModelChoice } from "../src/local-bridge";
 
 import { errorMessage, getBridge } from "./bridge";
+import { ProviderLogo } from "./provider-logo";
 import { OPTION } from "./tokens";
 
 type ApiKeyFormState = {
@@ -138,8 +139,9 @@ export function ApiKeyFields() {
               role="radio"
               aria-checked={form.provider === id}
               onClick={() => form.chooseProvider(id)}
-              className={cn(OPTION, "flex h-12 items-center justify-center px-3 font-medium")}
+              className={cn(OPTION, "flex h-12 items-center justify-center gap-2 px-3 font-medium")}
             >
+              <ProviderLogo id={id} />
               {PROVIDERS[id].label}
             </button>
           ))}
