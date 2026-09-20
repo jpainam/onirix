@@ -63,9 +63,11 @@ model choice, the document library).
 ### Local mode
 
 The renderer is a React app served from `onirix-app://local/`, a scheme of the
-shell's own that serves `dist/renderer` and nothing above it. The page has no
-network access at all (`connect-src 'none'`): model calls, file reads and the
-server probe all happen in the main process, behind `window.onirixLocal`. Every
+shell's own that serves `dist/renderer` and nothing above it, plus the
+library's copy of a document at `/documents/<id>/file` for the viewer in the
+chat dock. The page has no network access at all (`connect-src 'self'`, and
+"self" is that scheme): model calls, file reads and the server probe all happen
+in the main process, behind `window.onirixLocal`. Every
 IPC handler checks that the caller is the top frame of the right window, and
 validates its arguments. It uses the product's own components, tokens and
 icons (`@onirix/ui`), so both modes look like one app. The interface is set in

@@ -10,7 +10,7 @@
  * A folder, picked or dropped, is listed first and added second: the person
  * chooses which of its files go in.
  */
-import { FileTextIcon, FolderPlusIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon, XIcon } from "@onirix/ui/lib/icons";
+import { EyeIcon, FileTextIcon, FolderPlusIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon, XIcon } from "@onirix/ui/lib/icons";
 import { type DragEvent, useRef, useState } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";
@@ -52,6 +52,7 @@ export function DocumentsPane({
   onAttach,
   onDetach,
   onDelete,
+  onPreview,
 }: {
   /** In this session, in the order they were attached. */
   attached: LibraryDocument[];
@@ -65,6 +66,8 @@ export function DocumentsPane({
   onDetach: (documentId: string) => void;
   /** Removes the library's copy for good. The original file is not touched. */
   onDelete: (documentId: string) => void;
+  /** Opens the library's copy of the file, laid out as the file it is. */
+  onPreview: (document: { id: string; title: string }) => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
@@ -123,10 +126,15 @@ export function DocumentsPane({
                 key={row.id}
                 className="bg-tint-01 flex h-9 items-center gap-2 rounded-lg pr-1 pl-2.5"
               >
-                <FileTextIcon className="text-ink-02 size-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-sm" title={row.title}>
-                  {row.title}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => onPreview(row)}
+                  title={row.title}
+                  className="hover:text-ink-05 flex min-w-0 flex-1 items-center gap-2 self-stretch text-left transition-colors motion-reduce:transition-none"
+                >
+                  <FileTextIcon className="text-ink-02 size-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate text-sm">{row.title}</span>
+                </button>
                 <StatusBadge document={row} />
                 <Button
                   variant="muted"
@@ -198,7 +206,7 @@ export function DocumentsPane({
                 <button
                   type="button"
                   onClick={() => onAttach(row)}
-                  className="hover:bg-tint-01 flex h-9 w-full items-center gap-2 rounded-lg pr-9 pl-2.5 text-left transition-colors motion-reduce:transition-none"
+                  className="hover:bg-tint-01 flex h-9 w-full items-center gap-2 rounded-lg pr-16 pl-2.5 text-left transition-colors motion-reduce:transition-none"
                 >
                   <FileTextIcon className="text-ink-02 size-4 shrink-0" />
                   <span className="min-w-0 flex-1 truncate text-sm" title={row.title}>
@@ -210,15 +218,25 @@ export function DocumentsPane({
                 {/* A library on someone's own computer has to be something they
                     can take a file back out of. The original is untouched, so
                     this asks nothing first. */}
-                <Button
-                  variant="destructive"
-                  size="icon-xs"
-                  aria-label={`Delete ${row.title} from your library`}
-                  onClick={() => onDelete(row.id)}
-                  className="absolute top-1.5 right-1.5 opacity-0 group-hover/pick:opacity-100 focus-visible:opacity-100"
-                >
-                  <Trash2Icon />
-                </Button>
+                <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-0 group-focus-within/pick:opacity-100 group-hover/pick:opacity-100">
+                  <Button
+                    variant="muted"
+                    size="icon-xs"
+                    aria-label={`Preview ${row.title}`}
+                    title="Preview"
+                    onClick={() => onPreview(row)}
+                  >
+                    <EyeIcon />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon-xs"
+                    aria-label={`Delete ${row.title} from your library`}
+                    onClick={() => onDelete(row.id)}
+                  >
+                    <Trash2Icon />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

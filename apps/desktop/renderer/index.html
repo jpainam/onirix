@@ -6,10 +6,10 @@
     <meta charset="utf-8" />
     <!-- The shell sends the same policy as a header (LOCAL_CSP in main.ts).
          No network at all from this page: model calls are made by the main
-         process, so connect-src is 'none' on purpose. -->
+         process, and 'self' is the shell's own scheme, answered from the disk. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; script-src 'self'"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; script-src 'self'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Onirix</title>

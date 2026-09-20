@@ -19,6 +19,7 @@ import {
   InputGroupAddon,
   InputGroupTextarea,
 } from "@onirix/ui/components/input-group";
+import { SideDock, type DockPreview, type DockTab } from "@onirix/ui/components/side-dock";
 import { Spinner } from "@onirix/ui/components/spinner";
 
 import { OnirixMark } from "@onirix/ui/brand/onirix-mark";
@@ -40,9 +41,11 @@ import { trpc } from "@/utils/trpc";
 
 import { AnswerWithCitations, UserMessage } from "./answer";
 import { DocumentsPane } from "./documents-pane";
-import { SideDock, type DockPreview, type DockTab } from "./side-dock";
 import { SourcePane } from "./source-panel";
 import { useSessionDocuments, type SessionDocument } from "./use-session-documents";
+
+const documentFileUrl = (documentId: string) =>
+  `/api/documents/${encodeURIComponent(documentId)}/file`;
 
 const SUGGESTIONS = [
   "What is our parental leave policy?",
@@ -516,6 +519,7 @@ export function ChatPanel({
         documentCount={sessionDocuments.documents.length}
         preview={preview}
         onClosePreview={() => setPreview(null)}
+        fileUrl={documentFileUrl}
         panes={{
           documents: (
             <DocumentsPane

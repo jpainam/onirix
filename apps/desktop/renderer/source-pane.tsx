@@ -6,7 +6,7 @@
  * Beside rather than over: the point of inspecting a citation is to read the
  * passage against the sentence that cited it, which an overlay would cover.
  */
-import { ChevronLeftIcon, ChevronRightIcon } from "@onirix/ui/lib/icons";
+import { ChevronLeftIcon, ChevronRightIcon, EyeIcon } from "@onirix/ui/lib/icons";
 
 import { Button } from "@onirix/ui/components/button";
 
@@ -16,11 +16,14 @@ export function SourcePane({
   source,
   siblings,
   onSelect,
+  onPreview,
 }: {
   source: MessageSource | null;
   /** The other sources cited by the same answer, for stepping through them. */
   siblings: MessageSource[];
   onSelect: (source: MessageSource) => void;
+  /** Opens the whole document the passage was taken from. */
+  onPreview: (document: { id: string; title: string }) => void;
 }) {
   if (!source) {
     return (
@@ -77,7 +80,15 @@ export function SourcePane({
         </p>
       </div>
 
-      <footer className="border-t px-4 py-2.5">
+      <footer className="flex flex-col gap-2 border-t px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => onPreview({ id: source.documentId, title: source.title })}
+          className="text-info inline-flex items-center gap-1.5 self-start text-xs hover:underline"
+        >
+          <EyeIcon className="size-3.5" />
+          View document
+        </button>
         <span className="text-ink-02 text-xs">
           The file stays on this computer. Only the passages an answer reads are shown to the
           model.

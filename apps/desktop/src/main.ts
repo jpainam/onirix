@@ -89,13 +89,17 @@ const LOCAL_HOST = "local";
 const LOCAL_ORIGIN = `${LOCAL_SCHEME}://${LOCAL_HOST}`;
 
 /**
- * The renderer's whole allowance. No network (`connect-src 'none'`): model
- * calls are made by this process, so a page that was somehow talked into
- * running hostile markup still has nowhere to send a chat. Also set in the
- * page's own meta tag; the header is the copy the page cannot remove.
+ * The renderer's whole allowance. No network: model calls are made by this
+ * process, so a page that was somehow talked into running hostile markup still
+ * has nowhere to send a chat. `connect-src 'self'` does not change that: this
+ * origin is the scheme below, which is answered from the disk by this process
+ * and is how the page reads a document to show it (see `serveDocument`).
+ * `blob:` is what the document viewer draws from: a PDF in a frame, an image,
+ * the pictures and fonts inside a Word file. Also set in the page's own meta
+ * tag; the header is the copy the page cannot remove.
  */
 const LOCAL_CSP =
-  "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; script-src 'self'";
+  "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; frame-src 'self' blob:; connect-src 'self'; script-src 'self'";
 
 // Has to happen before the app is ready. `standard` gives the scheme real
 // origins and relative URLs, `secure` makes it a secure context like https.
@@ -412,12 +416,40 @@ function watchRenderer(): void {
   }
 }
 
+/** `/documents/<id>/file`: the original of a library document. */
+const DOCUMENT_ROUTE = /^\/documents\/([^/]+)\/file$/;
+
 /**
- * Serves `dist/renderer`, and only that.
+ * A document from the library, for the viewer beside an answer.
  *
- * The check that matters is the last one: whatever the URL said, however it
- * was encoded, the path it resolves to must still be inside the renderer
- * directory. Everything before it is just declining early.
+ * It is someone's file, so it is never laid out as a page of this origin: it
+ * is an attachment, under a policy that would sandbox it anyway. The viewer
+ * reads the bytes and draws them itself.
+ */
+async function serveDocument(id: string): Promise<Response> {
+  const original = localDocuments.originalFile(id);
+  if (!original) return new Response(null, { status: 404 });
+  try {
+    return new Response(new Uint8Array(await readFile(original.path)), {
+      headers: {
+        "content-type": original.mimeType,
+        "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(original.title)}`,
+        "content-security-policy": "sandbox",
+        "x-content-type-options": "nosniff",
+        "cache-control": "no-store",
+      },
+    });
+  } catch {
+    return new Response(null, { status: 404 });
+  }
+}
+
+/**
+ * Serves `dist/renderer` and the library's documents, and only those.
+ *
+ * For the renderer's files the check that matters is the last one: whatever
+ * the URL said, however it was encoded, the path it resolves to must still be
+ * inside the renderer directory. Everything before it is just declining early.
  */
 function registerLocalProtocol(): void {
   const root = join(__dirname, "renderer");
@@ -436,6 +468,9 @@ function registerLocalProtocol(): void {
     }
     if (pathname.includes("\0")) return refuse(400);
     if (pathname === "/") pathname = "/index.html";
+
+    const document = DOCUMENT_ROUTE.exec(pathname);
+    if (document) return serveDocument(document[1]!);
 
     const file = resolve(root, `.${pathname}`);
     if (!file.startsWith(root + sep)) return refuse(403);

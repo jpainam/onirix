@@ -231,6 +231,24 @@ export async function addDocument(path: unknown): Promise<LibraryDocument> {
   }
 }
 
+/**
+ * The library's copy of a document, for showing it whole beside an answer.
+ * Null when there is none: the document was deleted, or its id is not one.
+ */
+export function originalFile(id: string): { path: string; title: string; mimeType: string } | null {
+  if (!DOCUMENT_ID.test(id)) return null;
+  const meta = readMeta(id);
+  if (!meta) return null;
+  // Named as `addDocument` named it.
+  const path = join(documentDir(id), `original${extname(meta.title).toLowerCase()}`);
+  try {
+    if (!statSync(path).isFile()) return null;
+  } catch {
+    return null;
+  }
+  return { path, title: meta.title, mimeType: meta.mimeType };
+}
+
 export function removeDocument(id: string): void {
   assertDocumentId(id);
   rmSync(documentDir(id), { recursive: true, force: true });

@@ -90,7 +90,9 @@ function useDockWidth(reading: boolean) {
 
 
 /**
- * The panel on the right of a conversation.
+ * The panel on the right of a conversation, in the dashboard and in the
+ * desktop app alike. The two differ only in where a document's file comes
+ * from, which is what `fileUrl` answers.
  *
  * It is the app sidebar's own primitive, mirrored: it pushes the conversation
  * aside rather than covering it, and slides on the same curve. On a phone it
@@ -112,6 +114,7 @@ export function SideDock({
   panes,
   preview,
   onClosePreview,
+  fileUrl,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -121,6 +124,8 @@ export function SideDock({
   panes: Record<DockTab, ReactNode>;
   preview: DockPreview | null;
   onClosePreview: () => void;
+  /** Where the original of a document is served from. */
+  fileUrl: (documentId: string) => string;
 }) {
   const { width, widest, choose } = useDockWidth(preview !== null);
   const [resizing, setResizing] = useState(false);
@@ -211,7 +216,7 @@ export function SideDock({
                   aria-controls={`dock-pane-${entry.id}`}
                   onClick={() => onTabChange(entry.id)}
                   className={cn(
-                    "text-ink-03 hover:bg-tint-01 hover:text-ink-04 flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors",
+                    "text-ink-03 hover:bg-tint-01 hover:text-ink-04 flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-sm transition-colors motion-reduce:transition-none",
                     tab === entry.id && "bg-tint-02 text-ink-05 hover:bg-tint-02",
                   )}
                 >
@@ -228,7 +233,7 @@ export function SideDock({
               type="button"
               onClick={() => onOpenChange(false)}
               aria-label="Close panel"
-              className="text-ink-02 hover:bg-tint-02 hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
+              className="text-ink-02 hover:bg-tint-02 hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors motion-reduce:transition-none"
             >
               <PanelRightCloseIcon className="size-4.5" />
             </button>
@@ -275,12 +280,12 @@ export function SideDock({
                     aria-label={`Download ${preview.title}`}
                     title="Download"
                     nativeButton={false}
-                    render={<a href={documentFileUrl(preview.id)} download={preview.title} />}
+                    render={<a href={fileUrl(preview.id)} download={preview.title} />}
                   >
                     <DownloadIcon />
                   </Button>
                 </div>
-                <DocumentViewer src={documentFileUrl(preview.id)} title={preview.title} />
+                <DocumentViewer src={fileUrl(preview.id)} title={preview.title} />
               </div>
             ) : null}
           </div>
@@ -289,9 +294,6 @@ export function SideDock({
     </SidebarProvider>
   );
 }
-
-const documentFileUrl = (documentId: string) =>
-  `/api/documents/${encodeURIComponent(documentId)}/file`;
 
 /**
  * On a phone the primitive keeps a second, private open state for its sheet,

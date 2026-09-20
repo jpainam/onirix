@@ -28,6 +28,7 @@ import {
   InputGroupTextarea,
 } from "@onirix/ui/components/input-group";
 
+import { type DockPreview, type DockTab, SideDock } from "@onirix/ui/components/side-dock";
 import { Spinner } from "@onirix/ui/components/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@onirix/ui/components/tooltip";
 
@@ -45,13 +46,16 @@ import { addDocuments, errorMessage, getBridge } from "./bridge";
 import { citedIndices } from "./citations";
 import { DocumentsPane } from "./documents-pane";
 import { modelLabel } from "./model-label";
-import { type DockTab, SideDock } from "./side-dock";
 import { SourcePane } from "./source-pane";
 
 /** Which passage is open in the dock: a source of one particular answer. */
 type OpenSource = { messageId: string; index: number };
 
 const DOCK_OPEN_KEY = "onirix:dock-open";
+
+/** The library's copy of a file, as the shell serves it (see `serveDocument` in main.ts). */
+const documentFileUrl = (documentId: string) =>
+  `/documents/${encodeURIComponent(documentId)}/file`;
 
 /**
  * The dock starts open: documents are the point of the product, and a closed
@@ -122,8 +126,11 @@ export function ChatView({
   selectedChat.current = chatId;
 
   const [dockOpen, setDockOpenState] = useState(initialDockOpen);
+  /** A document opened to be read whole, over whichever pane it was opened from. */
+  const [preview, setPreview] = useState<DockPreview | null>(null);
   const setDockOpen = useCallback((open: boolean) => {
     setDockOpenState(open);
+    if (!open) setPreview(null);
     try {
       window.localStorage.setItem(DOCK_OPEN_KEY, String(open));
     } catch {
@@ -148,6 +155,7 @@ export function ChatView({
     previousChatId.current = chatId;
     setInput("");
     setOpenSource(null);
+    setPreview(null);
     setAddError(null);
     setSendError(null);
     field.current?.focus();
@@ -194,6 +202,7 @@ export function ChatView({
     if (files.length === 0 || adding) return;
     setAdding(true);
     setAddError(null);
+    setPreview(null);
     setDockTab("documents");
     setDockOpen(true);
     try {
@@ -211,6 +220,7 @@ export function ChatView({
   }
 
   async function deleteFromLibrary(id: string) {
+    setPreview((current) => (current?.id === id ? null : current));
     await getBridge().documents.remove(id);
     await onLibraryChange();
   }
@@ -224,6 +234,8 @@ export function ChatView({
         setOpenSource(null);
         return;
       }
+      // A citation asks for its passage, so a document left open gives way.
+      setPreview(null);
       setDockTab("source");
       setDockOpen(true);
       setOpenSource({ messageId, index: source.index });
@@ -505,8 +517,14 @@ export function ChatView({
         open={dockOpen}
         onOpenChange={setDockOpen}
         tab={dockTab}
-        onTabChange={setDockTab}
+        onTabChange={(next) => {
+          setDockTab(next);
+          setPreview(null);
+        }}
         documentCount={attached.length}
+        preview={preview}
+        onClosePreview={() => setPreview(null)}
+        fileUrl={documentFileUrl}
         panes={{
           documents: (
             <DocumentsPane
@@ -518,12 +536,14 @@ export function ChatView({
               onAttach={(row) => void attach([row.id])}
               onDetach={(id) => void detach(id)}
               onDelete={(id) => void deleteFromLibrary(id)}
+              onPreview={({ id, title }) => setPreview({ id, title })}
             />
           ),
           source: (
             <SourcePane
               source={activeSource}
               siblings={siblings}
+              onPreview={setPreview}
               onSelect={(source) =>
                 setOpenSource((current) =>
                   current ? { messageId: current.messageId, index: source.index } : current,
