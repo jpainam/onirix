@@ -31,6 +31,9 @@ if (window.location.origin === LOCAL_ORIGIN) {
     webAccess: {
       set: (webAccess) => ipcRenderer.invoke("local:webAccess:set", webAccess),
     },
+    answerEffort: {
+      set: (effort) => ipcRenderer.invoke("local:answerEffort:set", effort),
+    },
     model: {
       useLocal: (model) => ipcRenderer.invoke("local:model:useLocal", model),
       useApiKey: (input) => ipcRenderer.invoke("local:model:useApiKey", input),

@@ -253,6 +253,8 @@ export const llmConfig = pgTable(
     chatProvider: text("chat_provider").notNull(),
     /** The model answers are generated with unless the caller picks another. */
     chatModel: text("chat_model").notNull(),
+    /** An `AnswerEffort` from the `@onirix/llm` catalog. */
+    answerEffort: text("answer_effort").notNull().default("low"),
 
     embeddingProvider: text("embedding_provider").notNull(),
     embeddingModel: text("embedding_model").notNull(),

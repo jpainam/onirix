@@ -266,6 +266,11 @@ export function App() {
     });
   }
 
+  function setAnswerEffort(answerEffort: LocalState["answerEffort"]) {
+    setState((current) => (current ? { ...current, answerEffort } : current));
+    void bridge.answerEffort.set(answerEffort);
+  }
+
   function closeOnboarding() {
     setOnboarding((current) => ({ ...current, open: false }));
     setState((current) => (current ? { ...current, onboardingCompleted: true } : current));
@@ -385,6 +390,7 @@ export function App() {
             onModelChange={setModel}
             onAppearanceChange={setAppearance}
             onWebAccessChange={setWebAccess}
+            onAnswerEffortChange={setAnswerEffort}
             onChangeModel={() => openOnboarding("choice")}
             onReplaySetup={() => openOnboarding("welcome")}
           />

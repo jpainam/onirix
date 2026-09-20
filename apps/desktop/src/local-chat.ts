@@ -244,7 +244,7 @@ function answer(chat: Chat, emit: Emit): SendResult {
   const sources = documents.retrieve(chat.documentIds, retrievalQuery(chat), SOURCE_LIMIT);
   if (sources.length > 0) emit({ type: "sources", chatId: chat.id, sources });
 
-  const { webAccess } = readSettings();
+  const { webAccess, answerEffort } = readSettings();
   const tools = webAccess.enabled ? webSearchTools(credentials.provider, webAccess.sites) : null;
 
   void (async () => {
@@ -257,7 +257,7 @@ function answer(chat: Chat, emit: Emit): SendResult {
         system: systemPrompt(sources, tools !== null),
         messages: toModelMessages(chat),
         ...(tools ? { tools } : {}),
-        providerOptions: reasoningEffortOptions(credentials, model, "low"),
+        providerOptions: reasoningEffortOptions(credentials, model, answerEffort),
         abortSignal: controller.signal,
         maxRetries: 1,
       });

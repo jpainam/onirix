@@ -10,7 +10,8 @@
  */
 import { type ReactNode, useState } from "react";
 
-import { PROVIDERS } from "@onirix/llm/catalog";
+import { PROVIDERS, modelReasons } from "@onirix/llm/catalog";
+import { AnswerEffortControl, answerEffortSummary } from "@onirix/ui/components/answer-effort";
 import { AppearanceSettings } from "@onirix/ui/components/appearance-settings";
 import { Button } from "@onirix/ui/components/button";
 import { Switch } from "@onirix/ui/components/switch";
@@ -76,6 +77,7 @@ export function SettingsView({
   onModelChange,
   onAppearanceChange,
   onWebAccessChange,
+  onAnswerEffortChange,
   onChangeModel,
   onReplaySetup,
 }: {
@@ -88,11 +90,15 @@ export function SettingsView({
   onModelChange: (choice: ModelChoice | null) => void;
   onAppearanceChange: (appearance: Appearance) => void;
   onWebAccessChange: (webAccess: WebAccess) => void;
+  onAnswerEffortChange: (effort: LocalState["answerEffort"]) => void;
   /** Opens the setup at the choice of Local, API key, or Server. */
   onChangeModel: () => void;
   onReplaySetup: () => void;
 }) {
-  const { model, webAccess } = state;
+  const { model, webAccess, answerEffort } = state;
+  // A local model gets no reasoning option at all (see `reasoningEffortOptions`),
+  // so the control is only live for a model reached with a key.
+  const reasons = model?.kind === "api" && modelReasons(model.provider, model.model);
   const [managingSites, setManagingSites] = useState(false);
   const needsServer = serverOnlyReason(page);
   const modifier = state.platform === "darwin" ? "Cmd" : "Ctrl";
@@ -263,6 +269,25 @@ export function SettingsView({
                       {entry.label}
                     </button>
                   ))}
+                </div>
+              ) : null}
+
+              {model ? (
+                <div className={TILE}>
+                  <Row
+                    title="Thinking"
+                    description={
+                      model.kind === "local"
+                        ? "Local models take no thinking setting."
+                        : answerEffortSummary(answerEffort, reasons)
+                    }
+                  >
+                    <AnswerEffortControl
+                      value={answerEffort}
+                      disabled={!reasons}
+                      onValueChange={onAnswerEffortChange}
+                    />
+                  </Row>
                 </div>
               ) : null}
             </Section>

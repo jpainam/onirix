@@ -11,7 +11,7 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createXai } from "@ai-sdk/xai";
 import type { EmbeddingModel, JSONValue, LanguageModel } from "ai";
 
-import { PROVIDERS, modelReasons, type ProviderId } from "./catalog";
+import { type AnswerEffort, PROVIDERS, modelReasons, type ProviderId } from "./catalog";
 
 /**
  * How to reach one provider. Keys are always the workspace's own — Onirix
@@ -38,11 +38,18 @@ function assertApiKey(credentials: ProviderCredentials): string {
  * Reasoning is the dominant cost in time-to-first-token, and most of what
  * Onirix asks a model to do does not need it. `"off"` is for the secondary
  * flows — rewriting a query, naming a conversation — which are single-sentence
- * transformations of text the caller already has. `"low"` is for the grounded
- * answer: retrieval has already found the passages, so the model is
- * summarizing and citing rather than working anything out.
+ * transformations of text the caller already has. The rest are for the
+ * grounded answer, and which one is the workspace's choice (`AnswerEffort`).
+ * It starts at `"low"`: retrieval has already found the passages, so the model
+ * is summarizing and citing rather than working anything out.
  */
-export type ReasoningEffort = "off" | "low";
+export type ReasoningEffort = "off" | AnswerEffort;
+
+/**
+ * Haiku 4.5 thinks to a token budget, not a level. `low` has no entry: its
+ * thinking is opt-in, and `low` does not opt in.
+ */
+const HAIKU_THINKING_BUDGET = { medium: 2048, high: 8192 } as const;
 
 /** A `providerOptions` fragment: one entry per provider it applies to. */
 export type ReasoningProviderOptions = Record<string, Record<string, JSONValue>>;
@@ -71,22 +78,31 @@ export function reasoningEffortOptions(
       // `none`, so there `off` means as little as the model allows.
       return {
         openai: {
-          reasoningEffort: effort === "off" && !modelId.startsWith("gpt-6") ? "none" : "low",
+          reasoningEffort:
+            effort !== "off" ? effort : modelId.startsWith("gpt-6") ? "low" : "none",
         },
       };
 
     case "xai":
       // Grok 4.5 and 4.6 start at `low` and reject `none`.
-      return { xai: { reasoningEffort: "low" } };
+      return { xai: { reasoningEffort: effort === "off" ? "low" : effort } };
 
     case "anthropic":
       // Fable always thinks and answers `disabled` with a 400, so effort is
       // the only dial it has.
-      if (modelId.startsWith("claude-fable")) return { anthropic: { effort: "low" } };
+      if (modelId.startsWith("claude-fable")) {
+        return { anthropic: { effort: effort === "off" ? "low" : effort } };
+      }
       // Haiku 4.5 predates effort and rejects it. Its thinking is opt-in, and
       // saying so explicitly keeps that from changing under us.
       if (modelId.startsWith("claude-haiku")) {
-        return { anthropic: { thinking: { type: "disabled" } } };
+        return effort === "off" || effort === "low"
+          ? { anthropic: { thinking: { type: "disabled" } } }
+          : {
+              anthropic: {
+                thinking: { type: "enabled", budgetTokens: HAIKU_THINKING_BUDGET[effort] },
+              },
+            };
       }
       // Opus 5 and Sonnet 5 think by default. Off is safe for the one-line
       // flows, but the answer calls tools, and with thinking disabled these
@@ -94,12 +110,12 @@ export function reasoningEffortOptions(
       // Thinking stays on there, turned down.
       return effort === "off"
         ? { anthropic: { thinking: { type: "disabled" } } }
-        : { anthropic: { effort: "low" } };
+        : { anthropic: { effort } };
 
     case "google":
       // Gemini 3 takes a level where 2.5 took a token budget, and has no off.
-      // `low` is the one level every model in the catalog accepts.
-      return { google: { thinkingConfig: { thinkingLevel: "low" } } };
+      // `low` is the least every model in the catalog accepts.
+      return { google: { thinkingConfig: { thinkingLevel: effort === "off" ? "low" : effort } } };
 
     case "ollama":
       // An OpenAI-compatible endpoint that is not OpenAI; it has no agreed

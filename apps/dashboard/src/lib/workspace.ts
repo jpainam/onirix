@@ -32,6 +32,7 @@ export type Workspace = {
   llmConfig: {
     chatProvider: string;
     chatModel: string;
+    answerEffort: string;
     embeddingProvider: string;
     embeddingModel: string;
     embeddingApiKey: string | null;

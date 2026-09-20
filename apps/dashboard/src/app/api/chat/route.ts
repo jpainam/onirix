@@ -53,6 +53,7 @@ import {
   createQueryDatabaseTool,
   createRunSavedQueryTool,
   modelReasons,
+  normalizeAnswerEffort,
   reasoningEffortOptions,
   type ProviderCredentials,
   type ReasoningProviderOptions,
@@ -155,10 +156,15 @@ export async function POST(request: Request) {
   // and neither of the two things Onirix asks a model to do here needs much of
   // it. The secondary flows get none: rewriting a query and naming a
   // conversation are one-line transformations of text already in hand. The
-  // answer gets a little: retrieval has already found the passages, so the
-  // model is summarizing and citing rather than working the answer out.
+  // answer gets what the workspace chose, which starts at a little: retrieval
+  // has already found the passages, so the model is summarizing and citing
+  // rather than working the answer out.
   const noReasoning = reasoningEffortOptions(chatCredentials, config.chatModel, "off");
-  const answerReasoning = reasoningEffortOptions(chatCredentials, config.chatModel, "low");
+  const answerReasoning = reasoningEffortOptions(
+    chatCredentials,
+    config.chatModel,
+    normalizeAnswerEffort(config.answerEffort),
+  );
 
   // Turned down is not turned off, and on most providers the tokens a model
   // spends thinking come out of the same budget as the ones it writes. Both

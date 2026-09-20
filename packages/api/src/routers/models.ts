@@ -26,6 +26,8 @@ import {
   isDownloadableModel,
   listOllamaModels,
   ollamaOrigin,
+  answerEffortSchema,
+  normalizeAnswerEffort,
   providerIdSchema,
 } from "@onirix/llm";
 import { getIndexName } from "@onirix/search";
@@ -286,6 +288,7 @@ export const modelsRouter = router({
       default: config
         ? { provider: config.chatProvider, model: config.chatModel }
         : null,
+      answerEffort: normalizeAnswerEffort(config?.answerEffort),
       embedding: config
         ? {
             provider: config.embeddingProvider,
@@ -493,6 +496,18 @@ export const modelsRouter = router({
         .where(eq(llmConfig.organizationId, ctx.organizationId));
 
       return { provider: input.provider, model: input.model };
+    }),
+
+  /** How hard the default model thinks about an answer. */
+  setAnswerEffort: permissionProcedure("model", "update")
+    .input(z.object({ effort: answerEffortSchema }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db
+        .update(llmConfig)
+        .set({ answerEffort: input.effort })
+        .where(eq(llmConfig.organizationId, ctx.organizationId));
+
+      return { effort: input.effort };
     }),
 
   /**

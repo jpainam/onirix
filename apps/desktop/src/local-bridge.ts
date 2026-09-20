@@ -10,6 +10,8 @@
  * Like `dashboard/src/lib/desktop.ts`, this file is types and constants only,
  * so the preload, the main process, and the renderer can all compile it.
  */
+import type { AnswerEffort } from "@onirix/llm/catalog";
+
 import type {
   DesktopPlatform,
   LocalModel,
@@ -146,6 +148,7 @@ export type LocalState = {
   appearance: Appearance;
   model: ModelChoice | null;
   webAccess: WebAccess;
+  answerEffort: AnswerEffort;
   /** What the server address field starts with: the last one used, or the build's default. */
   suggestedServer: string;
   /**
@@ -176,6 +179,9 @@ export type LocalBridge = {
   webAccess: {
     /** Answers with what was stored: addresses come back as bare hosts. */
     set: (webAccess: WebAccess) => Promise<WebAccess>;
+  };
+  answerEffort: {
+    set: (effort: AnswerEffort) => Promise<void>;
   };
   model: {
     useLocal: (model: string) => Promise<ModelChoice>;

@@ -1,0 +1,1 @@
+ALTER TABLE "llm_config" ADD COLUMN "answer_effort" text DEFAULT 'low' NOT NULL;

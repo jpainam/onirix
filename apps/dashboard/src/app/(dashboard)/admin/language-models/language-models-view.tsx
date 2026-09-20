@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  BrainIcon,
   CircleCheckIcon,
   CpuIcon,
   LayersIcon,
@@ -21,6 +22,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@onirix/ui/components/alert-dialog";
+import {
+  AnswerEffortControl,
+  answerEffortSummary,
+} from "@onirix/ui/components/answer-effort";
 import { Badge } from "@onirix/ui/components/badge";
 import { Button } from "@onirix/ui/components/button";
 import {
@@ -76,6 +81,16 @@ export function LanguageModelsView({ canManage }: { canManage: boolean }) {
     }),
   );
 
+  const setAnswerEffort = useMutation(
+    trpc.models.setAnswerEffort.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries();
+        toast.success("Thinking updated.");
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+
   const disconnect = useMutation(
     trpc.models.disconnect.mutationOptions({
       onSuccess: () => {
@@ -95,6 +110,11 @@ export function LanguageModelsView({ canManage }: { canManage: boolean }) {
 
   const current = overview.data?.default;
   const embedding = overview.data?.embedding;
+  const answerEffort = overview.data?.answerEffort ?? "low";
+  const currentReasons =
+    connected
+      .find((provider) => provider.id === current?.provider)
+      ?.models.find((model) => model.id === current?.model)?.reasons === true;
 
   /** Catalog entry behind a connected row, for the settings dialog. */
   const editingConnection: ConnectedProvider | null = editing
@@ -160,6 +180,23 @@ export function LanguageModelsView({ canManage }: { canManage: boolean }) {
                     ))}
                   </SelectContent>
                 </Select>
+              }
+            />
+            <Row
+              icon={<BrainIcon />}
+              title="Thinking"
+              description={answerEffortSummary(answerEffort, currentReasons)}
+              action={
+                <AnswerEffortControl
+                  // Shown as chosen while the save is in flight.
+                  value={
+                    setAnswerEffort.isPending
+                      ? setAnswerEffort.variables.effort
+                      : answerEffort
+                  }
+                  disabled={!canManage || !currentReasons || setAnswerEffort.isPending}
+                  onValueChange={(effort) => setAnswerEffort.mutate({ effort })}
+                />
               }
             />
           </Section>

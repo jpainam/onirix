@@ -29,7 +29,7 @@ import { watch } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 
-import { PROVIDERS } from "@onirix/llm/catalog";
+import { PROVIDERS, answerEffortSchema } from "@onirix/llm/catalog";
 
 import type { LocalProgress } from "../../dashboard/src/lib/desktop";
 
@@ -648,6 +648,7 @@ function registerLocalIpc(
       appearance: APPEARANCES.includes(settings.appearance) ? settings.appearance : "system",
       model: localModel.currentChoice(),
       webAccess: settings.webAccess,
+      answerEffort: settings.answerEffort,
       suggestedServer: settings.serverUrl ?? settings.lastServerUrl ?? DEFAULT_SERVER,
       intent,
     };
@@ -664,6 +665,12 @@ function registerLocalIpc(
     if (!APPEARANCES.includes(appearance as Appearance)) throw new Error("Unknown appearance.");
     writeSettings({ appearance: appearance as Appearance });
     applyAppearance("local");
+  });
+
+  handle("local:answerEffort:set", (effort: unknown) => {
+    const parsed = answerEffortSchema.safeParse(effort);
+    if (!parsed.success) throw new Error("Unknown setting.");
+    writeSettings({ answerEffort: parsed.data });
   });
 
   handle("local:webAccess:set", (webAccess: unknown) => {

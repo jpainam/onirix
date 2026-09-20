@@ -185,6 +185,24 @@ export const PROVIDERS: Record<ProviderId, ProviderSpec> = {
   },
 };
 
+/**
+ * How hard the model thinks about an answer, as the settings offer it.
+ *
+ * Named levels rather than a number because that is what every provider
+ * takes. `low` is the default: retrieval has already found the passages, so
+ * more thinking mostly buys a longer wait for the first word.
+ */
+export const ANSWER_EFFORTS = ["low", "medium", "high"] as const;
+export const answerEffortSchema = z.enum(ANSWER_EFFORTS);
+export type AnswerEffort = z.infer<typeof answerEffortSchema>;
+export const DEFAULT_ANSWER_EFFORT: AnswerEffort = "low";
+
+/** Reads a stored effort, falling back on anything it does not recognise. */
+export function normalizeAnswerEffort(value: unknown): AnswerEffort {
+  const parsed = answerEffortSchema.safeParse(value);
+  return parsed.success ? parsed.data : DEFAULT_ANSWER_EFFORT;
+}
+
 export function getProvider(id: ProviderId): ProviderSpec {
   return PROVIDERS[id];
 }
