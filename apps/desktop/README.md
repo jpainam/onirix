@@ -201,6 +201,6 @@ or point `DESKTOP_DOWNLOAD_URL` somewhere else. Repository secrets:
   Windows installers run after a SmartScreen warning.
 
 ```
-git tag desktop-v0.1.1
-git push origin desktop-v0.1.1
+git tag desktop-v0.1.5
+git push origin desktop-v0.1.5
 ```
