@@ -1,7 +1,14 @@
 "use client";
 
+import {
+  EyeIcon,
+  FileTextIcon,
+  PlusIcon,
+  SearchIcon,
+  UploadIcon,
+  XIcon,
+} from "@onirix/ui/lib/icons";
 import { useQuery } from "@tanstack/react-query";
-import { FileTextIcon, PlusIcon, SearchIcon, UploadIcon, XIcon } from "@onirix/ui/lib/icons";
 import { useDeferredValue, useRef, useState, type DragEvent } from "react";
 
 import { Badge } from "@onirix/ui/components/badge";
@@ -39,6 +46,9 @@ function StatusBadge({ status }: { status: SessionDocument["status"] }) {
  * it here; picking attaches one that is already in the workspace, which is how
  * a file uploaded once is reused instead of uploaded again. Both lists only
  * ever hold what this reader is allowed to see.
+ *
+ * Either kind of row can also be opened and read. In the workspace list that
+ * is a separate control, because the row itself already means "attach".
  */
 export function DocumentsPane({
   documents,
@@ -46,12 +56,14 @@ export function DocumentsPane({
   onUpload,
   onAttach,
   onDetach,
+  onPreview,
 }: {
   documents: SessionDocument[];
   uploading: boolean;
   onUpload: (files: FileList | File[]) => void;
   onAttach: (document: SessionDocument) => void;
   onDetach: (documentId: string) => void;
+  onPreview: (document: { id: string; title: string }) => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
@@ -67,7 +79,9 @@ export function DocumentsPane({
   );
 
   const attachedIds = new Set(documents.map((row) => row.id));
-  const available = (library.data ?? []).filter((row) => !attachedIds.has(row.id));
+  const available = (library.data ?? []).filter(
+    (row) => !attachedIds.has(row.id),
+  );
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
@@ -110,10 +124,17 @@ export function DocumentsPane({
                 key={row.id}
                 className="group/row bg-tint-01 flex h-9 items-center gap-2 rounded-lg pr-1 pl-2.5"
               >
-                <FileTextIcon className="text-ink-02 size-4 shrink-0" />
-                <span className="min-w-0 flex-1 truncate text-sm" title={row.title}>
-                  {row.title}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => onPreview(row)}
+                  title={row.title}
+                  className="hover:text-ink-05 flex min-w-0 flex-1 items-center gap-2 self-stretch text-left transition-colors"
+                >
+                  <FileTextIcon className="text-ink-02 size-4 shrink-0" />
+                  <span className="min-w-0 flex-1 truncate text-sm">
+                    {row.title}
+                  </span>
+                </button>
                 <StatusBadge status={row.status} />
                 <Button
                   variant="muted"
@@ -171,20 +192,41 @@ export function DocumentsPane({
         ) : (
           <ul className="flex flex-col">
             {available.map((row) => (
-              <li key={row.id}>
+              <li
+                key={row.id}
+                className="group/pick hover:bg-tint-01 flex h-9 items-center rounded-lg pr-1 transition-colors"
+              >
                 <button
                   type="button"
                   onClick={() =>
-                    onAttach({ id: row.id, title: row.title, status: row.status })
+                    onAttach({
+                      id: row.id,
+                      title: row.title,
+                      status: row.status,
+                    })
                   }
-                  className="group/pick hover:bg-tint-01 flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left transition-colors"
+                  className="flex h-full min-w-0 flex-1 items-center gap-2 rounded-lg pl-2.5 text-left"
                 >
                   <FileTextIcon className="text-ink-02 size-4 shrink-0" />
-                  <span className="min-w-0 flex-1 truncate text-sm" title={row.title}>
+                  <span
+                    className="min-w-0 flex-1 truncate text-sm"
+                    title={row.title}
+                  >
                     {row.title}
                   </span>
-                  <PlusIcon className="text-ink-02 size-4 shrink-0 opacity-0 transition-opacity group-hover/pick:opacity-100 group-focus-visible/pick:opacity-100" />
+                  <PlusIcon className="text-ink-02 size-4 shrink-0 opacity-0 transition-opacity group-focus-within/pick:opacity-100 group-hover/pick:opacity-100" />
                 </button>
+                <span className="opacity-0 transition-opacity group-focus-within/pick:opacity-100 group-hover/pick:opacity-100">
+                  <Button
+                    variant="muted"
+                    size="icon-sm"
+                    aria-label={`Preview ${row.title}`}
+                    title="Preview"
+                    onClick={() => onPreview({ id: row.id, title: row.title })}
+                  >
+                    <EyeIcon />
+                  </Button>
+                </span>
               </li>
             ))}
           </ul>

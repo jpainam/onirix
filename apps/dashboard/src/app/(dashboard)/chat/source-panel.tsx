@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon } from "@onirix/ui/lib/icons";
+import { ChevronLeftIcon, ChevronRightIcon, ExternalLinkIcon, EyeIcon } from "@onirix/ui/lib/icons";
 
 import { Button } from "@onirix/ui/components/button";
 
@@ -22,11 +22,14 @@ export function SourcePane({
   source,
   siblings,
   onSelect,
+  onPreview,
 }: {
   source: CitedSource | null;
   /** The other sources cited by the same answer, for stepping through them. */
   siblings: CitedSource[];
   onSelect: (source: CitedSource) => void;
+  /** Opens the whole document the passage was taken from. */
+  onPreview: (document: { id: string; title: string }) => void;
 }) {
   if (!source) {
     return (
@@ -84,7 +87,15 @@ export function SourcePane({
         </p>
       </div>
 
-      <footer className="flex items-center border-t px-4 py-2.5">
+      <footer className="flex items-center justify-between gap-3 border-t px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => onPreview({ id: source.documentId, title: source.title })}
+          className="text-info inline-flex items-center gap-1.5 text-xs hover:underline"
+        >
+          <EyeIcon className="size-3.5" />
+          View document
+        </button>
         {source.url ? (
           <a
             href={source.url}

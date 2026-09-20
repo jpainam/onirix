@@ -39,7 +39,7 @@ import { trpc } from "@/utils/trpc";
 
 import { AnswerWithCitations, UserMessage } from "./answer";
 import { DocumentsPane } from "./documents-pane";
-import { SideDock, type DockTab } from "./side-dock";
+import { SideDock, type DockPreview, type DockTab } from "./side-dock";
 import { SourcePane } from "./source-panel";
 import { useSessionDocuments, type SessionDocument } from "./use-session-documents";
 
@@ -137,6 +137,7 @@ export function ChatPanel({
   const [needsModel, setNeedsModel] = useState(false);
   const [dockOpen, setDockOpen] = useState(false);
   const [dockTab, setDockTab] = useState<DockTab>("documents");
+  const [preview, setPreview] = useState<DockPreview | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const createChat = useMutation(trpc.chat.create.mutationOptions());
@@ -205,6 +206,8 @@ export function ChatPanel({
         open.index === source.index;
 
       setOpen(showing ? null : { messageId, index: source.index });
+      // A citation asks for its passage, so a document left open gives way.
+      setPreview(null);
       setDockTab("source");
       setDockOpen(!showing);
     },
@@ -214,13 +217,21 @@ export function ChatPanel({
   function changeDockOpen(next: boolean) {
     setDockOpen(next);
     // A citation is only marked as open while its passage is on screen.
-    if (!next) setOpen(null);
+    if (!next) {
+      setOpen(null);
+      setPreview(null);
+    }
+  }
+
+  function changeDockTab(next: DockTab) {
+    setDockTab(next);
+    setPreview(null);
   }
 
   /** The header's one control: it shuts the panel, or opens it on Documents. */
   function toggleDocuments() {
     if (dockOpen) return changeDockOpen(false);
-    setDockTab("documents");
+    changeDockTab("documents");
     setDockOpen(true);
   }
 
@@ -507,8 +518,10 @@ export function ChatPanel({
         open={dockOpen}
         onOpenChange={changeDockOpen}
         tab={dockTab}
-        onTabChange={setDockTab}
+        onTabChange={changeDockTab}
         documentCount={sessionDocuments.documents.length}
+        preview={preview}
+        onClosePreview={() => setPreview(null)}
         panes={{
           documents: (
             <DocumentsPane
@@ -517,6 +530,7 @@ export function ChatPanel({
               onUpload={(files) => void attach(files)}
               onAttach={(document) => void sessionDocuments.attach([document])}
               onDetach={(documentId) => void sessionDocuments.detach(documentId)}
+              onPreview={setPreview}
             />
           ),
           source: (
@@ -526,6 +540,7 @@ export function ChatPanel({
               onSelect={(source) =>
                 openMessage && setOpen({ messageId: openMessage.id, index: source.index })
               }
+              onPreview={setPreview}
             />
           ),
         }}

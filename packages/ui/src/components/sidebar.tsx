@@ -238,6 +238,9 @@ function Sidebar({
           // The gap and the panel below move on one curve for one duration, so
           // the content's edge stays on the panel's edge the whole way across.
           "relative w-(--sidebar-width) bg-transparent transition-[width] duration-300 ease-drawer motion-reduce:transition-none",
+          // A width that is being dragged has to follow the pointer, not ease
+          // after it. The wrapper says when.
+          "group-data-[resizing=true]/sidebar-wrapper:transition-none",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -253,7 +256,7 @@ function Sidebar({
           // moved by its offset lays its whole subtree out again every frame.
           // Tailwind's translate utilities set `translate`, not `transform`, so
           // that is the property to name or the panel jumps while the gap glides.
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[translate,width] duration-300 will-change-[translate] ease-drawer motion-reduce:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[translate,width] duration-300 will-change-[translate] ease-drawer group-data-[resizing=true]/sidebar-wrapper:transition-none motion-reduce:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full md:flex",
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
