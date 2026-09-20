@@ -13,6 +13,7 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   EyeIcon,
+  InfoIcon,
   SearchIcon,
   Trash2Icon,
   WrenchIcon,
@@ -175,10 +176,12 @@ export function ModelBrowser({
   /** Where a download lands, as a sentence: "Downloads to this computer." */
   destination: string
   /**
-   * Shown in place of the download button when nothing can be downloaded
-   * yet. It says what is missing and offers the way to fix it.
+   * Set when nothing can be downloaded yet. It is said once, across the top of
+   * the page, with the way to fix it; every Download button stays in view but
+   * disabled, so it is plain that the step is one for the page and not one per
+   * model.
    */
-  blocked?: React.ReactNode
+  blocked?: { message: React.ReactNode; action?: React.ReactNode } | null
   /** Someone who may look but not download or remove. */
   readOnly?: boolean
   error?: string | null
@@ -216,114 +219,126 @@ export function ModelBrowser({
   ).length
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col md:flex-row", className)}>
-      <div className="flex max-h-72 min-h-0 shrink-0 flex-col border-b md:max-h-none md:w-80 md:border-r md:border-b-0">
-        <div className="flex flex-col gap-2 p-3">
-          <div className="relative">
-            <SearchIcon className="text-ink-03 pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-            <Input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search models"
-              aria-label="Search models"
-              className="pl-9"
-            />
+    <div className={cn("flex h-full min-h-0 flex-col", className)}>
+      {blocked ? (
+        <div
+          role="status"
+          className="bg-info-subtle flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3"
+        >
+          <InfoIcon className="text-info size-5 shrink-0" />
+          <p className="min-w-0 flex-1 basis-64 text-sm select-text">{blocked.message}</p>
+          {blocked.action}
+        </div>
+      ) : null}
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <div className="flex max-h-72 min-h-0 shrink-0 flex-col border-b md:max-h-none md:w-80 md:border-r md:border-b-0">
+          <div className="flex flex-col gap-2 p-3">
+            <div className="relative">
+              <SearchIcon className="text-ink-03 pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <Input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search models"
+                aria-label="Search models"
+                className="pl-9"
+              />
+            </div>
+            <div className="flex gap-1" role="group" aria-label="Filter models">
+              {(
+                [
+                  [false, `All (${models.length})`],
+                  [true, `Downloaded (${downloadedCount})`],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={label}
+                  variant={onlyDownloaded === value ? "secondary" : "muted"}
+                  size="sm"
+                  className="rounded-full"
+                  aria-pressed={onlyDownloaded === value}
+                  onClick={() => setOnlyDownloaded(value)}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-1" role="group" aria-label="Filter models">
-            {(
-              [
-                [false, `All (${models.length})`],
-                [true, `Downloaded (${downloadedCount})`],
-              ] as const
-            ).map(([value, label]) => (
-              <Button
-                key={label}
-                variant={onlyDownloaded === value ? "secondary" : "muted"}
-                size="sm"
-                className="rounded-full"
-                aria-pressed={onlyDownloaded === value}
-                onClick={() => setOnlyDownloaded(value)}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
+
+          <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+            {visible.length === 0 ? (
+              <li className="text-ink-03 px-3 py-6 text-center text-sm">
+                {onlyDownloaded && !needle ? "Nothing downloaded yet." : "No model matches."}
+              </li>
+            ) : null}
+            {visible.map((model) => {
+              const state = stateOf(model.id)
+              const active = selected?.id === model.id
+              return (
+                <li key={model.id}>
+                  <button
+                    type="button"
+                    aria-current={active ? "true" : undefined}
+                    onClick={() => setSelectedId(model.id)}
+                    className={cn(
+                      "focus-visible:ring-ring/50 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-3 motion-reduce:transition-none",
+                      active ? "bg-tint-02" : "hover:bg-tint-01"
+                    )}
+                  >
+                    <ModelTile model={model} className="size-9 text-sm" logoClassName="size-5" />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium">{model.label}</span>
+                        {state.installedBytes !== null ? (
+                          <CheckIcon
+                            className="text-success size-3.5 shrink-0"
+                            aria-label="Downloaded"
+                          />
+                        ) : null}
+                      </span>
+                      <span className="text-ink-03 truncate text-xs">
+                        {state.progress
+                          ? "Downloading"
+                          : (model.summary ?? model.id)}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      {rowBadge?.(model.id)}
+                      <span className="text-ink-03 font-figure text-xs">
+                        {state.installedBytes !== null
+                          ? gigabytes(state.installedBytes)
+                          : model.downloadGb
+                            ? `${model.downloadGb} GB`
+                            : ""}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </div>
 
-        <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-          {visible.length === 0 ? (
-            <li className="text-ink-03 px-3 py-6 text-center text-sm">
-              {onlyDownloaded && !needle ? "Nothing downloaded yet." : "No model matches."}
-            </li>
-          ) : null}
-          {visible.map((model) => {
-            const state = stateOf(model.id)
-            const active = selected?.id === model.id
-            return (
-              <li key={model.id}>
-                <button
-                  type="button"
-                  aria-current={active ? "true" : undefined}
-                  onClick={() => setSelectedId(model.id)}
-                  className={cn(
-                    "focus-visible:ring-ring/50 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-3 motion-reduce:transition-none",
-                    active ? "bg-tint-02" : "hover:bg-tint-01"
-                  )}
-                >
-                  <ModelTile model={model} className="size-9 text-sm" logoClassName="size-5" />
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-medium">{model.label}</span>
-                      {state.installedBytes !== null ? (
-                        <CheckIcon
-                          className="text-success size-3.5 shrink-0"
-                          aria-label="Downloaded"
-                        />
-                      ) : null}
-                    </span>
-                    <span className="text-ink-03 truncate text-xs">
-                      {state.progress
-                        ? "Downloading"
-                        : (model.summary ?? model.id)}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 flex-col items-end gap-1">
-                    {rowBadge?.(model.id)}
-                    <span className="text-ink-03 font-figure text-xs">
-                      {state.installedBytes !== null
-                        ? gigabytes(state.installedBytes)
-                        : model.downloadGb
-                          ? `${model.downloadGb} GB`
-                          : ""}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        {selected ? (
-          <ModelDetails
-            key={selected.id}
-            model={selected}
-            state={stateOf(selected.id)}
-            destination={destination}
-            blocked={blocked}
-            readOnly={readOnly}
-            error={error}
-            removeBlocked={removeBlocked?.(selected.id) ?? null}
-            onDownload={() => onDownload(selected.id)}
-            onCancel={() => onCancel(selected.id)}
-            onRemove={() => onRemove(selected.id)}
-            actions={installedActions?.(selected)}
-          />
-        ) : (
-          <p className="text-ink-03 p-8 text-sm">Choose a model to see what it is.</p>
-        )}
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+          {selected ? (
+            <ModelDetails
+              key={selected.id}
+              model={selected}
+              state={stateOf(selected.id)}
+              destination={destination}
+              blocked={Boolean(blocked)}
+              readOnly={readOnly}
+              error={error}
+              removeBlocked={removeBlocked?.(selected.id) ?? null}
+              onDownload={() => onDownload(selected.id)}
+              onCancel={() => onCancel(selected.id)}
+              onRemove={() => onRemove(selected.id)}
+              actions={installedActions?.(selected)}
+            />
+          ) : (
+            <p className="text-ink-03 p-8 text-sm">Choose a model to see what it is.</p>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -345,7 +360,7 @@ function ModelDetails({
   model: BrowserModel
   state: BrowserModelState
   destination: string
-  blocked: React.ReactNode
+  blocked: boolean
   readOnly: boolean
   error: string | null | undefined
   removeBlocked: string | null
@@ -412,15 +427,18 @@ function ModelDetails({
                 </Button>
               )}
             </div>
-          ) : blocked || readOnly ? null : (
-            <Button className="shrink-0 rounded-full px-4" onClick={onDownload}>
+          ) : readOnly ? null : (
+            <Button
+              className="shrink-0 rounded-full px-4"
+              disabled={blocked}
+              onClick={onDownload}
+            >
               <DownloadIcon />
               Download{model.downloadGb ? ` ${model.downloadGb} GB` : ""}
             </Button>
           )}
         </div>
 
-        {!installed && !state.progress ? blocked : null}
         {error ? (
           <p className="text-destructive text-sm select-text" role="alert">
             {error}

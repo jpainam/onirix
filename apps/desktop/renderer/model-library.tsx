@@ -3,8 +3,8 @@
  * and its download on the right.
  *
  * The list is there whether or not Ollama is: looking costs nothing, so a
- * machine without the runtime still browses, and the download card is where
- * it learns what is missing. The setup dialog keeps the compact list in
+ * machine without the runtime still browses. What is missing is said once,
+ * across the top, and the Download buttons wait disabled until it is fixed. The setup dialog keeps the compact list in
  * model-store.tsx; both read the same runtime snapshot, so a download started
  * in one shows in the other.
  */
@@ -84,30 +84,29 @@ export function ModelLibrary({
 
   const missing = runtime.status.state === "missing";
   const blocked =
-    runtime.status.state === "running" ? null : (
-      <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-        <p className="text-ink-03 min-w-0 flex-1 basis-64 text-sm">
-          {missing
-            ? "Local models run on Ollama, a free, open source runtime. Onirix can download it into its own folder. Nothing else on the computer is changed."
-            : "Ollama is installed but not running. Start it to download models."}
-        </p>
-        <Button
-          variant="outline"
-          className="shrink-0 rounded-full px-4"
-          disabled={runtime.busy !== null}
-          onClick={() => void (missing ? install() : start())}
-        >
-          {runtime.busy ? <Spinner /> : null}
-          {missing
-            ? runtime.busy
-              ? installLabel(runtime.progress.runtime)
-              : "Install Ollama"
-            : runtime.busy
-              ? "Starting Ollama"
-              : "Start Ollama"}
-        </Button>
-      </div>
-    );
+    runtime.status.state === "running"
+      ? null
+      : {
+          message: missing
+            ? "Open models run on Ollama, a free, open source runtime. Install it once and every model here can be downloaded. Onirix puts it in its own folder and changes nothing else on the computer."
+            : "Ollama is installed but not running. Start it to download models.",
+          action: (
+            <Button
+              className="shrink-0 rounded-full px-4"
+              disabled={runtime.busy !== null}
+              onClick={() => void (missing ? install() : start())}
+            >
+              {runtime.busy ? <Spinner /> : null}
+              {missing
+                ? runtime.busy
+                  ? installLabel(runtime.progress.runtime)
+                  : "Install Ollama"
+                : runtime.busy
+                  ? "Starting Ollama"
+                  : "Start Ollama"}
+            </Button>
+          ),
+        };
 
   return (
     <ModelBrowser

@@ -24,8 +24,8 @@ const CATALOG: BrowserModel[] = browseOpenModels();
  * A download does not land on the admin's computer. It lands on the machine
  * that runs the workspace's Ollama, and it is the server that asks for it, so
  * this works from any browser. What it does need is a self-hosted Ollama to
- * download into: without one the page still browses, and the download card
- * says what is missing.
+ * download into: without one the page still browses, a notice across the top
+ * says what is missing, and the Download buttons wait disabled.
  */
 export function OpenModelsView({ canManage }: { canManage: boolean }) {
   const queryClient = useQueryClient();
@@ -59,48 +59,36 @@ export function OpenModelsView({ canManage }: { canManage: boolean }) {
     );
   }
 
-  let blocked: ReactNode = null;
+  let blocked: { message: ReactNode; action?: ReactNode } | null = null;
   if (data?.state === "none") {
-    blocked = (
-      <Blocked
-        action={
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/admin/language-models" />}
-          >
-            Connect Ollama
-          </Button>
-        }
-      >
-        Models download onto the machine that runs Ollama for this workspace. Connect a
-        self-hosted Ollama first.
-      </Blocked>
-    );
+    blocked = {
+      message:
+        "Models download onto the machine that runs Ollama for this workspace. Connect a self-hosted Ollama first.",
+      action: canManage ? (
+        <Button nativeButton={false} render={<Link href="/admin/language-models" />}>
+          Connect Ollama
+        </Button>
+      ) : null,
+    };
   } else if (data?.state === "cloud") {
-    blocked = (
-      <Blocked>
-        This workspace uses Ollama Cloud, which serves these models without a download. To
-        run them on your own hardware, point Ollama at a self-hosted address.
-      </Blocked>
-    );
+    blocked = {
+      message:
+        "This workspace uses Ollama Cloud, which serves these models without a download. To run them on your own hardware, point Ollama at a self-hosted address.",
+    };
   } else if (data?.state === "unreachable") {
-    blocked = (
-      <Blocked
-        action={
-          <Button
-            variant="outline"
-            disabled={library.isFetching}
-            onClick={() => void library.refetch()}
-          >
-            {library.isFetching ? <Spinner /> : null}
-            Try again
-          </Button>
-        }
-      >
-        Onirix could not reach Ollama at {data.baseUrl}. Check that it is running.
-      </Blocked>
-    );
+    blocked = {
+      message: `Onirix could not reach Ollama at ${data.baseUrl}. Check that it is running.`,
+      action: (
+        <Button
+          variant="outline"
+          disabled={library.isFetching}
+          onClick={() => void library.refetch()}
+        >
+          {library.isFetching ? <Spinner /> : null}
+          Try again
+        </Button>
+      ),
+    };
   }
 
   return (
@@ -163,16 +151,6 @@ export function OpenModelsView({ canManage }: { canManage: boolean }) {
           />
         </div>
       )}
-    </div>
-  );
-}
-
-/** Why nothing can be downloaded yet, and the way to fix it. */
-function Blocked({ children, action }: { children: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center gap-3 border-t pt-3">
-      <p className="text-ink-03 min-w-0 flex-1 basis-64 text-sm">{children}</p>
-      {action}
     </div>
   );
 }
