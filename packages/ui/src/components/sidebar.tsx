@@ -251,7 +251,9 @@ function Sidebar({
         className={cn(
           // Sliding off is a transform, not a change of `left`: a fixed panel
           // moved by its offset lays its whole subtree out again every frame.
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[transform,width] duration-300 ease-drawer motion-reduce:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full md:flex",
+          // Tailwind's translate utilities set `translate`, not `transform`, so
+          // that is the property to name or the panel jumps while the gap glides.
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[translate,width] duration-300 will-change-[translate] ease-drawer motion-reduce:transition-none data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:-translate-x-full data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:translate-x-full md:flex",
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
