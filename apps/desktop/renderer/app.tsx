@@ -59,6 +59,8 @@ export function App() {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [trail, setTrail] = useState<Trail>({ views: [HOME], at: 0 });
   const view = trail.views[trail.at] ?? HOME;
+  const viewRef = useRef(view);
+  viewRef.current = view;
   const [chat, setChat] = useState<Chat | null>(null);
   const [library, setLibrary] = useState<LibraryDocument[]>([]);
   /** The passages given to each answer still arriving. */
@@ -204,12 +206,15 @@ export function App() {
     setFailures(({ [chatId]: _cleared, ...rest }) => rest);
   }
 
-  function applySendResult(result: SendResult) {
+  function applySendResult(result: SendResult, origin: View) {
     const { id } = result.chat;
-    setChat(result.chat);
-    // A new session that has just become a chat is the same place, named.
-    if (activeRef.current === null) replaceView({ kind: "chat", chatId: id });
-    else navigate({ kind: "chat", chatId: id });
+    // An IPC reply must not take the reader back after they navigate away.
+    if (sameView(viewRef.current, origin)) {
+      setChat(result.chat);
+      if (origin.kind === "chat" && origin.chatId === null) {
+        replaceView({ kind: "chat", chatId: id });
+      }
+    }
     if (result.streaming) setStreams((current) => ({ ...current, [id]: current[id] ?? "" }));
     if (result.failure) {
       const { failure } = result;
@@ -219,14 +224,18 @@ export function App() {
   }
 
   async function run(chatId: string | null, call: () => Promise<SendResult>) {
+    const origin = viewRef.current;
     if (chatId) clearFailure(chatId);
     try {
-      applySendResult(await call());
+      applySendResult(await call(), origin);
+      return true;
     } catch (failure) {
       if (chatId) {
         const message = errorMessage(failure);
         setFailures((current) => ({ ...current, [chatId]: { code: "failed", message } }));
+        return false;
       }
+      throw failure;
     }
   }
 
@@ -372,6 +381,7 @@ export function App() {
         ) : (
           <ChatView
             banner={banner}
+            chatId={activeChatId}
             chat={activeChatId && chat?.id === activeChatId ? chat : null}
             streamingText={activeChatId ? streams[activeChatId] : undefined}
             streamingSources={(activeChatId ? streamSources[activeChatId] : undefined) ?? []}
@@ -379,9 +389,11 @@ export function App() {
             model={state.model}
             library={library}
             onLibraryChange={refreshLibrary}
-            onChatChange={setChat}
+            onChatChange={(updated) => {
+              if (activeRef.current === updated.id) setChat(updated);
+            }}
             onSend={(text, documentIds) =>
-              void run(activeChatId, () => bridge.chats.send(activeChatId, text, documentIds))
+              run(activeChatId, () => bridge.chats.send(activeChatId, text, documentIds))
             }
             onRetry={() => {
               if (activeChatId) void run(activeChatId, () => bridge.chats.retry(activeChatId));

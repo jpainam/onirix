@@ -73,6 +73,7 @@ const STREAMING_ID = "streaming";
 
 export function ChatView({
   banner,
+  chatId,
   chat,
   streamingText,
   streamingSources,
@@ -88,6 +89,8 @@ export function ChatView({
 }: {
   /** A notice from the shell, shown under the header row. */
   banner: React.ReactNode;
+  /** The selected conversation, including while its contents are loading. */
+  chatId: string | null;
   /** Null on the new-session page. */
   chat: Chat | null;
   /** The answer so far while one is arriving, otherwise undefined. */
@@ -102,7 +105,7 @@ export function ChatView({
   /** The chat changed without a message being sent (a document attached). */
   onChatChange: (chat: Chat) => void;
   /** `documentIds` only matters for a new session, which has no chat to hold them. */
-  onSend: (text: string, documentIds: string[]) => void;
+  onSend: (text: string, documentIds: string[]) => Promise<boolean>;
   onRetry: () => void;
   onCancel: () => void;
   onSetUpModel: () => void;
@@ -110,7 +113,12 @@ export function ChatView({
   const [input, setInput] = useState("");
   const field = useRef<HTMLTextAreaElement>(null);
   const streaming = streamingText !== undefined;
-  const chatId = chat?.id ?? null;
+  const loading = chatId !== null && chat === null;
+  const [sending, setSending] = useState(false);
+  const sendPending = useRef(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const selectedChat = useRef(chatId);
+  selectedChat.current = chatId;
 
   const [dockOpen, setDockOpenState] = useState(initialDockOpen);
   const setDockOpen = useCallback((open: boolean) => {
@@ -140,6 +148,7 @@ export function ChatView({
     setInput("");
     setOpenSource(null);
     setAddError(null);
+    setSendError(null);
     field.current?.focus();
     // From a new session into the chat it just became, the dock stays as it
     // was: the person attached a file and asked about it, and is still looking
@@ -225,14 +234,36 @@ export function ChatView({
     setDockOpen(true);
   }
 
-  function submit() {
+  async function submit() {
     const text = input.trim();
-    if (!text || streaming) return;
-    setInput("");
-    onSend(text, held);
+    if (!text || streaming || loading || adding || sendPending.current) return;
+    sendPending.current = true;
+    setSending(true);
+    setSendError(null);
+    try {
+      if (await onSend(text, held)) {
+        if (selectedChat.current === chatId) {
+          setInput((current) => current.trim() === text ? "" : current);
+        }
+      }
+    } catch (failure) {
+      if (selectedChat.current === chatId) setSendError(errorMessage(failure));
+    } finally {
+      sendPending.current = false;
+      setSending(false);
+    }
   }
 
   const messages = chat?.messages ?? [];
+
+  // A citation opened mid-answer belongs to the saved answer once it lands.
+  const lastMessage = messages.at(-1);
+  useEffect(() => {
+    if (streaming || lastMessage?.role !== "assistant") return;
+    setOpenSource((current) => current?.messageId === STREAMING_ID
+      ? { ...current, messageId: lastMessage.id }
+      : current);
+  }, [streaming, lastMessage?.id, lastMessage?.role]);
 
   // The open passage, and the cited ones of the same answer to step through.
   const openSources =
@@ -253,63 +284,66 @@ export function ChatView({
   const unanswered = !streaming && !failure && messages.at(-1)?.role === "user";
 
   const composer = (
-    <InputGroup size="lg">
-      <InputGroupTextarea
-        ref={field}
-        variant="bare"
-        value={input}
-        maxLength={LIMITS.messageChars}
-        onChange={(event) => setInput(event.target.value)}
-        onKeyDown={(event) => {
-          // Enter sends; Shift+Enter inserts a newline. Not while an input
-          // method is composing, where Enter picks a candidate.
-          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
-            event.preventDefault();
-            submit();
-          }
-        }}
-        placeholder="Ask anything"
-        rows={2}
-      />
-      <InputGroupAddon align="block-end">
-        <Button
-          variant="muted"
-          size="icon-sm"
-          aria-label="Attach files"
-          disabled={adding}
-          onClick={() => attachInput.current?.click()}
-        >
-          {adding ? <Spinner /> : <PaperclipIcon />}
-        </Button>
-        <button
-          type="button"
-          onClick={onSetUpModel}
-          className="text-ink-03 hover:bg-tint-02 hover:text-ink-04 h-7 rounded-full px-2.5 text-xs transition-colors motion-reduce:transition-none"
-        >
-          {model ? modelLabel(model) : "No model"}
-        </button>
-        {streaming ? (
+    <>
+      {sendError ? <p className="text-destructive mb-2 text-sm" role="alert">{sendError}</p> : null}
+      <InputGroup size="lg">
+        <InputGroupTextarea
+          ref={field}
+          variant="bare"
+          value={input}
+          maxLength={LIMITS.messageChars}
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter sends; Shift+Enter inserts a newline. Not while an input
+            // method is composing, where Enter picks a candidate.
+            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+              event.preventDefault();
+              void submit();
+            }
+          }}
+          placeholder="Ask anything"
+          rows={2}
+        />
+        <InputGroupAddon align="block-end">
           <Button
-            size="icon-round"
-            aria-label="Stop answering"
-            onClick={onCancel}
-            className="ml-auto"
+            variant="muted"
+            size="icon-sm"
+            aria-label="Attach files"
+            disabled={adding || loading || sending}
+            onClick={() => attachInput.current?.click()}
           >
-            <SquareIcon className="size-3 fill-current" />
+            {adding ? <Spinner /> : <PaperclipIcon />}
           </Button>
-        ) : (
-          <Button
-            size="icon-round"
-            aria-label="Send message"
-            disabled={input.trim().length === 0}
-            onClick={submit}
-            className="ml-auto"
+          <button
+            type="button"
+            onClick={onSetUpModel}
+            className="text-ink-03 hover:bg-tint-02 hover:text-ink-04 h-7 rounded-full px-2.5 text-xs transition-colors motion-reduce:transition-none"
           >
-            <ArrowUpIcon />
-          </Button>
-        )}
-      </InputGroupAddon>
-    </InputGroup>
+            {model ? modelLabel(model) : "No model"}
+          </button>
+          {streaming ? (
+            <Button
+              size="icon-round"
+              aria-label="Stop answering"
+              onClick={onCancel}
+              className="ml-auto"
+            >
+              <SquareIcon className="size-3 fill-current" />
+            </Button>
+          ) : (
+            <Button
+              size="icon-round"
+              aria-label="Send message"
+              disabled={loading || adding || sending || input.trim().length === 0}
+              onClick={() => void submit()}
+              className="ml-auto"
+            >
+              <ArrowUpIcon />
+            </Button>
+          )}
+        </InputGroupAddon>
+      </InputGroup>
+    </>
   );
 
   return (

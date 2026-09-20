@@ -127,6 +127,9 @@ export function ChatPanel({
   const [created, setCreated] = useState(conversationId !== null);
   const [input, setInput] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const submissionPending = useRef(false);
+  const uploadPending = useRef(false);
   const [open, setOpen] = useState<OpenCitation | null>(null);
   // Raised by trying to send with no model connected, and only then: a
   // workspace without one stays fully open to look around in, so this is the
@@ -223,7 +226,7 @@ export function ChatPanel({
 
   async function submit(text: string) {
     const trimmed = text.trim();
-    if (!trimmed || busy) return;
+    if (!trimmed || busy || submissionPending.current || uploadPending.current) return;
 
     if (modelLabel === null) {
       // Nothing is sent or stored, and what was typed stays in the composer
@@ -232,34 +235,46 @@ export function ChatPanel({
       return;
     }
 
-    if (!created) {
-      await createChat.mutateAsync({ id: chatId });
-      // Documents attached before there was a conversation to attach them to
-      // are written now, ahead of the message, so this first answer already
-      // reads them.
-      await sessionDocuments.flush();
-      setCreated(true);
-      // The row exists now but is nameless until the answer is persisted, so
-      // the sidebar is shown the question in the meantime.
-      seedRecentConversation(chatId, trimmed);
-      // Reopening the conversation needs its id in the URL, but a router
-      // navigation here would remount this panel and abort the stream that is
-      // about to start — so the address bar is corrected in place instead.
-      window.history.replaceState(null, "", `/chat/${chatId}`);
-    }
+    submissionPending.current = true;
+    setSubmitting(true);
+    setNeedsModel(false);
+    try {
+      if (!created) {
+        await createChat.mutateAsync({ id: chatId });
+        // Documents attached before there was a conversation to attach them to
+        // are written now, ahead of the message, so this first answer already
+        // reads them.
+        await sessionDocuments.flush();
+        setCreated(true);
+        // The row exists now but is nameless until the answer is persisted, so
+        // the sidebar is shown the question in the meantime.
+        seedRecentConversation(chatId, trimmed);
+        // Reopening the conversation needs its id in the URL, but a router
+        // navigation here would remount this panel and abort the stream that is
+        // about to start — so the address bar is corrected in place instead.
+        window.history.replaceState(null, "", `/chat/${chatId}`);
+      }
 
-    setInput("");
-    // Sent in the body as well as on the transport: the server has to look the
-    // conversation up to check it is the caller's before it generates anything.
-    sendMessage({ text: trimmed }, { body: { chatId } });
+      setInput("");
+      // Sent in the body as well as on the transport: the server has to look the
+      // conversation up to check it is the caller's before it generates anything.
+      await sendMessage({ text: trimmed }, { body: { chatId } });
+    } catch {
+      toast.error("Could not send your message. Please try again.");
+      setInput((current) => current || text);
+    } finally {
+      submissionPending.current = false;
+      setSubmitting(false);
+    }
   }
 
   async function attach(files: FileList | File[] | null) {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0 || uploadPending.current || submissionPending.current) return;
 
     const formData = new FormData();
     for (const file of files) formData.append("files", file);
 
+    uploadPending.current = true;
     setUploading(true);
     try {
       const response = await fetch("/api/upload", { method: "POST", body: formData });
@@ -285,13 +300,16 @@ export function ChatPanel({
       for (const rejected of result.rejected ?? []) {
         toast.error(`${rejected.name}: ${rejected.reason}`);
       }
+    } catch {
+      toast.error("Could not upload your files. Please try again.");
     } finally {
+      uploadPending.current = false;
       setUploading(false);
       if (fileInput.current) fileInput.current.value = "";
     }
   }
 
-  const missingModel = needsModel ? (
+  const missingModel = needsModel && modelLabel === null ? (
     <div
       role="alert"
       className="bg-warning-subtle mb-2 flex w-full items-center gap-3 rounded-xl px-4 py-3"
@@ -317,7 +335,7 @@ export function ChatPanel({
         onChange={(event) => setInput(event.target.value)}
         onKeyDown={(event) => {
           // Enter sends; Shift+Enter inserts a newline.
-          if (event.key === "Enter" && !event.shiftKey) {
+          if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
             event.preventDefault();
             void submit(input);
           }
@@ -330,7 +348,7 @@ export function ChatPanel({
           variant="muted"
           size="icon-sm"
           aria-label="Attach files"
-          disabled={uploading}
+          disabled={uploading || submitting}
           onClick={() => fileInput.current?.click()}
         >
           {uploading ? <Spinner /> : <PaperclipIcon />}
@@ -338,7 +356,7 @@ export function ChatPanel({
         <Button
           size="icon-round"
           aria-label="Send message"
-          disabled={busy || input.trim().length === 0}
+          disabled={busy || submitting || uploading || input.trim().length === 0}
           onClick={() => void submit(input)}
           className="ml-auto"
         >
