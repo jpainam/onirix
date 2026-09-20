@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpenIcon,
   FolderPlusIcon,
@@ -8,6 +7,7 @@ import {
   PencilIcon,
   Trash2Icon,
 } from "@onirix/ui/lib/icons";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -122,9 +122,8 @@ export function KnowledgeView({
   const unfiled = rows.filter((row) => row.collectionId === null);
 
   return (
-    <Page>
+    <Page wide>
       <PageHeader
-        icon={BookOpenIcon}
         title="Knowledge"
         description="Collections are how indexed documents are grouped by subject, such as Engineering or HR, whatever source they arrived from."
         action={
@@ -307,7 +306,9 @@ function CollectionCard({
           <BookOpenIcon className="size-5" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-semibold">{collection.name}</span>
+          <span className="truncate text-sm font-semibold">
+            {collection.name}
+          </span>
           <span className="text-ink-03 truncate text-xs leading-4">
             {collection.documentCount}{" "}
             {collection.documentCount === 1 ? "document" : "documents"}

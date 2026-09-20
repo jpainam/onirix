@@ -42,7 +42,7 @@ const DESTINATIONS = [
   { title: "Users", url: "/admin/users", icon: UsersIcon },
   { title: "Teams", url: "/admin/teams", icon: NetworkIcon },
   { title: "Roles", url: "/admin/roles", icon: ShieldIcon },
-  { title: "Language models", url: "/admin/language-models", icon: CpuIcon },
+  { title: "Language model", url: "/admin/language-models", icon: CpuIcon },
   { title: "Open models", url: "/admin/open-models", icon: DownloadIcon },
   { title: "Organization", url: "/admin/organization", icon: BuildingIcon },
   { title: "Appearance", url: "/admin/appearance", icon: PaletteIcon },

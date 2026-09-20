@@ -50,7 +50,7 @@ import {
 import { Spinner } from "@onirix/ui/components/spinner";
 
 import { Page, PageHeader, Section } from "@/components/page";
-import { SourceIcon, sourceKindIcon, sourceKindLabel } from "@/components/source-icon";
+import { SourceIcon, sourceKindLabel } from "@/components/source-icon";
 import { formatCount, formatDuration, formatInterval, formatRelative } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
@@ -116,7 +116,7 @@ export function SourceView({
 
   if (connector.isPending) {
     return (
-      <Page>
+      <Page wide>
         <div className="flex justify-center py-16">
           <Spinner />
         </div>
@@ -128,7 +128,7 @@ export function SourceView({
   // arrives here as missing rather than as forbidden.
   if (connector.isError || !connector.data) {
     return (
-      <Page>
+      <Page wide>
         <Empty variant="outline">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -177,7 +177,7 @@ export function SourceView({
   }
 
   return (
-    <Page>
+    <Page wide>
       <Link
         href="/admin/sources"
         className="text-ink-03 hover:text-foreground mb-6 inline-flex items-center gap-1 text-sm transition-colors"
@@ -187,7 +187,6 @@ export function SourceView({
       </Link>
 
       <PageHeader
-        icon={sourceKindIcon(data.type)}
         title={data.name}
         description={`${sourceKindLabel(data.type)} · ${data.summary}`}
         action={

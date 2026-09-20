@@ -1,7 +1,7 @@
 /** Class names shared across the local renderer, so its surfaces agree. */
 
 /** The quiet bordered surface used for tiles, lists, and option cards. */
-export const TILE = "rounded-xl border bg-card";
+export { TILE } from "@onirix/ui/components/settings-section";
 
 /** An option card that can be chosen: the tile, plus how it shows selection. */
 export const OPTION =

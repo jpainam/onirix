@@ -1,4 +1,4 @@
-import { GlobeIcon, KeyRoundIcon, LockIcon, MailIcon } from "@onirix/ui/lib/icons";
+import { GlobeIcon, KeyRoundIcon, MailIcon } from "@onirix/ui/lib/icons";
 
 import { Badge } from "@onirix/ui/components/badge";
 
@@ -25,16 +25,17 @@ export default async function SecurityPage() {
 
   // Same condition `createAuth` applies: a provider with no credentials is not
   // registered, so the button on the login page fails rather than redirects.
-  const googleConfigured = Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+  const googleConfigured = Boolean(
+    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET,
+  );
 
   // Rendering decision only. `security.workspaceSessions` checks the same grant,
   // and so does every revoke of someone else's session.
   const canManage = workspaceCan(workspace, "member", "update");
 
   return (
-    <Page>
+    <Page wide>
       <PageHeader
-        icon={LockIcon}
         title="Security"
         description="How people sign in to this deployment, and the devices they are signed in on."
       />

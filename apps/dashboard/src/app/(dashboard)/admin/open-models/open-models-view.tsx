@@ -1,7 +1,6 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DownloadIcon } from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
@@ -97,12 +96,10 @@ export function OpenModelsView({ canManage }: { canManage: boolean }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="px-8 pt-10">
+      <div className="px-6 pt-10">
         <PageHeader
-          icon={DownloadIcon}
-          title="Open Models"
+          title="Open models"
           description="Open source models, downloaded to your own Ollama and run there."
-          divider={false}
         />
       </div>
 

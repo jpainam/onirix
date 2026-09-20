@@ -1,12 +1,12 @@
 /**
- * Local mode's settings: one page per row of the settings menu (see
- * settings-nav.ts), shown in the content area while the sidebar holds the
- * menu. The header row names the page, as it names a conversation elsewhere.
+ * Local mode's settings: one page per row of the shared settings menu
+ * (`@onirix/ui/lib/settings-nav`), shown in the content area while the
+ * sidebar holds the menu.
  *
  * The menu is the workspace's, whole. A page that needs a server still opens:
  * it says what it is for and what it needs, with the form that connects one
- * right there (see `needsServer` in settings-nav.ts). Documents and skills are
- * not among those: they work here.
+ * right there (`needsServer`). Documents and skills are not among those: they
+ * work here.
  */
 import type { ReactNode } from "react";
 
@@ -22,31 +22,16 @@ import { describeChoice } from "./model-label";
 import { ModelLibrary } from "./model-library";
 import { ServerForm } from "./server-form";
 import { DocumentsSettings } from "./settings-documents";
-import { type SettingsPage, serverOnlyReason, settingsTitle } from "./settings-nav";
-import { Section } from "./settings-section";
+import { type SettingsPage, serverOnlyReason, settingsTitle } from "@onirix/ui/lib/settings-nav";
+import { PageHeading, Row, Section } from "@onirix/ui/components/settings-section";
 import { SkillsSettings } from "./settings-skills";
 import { OPTION, TILE } from "./tokens";
 
-/** One line of a settings tile: what it is on the left, the control on the right. */
-function Row({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex min-h-14 items-center gap-4 px-4 py-3">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-sm">{title}</span>
-        {description ? <span className="text-ink-03 text-xs select-text">{description}</span> : null}
-      </div>
-      {children}
-    </div>
-  );
-}
+/** The sentence under a page's title, on the pages that have one to say. */
+const LEAD: Partial<Record<SettingsPage, string>> = {
+  skills:
+    "Instructions the assistant follows when it answers. Every skill that is on goes into every answer, so keep them short.",
+};
 
 const SHORTCUTS: readonly { keys: string; what: string }[] = [
   { keys: "N", what: "New session" },
@@ -130,7 +115,7 @@ export function SettingsView({
         >
           {/* Appearance is the shared screen and brings its own heading. */}
           {page === "appearance" ? null : (
-            <h1 className="text-2xl font-medium tracking-display">{settingsTitle(page)}</h1>
+            <PageHeading title={settingsTitle(page)} description={LEAD[page]} />
           )}
           {page === "general" ? (
             <>

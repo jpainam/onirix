@@ -28,10 +28,10 @@ import type {
 
 import { errorMessage, getBridge } from "./bridge";
 import { ChatView } from "./chat-view";
-import { Modal, ModalDescription, ModalTitle } from "./modal";
+import { Modal, ModalDescription, ModalTitle } from "@onirix/ui/components/modal";
 import { OnboardingDialog, type OnboardingStart } from "./onboarding/onboarding-dialog";
 import { ServerForm } from "./server-form";
-import type { SettingsPage } from "./settings-nav";
+import type { SettingsPage } from "@onirix/ui/lib/settings-nav";
 import { SettingsView } from "./settings-view";
 import { ShellControls } from "./shell-controls";
 import { LocalSidebar } from "./sidebar";

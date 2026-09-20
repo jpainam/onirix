@@ -24,7 +24,7 @@ import type { LocalState, ModelChoice } from "../../src/local-bridge";
 
 import { ApiKeyFields, ApiKeyFormProvider, useApiKeyForm } from "../api-key-form";
 import { errorMessage, getBridge } from "../bridge";
-import { Modal, ModalDescription, ModalTitle } from "../modal";
+import { Modal, ModalDescription, ModalTitle } from "@onirix/ui/components/modal";
 import { describeChoice } from "../model-label";
 import { ModelStore } from "../model-store";
 import { ServerFields, ServerFormProvider, useServerForm } from "../server-form";

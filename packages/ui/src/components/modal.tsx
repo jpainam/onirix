@@ -1,11 +1,13 @@
+"use client"
+
 /**
- * The dialog frame local mode uses.
+ * The dialog frame of the settings screens and of the desktop app's local mode.
  *
- * Built on the same Base UI primitive as `@onirix/ui`'s Dialog, without that
- * component's blurred backdrop: a flat scrim is enough to say "this is over
- * that", and the app behind stays legible, which matters for a setup the
- * person is free to ignore. The only motion is the popup's own scale and fade
- * on the way in and out, and none at all with reduced motion.
+ * Built on the same Base UI primitive as Dialog, without that component's
+ * blurred backdrop: a flat scrim is enough to say "this is over that", and the
+ * app behind stays legible, which matters for a setup the person is free to
+ * ignore. The only motion is the popup's own scale and fade on the way in and
+ * out, and none at all with reduced motion.
  */
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "@onirix/ui/lib/icons";

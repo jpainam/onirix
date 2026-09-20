@@ -51,7 +51,6 @@ export function TeamsView({ canManage }: { canManage: boolean }) {
   return (
     <Page>
       <PageHeader
-        icon={NetworkIcon}
         title="Teams"
         description="Teams group users (Engineering, Sales, HR) and decide what each can reach."
         action={

@@ -9,16 +9,14 @@
  * a pair, so opening Settings reads as stepping sideways rather than as a new
  * screen, and "Back to app" steps back.
  *
- * It lists only what works with no server. Connectors, teams, and database
- * sources are not here as greyed-out rows: a row that does nothing is worse
- * than no row, and Settings says once what a server adds.
+ * The settings pane is the shared one (`@onirix/ui`'s SettingsMenu), so its
+ * rows and groups are the dashboard's. A page that needs a server still has
+ * its row; the page says what it needs.
  */
 import {
-  ArrowLeftIcon,
   MoreHorizontalIcon,
   PanelLeftIcon,
   PencilIcon,
-  SearchIcon,
   SettingsIcon,
   SquarePenIcon,
   Trash2Icon,
@@ -33,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@onirix/ui/components/dropdown-menu";
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@onirix/ui/components/input-group";
+import { SettingsMenu } from "@onirix/ui/components/settings-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -53,8 +51,8 @@ import { cn } from "@onirix/ui/lib/utils";
 
 import { type ChatSummary, LIMITS } from "../src/local-bridge";
 
-import { Modal, ModalDescription, ModalTitle } from "./modal";
-import { SETTINGS_SECTIONS, type SettingsPage } from "./settings-nav";
+import { Modal, ModalDescription, ModalTitle } from "@onirix/ui/components/modal";
+import type { SettingsPage } from "@onirix/ui/lib/settings-nav";
 
 
 export function LocalSidebar({
@@ -85,14 +83,7 @@ export function LocalSidebar({
   const { toggleSidebar } = useSidebar();
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<ChatSummary | null>(null);
-  const [settingsSearch, setSettingsSearch] = useState("");
   const inSettings = settingsPage !== null;
-
-  const wanted = settingsSearch.trim().toLowerCase();
-  const sections = SETTINGS_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter((item) => !wanted || item.title.toLowerCase().includes(wanted)),
-  })).filter((section) => section.items.length > 0);
 
   return (
     <>
@@ -206,54 +197,14 @@ export function LocalSidebar({
           </Pane>
 
           <Pane hidden={!inSettings} offset={inSettings ? "none" : "right"}>
-            <SidebarHeader className="gap-2 px-1">
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton onClick={onBackToApp}>
-                    <ArrowLeftIcon />
-                    <span>Back to app</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-              <div className="px-1">
-                <InputGroup className="bg-background h-8">
-                  <InputGroupAddon>
-                    <SearchIcon />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    value={settingsSearch}
-                    onChange={(event) => setSettingsSearch(event.target.value)}
-                    placeholder="Search settings"
-                    aria-label="Search settings"
-                  />
-                </InputGroup>
-              </div>
-            </SidebarHeader>
-
-            <SidebarContent>
-              {sections.length === 0 ? (
-                <p className="text-ink-02 px-3 py-2 text-xs">No setting matches that.</p>
-              ) : (
-                sections.map((section) => (
-                  <SidebarGroup key={section.label}>
-                    <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-                    <SidebarMenu>
-                      {section.items.map((item) => (
-                        <SidebarMenuItem key={item.page}>
-                          <SidebarMenuButton
-                            isActive={settingsPage === item.page}
-                            onClick={() => onOpenSettings(item.page)}
-                          >
-                            <item.icon />
-                            <span>{item.title}</span>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroup>
-                ))
-              )}
-            </SidebarContent>
+            {/* The dashboard's settings pane, row for row. */}
+            <SettingsMenu
+              active={settingsPage}
+              desktop
+              toggle={!mac}
+              onBack={onBackToApp}
+              onOpen={onOpenSettings}
+            />
           </Pane>
         </div>
 

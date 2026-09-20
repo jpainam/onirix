@@ -16,9 +16,8 @@ export default async function AgentsPage() {
   await requireWorkspace();
 
   return (
-    <Page>
+    <Page wide>
       <PageHeader
-        icon={BrainIcon}
         title="Explore Agents"
         description="Assistants focused on selected knowledge."
         action={

@@ -114,8 +114,7 @@ export function LanguageModelsView({ canManage }: { canManage: boolean }) {
   return (
     <Page>
       <PageHeader
-        icon={CpuIcon}
-        title="Language Models"
+        title="Language model"
         description="Connect providers and choose the model your workspace answers with."
       />
 

@@ -139,9 +139,8 @@ export function QueryHistoryView() {
   const selectedMember = members.data?.items.find((row) => row.userId === userId);
 
   return (
-    <Page className="max-w-6xl">
+    <Page wide className="max-w-6xl">
       <PageHeader
-        icon={HistoryIcon}
         title="Query History"
         description="Every conversation in this workspace, and what people asked for."
       />

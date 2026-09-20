@@ -12,7 +12,7 @@ import {
 } from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import {
   Sidebar,
@@ -21,7 +21,6 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -34,7 +33,13 @@ import {
 } from "@onirix/ui/components/tooltip";
 import { cn } from "@onirix/ui/lib/utils";
 
-import { AdminNav } from "@/components/admin-nav";
+import { SettingsMenu } from "@onirix/ui/components/settings-menu";
+
+import {
+  SETTINGS_HOME,
+  SETTINGS_ROUTES,
+  settingsPageAt,
+} from "@/components/admin-nav";
 import {
   CommandPalette,
   useCommandPalette,
@@ -52,9 +57,6 @@ const PRIMARY_ITEMS = [
 const AGENT_ITEMS = [
   { title: "Explore Agents", url: "/agents", icon: BrainIcon },
 ] as const;
-
-/** Where the Setting panel entry lands; `/admin` also decides which menu shows. */
-const ADMIN_HOME = "/admin/language-models";
 
 
 export function AppSidebar({
@@ -79,40 +81,40 @@ export function AppSidebar({
   // The admin menu is not a separate layout: both menus live in one sliding
   // track so moving between them animates instead of swapping in place.
   const inAdmin = pathname.startsWith("/admin");
-  const [settingsQuery, setSettingsQuery] = useState("");
+  const desktop = useDesktop();
 
   return (
     <>
       <Sidebar collapsible="offcanvas">
-        <SidebarHeader>
-          <div className="flex h-8 items-center justify-between">
-            <Link href="/chat" aria-label="Onirix home">
-              <OnirixWordmark />
-            </Link>
-            {desktopMac ? null : (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      onClick={toggleSidebar}
-                      aria-label="Close sidebar"
-                      className="text-ink-02 hover:bg-sidebar-accent hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
-                    />
-                  }
-                >
-                  <PanelLeftIcon className="size-4.5" />
-                </TooltipTrigger>
-                <TooltipContent side="bottom">Close sidebar</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </SidebarHeader>
-
         {/* The two menus are stacked in one clipping frame and slide as a pair, so
             the settings panel reads as stepping sideways rather than as a new screen. */}
         <div className="relative min-h-0 flex-1 overflow-hidden">
           <Pane hidden={inAdmin} offset={inAdmin ? "left" : "none"}>
+            <SidebarHeader>
+              <div className="flex h-8 items-center justify-between">
+                <Link href="/chat" aria-label="Onirix home">
+                  <OnirixWordmark />
+                </Link>
+                {desktopMac ? null : (
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          onClick={toggleSidebar}
+                          aria-label="Close sidebar"
+                          className="text-ink-02 hover:bg-sidebar-accent hover:text-ink-04 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors"
+                        />
+                      }
+                    >
+                      <PanelLeftIcon className="size-4.5" />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Close sidebar</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </SidebarHeader>
+
             <SidebarContent>
               <SidebarGroup>
                 <SidebarMenu>
@@ -191,7 +193,7 @@ export function AppSidebar({
                     isActive={inAdmin}
                     tooltip="Settings"
                     render={
-                      <Link href={ADMIN_HOME}>
+                      <Link href={SETTINGS_HOME}>
                         <SettingsIcon />
                         <span>Settings</span>
                       </Link>
@@ -203,32 +205,13 @@ export function AppSidebar({
           </Pane>
 
           <Pane hidden={!inAdmin} offset={inAdmin ? "none" : "right"}>
-            <SidebarContent>
-              {/* The way out comes first, where the eye lands as the menu
-                  slides in, and the search under it narrows the rows below. */}
-              <SidebarGroup>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      render={
-                        <Link href="/chat">
-                          <ArrowLeftIcon />
-                          <span>Back to app</span>
-                        </Link>
-                      }
-                    />
-                  </SidebarMenuItem>
-                </SidebarMenu>
-                <SidebarInput
-                  type="search"
-                  value={settingsQuery}
-                  onChange={(event) => setSettingsQuery(event.target.value)}
-                  placeholder="Search settings"
-                  aria-label="Search settings"
-                />
-              </SidebarGroup>
-              <AdminNav pathname={pathname} query={settingsQuery} />
-            </SidebarContent>
+            <SettingsMenu
+              active={settingsPageAt(pathname)}
+              desktop={desktop}
+              toggle={!desktopMac}
+              back={<Link href="/chat" />}
+              link={(item) => <Link href={SETTINGS_ROUTES[item.page]} />}
+            />
           </Pane>
         </div>
 

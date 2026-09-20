@@ -1,4 +1,3 @@
-import { PaletteIcon } from "@onirix/ui/lib/icons";
 
 import { RestoreAppearanceButton } from "@onirix/ui/components/appearance-settings";
 
@@ -12,7 +11,6 @@ export default async function AppearancePage() {
   return (
     <Page>
       <PageHeader
-        icon={PaletteIcon}
         title="Appearance"
         description="Customize the theme, typography and contrast. Kept in this browser, not shared with your team."
         action={<RestoreAppearanceButton />}

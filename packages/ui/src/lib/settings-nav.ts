@@ -1,13 +1,14 @@
 /**
- * The settings menu: what the sidebar lists when it slides over to Settings,
- * and what each page is called in the header row.
+ * The settings menu: what the sidebar lists when it slides over to Settings.
  *
- * The shape is the dashboard's admin menu and Synara's settings menu (grouped
- * rows under small labels), and so is the list: someone who knows the
- * workspace finds the same rows here. A row that cannot work without a server
- * is still a row. Its page opens, says what it needs, and offers the way to
- * get it (`needsServer`), which is a better place to learn that than a menu
- * with the row missing.
+ * One list for both apps. The dashboard turns each page into a route, the
+ * desktop app's local mode into a page of its own window, and someone who
+ * knows one finds the same rows in the same groups in the other.
+ *
+ * A row that cannot work where it is shown is still a row when its page can
+ * say what it needs: local mode opens a workspace page with the form that
+ * connects a server (`needsServer`). The one exception is `desktopOnly`: a
+ * browser tab has no server to switch away from, so the row is left out there.
  */
 import {
   BlocksIcon,
@@ -28,7 +29,7 @@ import {
   ShieldIcon,
   SlidersHorizontalIcon,
   UsersIcon,
-} from "@onirix/ui/lib/icons";
+} from "@onirix/ui/lib/icons"
 
 export const SETTINGS_PAGES = [
   "general",
@@ -48,21 +49,25 @@ export const SETTINGS_PAGES = [
   "query-history",
   "server",
   "about",
-] as const;
-export type SettingsPage = (typeof SETTINGS_PAGES)[number];
+] as const
+export type SettingsPage = (typeof SETTINGS_PAGES)[number]
 
 export type SettingsItem = {
-  page: SettingsPage;
-  title: string;
-  icon: LucideIcon;
+  page: SettingsPage
+  title: string
+  icon: LucideIcon
   /**
    * Set on a page that only exists in a workspace: what it is for, in one
-   * sentence. The page shows it above the form that connects a server.
+   * sentence. Local mode shows it above the form that connects a server.
    */
-  needsServer?: string;
-};
+  needsServer?: string
+  /** Only means something inside the desktop window. */
+  desktopOnly?: boolean
+}
 
-export const SETTINGS_SECTIONS: { label: string; items: SettingsItem[] }[] = [
+export type SettingsSection = { label: string; items: SettingsItem[] }
+
+export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     label: "Personal",
     items: [
@@ -93,7 +98,8 @@ export const SETTINGS_SECTIONS: { label: string; items: SettingsItem[] }[] = [
         page: "knowledge",
         title: "Knowledge",
         icon: BookOpenIcon,
-        needsServer: "Knowledge groups what a workspace has indexed into collections.",
+        needsServer:
+          "Knowledge groups what a workspace has indexed into collections.",
       },
     ],
   },
@@ -104,7 +110,8 @@ export const SETTINGS_SECTIONS: { label: string; items: SettingsItem[] }[] = [
         page: "users",
         title: "Users",
         icon: UsersIcon,
-        needsServer: "Users are the people of a workspace. This app, on its own, has one: you.",
+        needsServer:
+          "Users are the people of a workspace. This app, on its own, has one: you.",
       },
       {
         page: "teams",
@@ -133,7 +140,8 @@ export const SETTINGS_SECTIONS: { label: string; items: SettingsItem[] }[] = [
         page: "security",
         title: "Security",
         icon: LockIcon,
-        needsServer: "Sign-in rules and sessions are a workspace's. Nothing signs in to this app on its own.",
+        needsServer:
+          "Sign-in rules and sessions are a workspace's. Nothing signs in to this app on its own.",
       },
     ],
   },
@@ -150,33 +158,59 @@ export const SETTINGS_SECTIONS: { label: string; items: SettingsItem[] }[] = [
         page: "query-history",
         title: "Query History",
         icon: HistoryIcon,
-        needsServer: "Query history is a workspace's record of the questions asked of it.",
+        needsServer:
+          "Query history is a workspace's record of the questions asked of it.",
       },
     ],
   },
   {
     label: "Connection",
-    items: [{ page: "server", title: "Server", icon: ServerIcon }],
+    items: [
+      { page: "server", title: "Server", icon: ServerIcon, desktopOnly: true },
+    ],
   },
   {
     label: "About",
     items: [{ page: "about", title: "About Onirix", icon: InfoIcon }],
   },
-];
+]
+
+/**
+ * The sections with the rows a search leaves. A row stays when its own title
+ * or its group's label matches, and a group that loses every row goes with
+ * them, label and all.
+ */
+export function filterSettings(
+  sections: SettingsSection[],
+  query: string
+): SettingsSection[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return sections
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) =>
+          item.title.toLowerCase().includes(needle) ||
+          section.label.toLowerCase().includes(needle)
+      ),
+    }))
+    .filter((section) => section.items.length > 0)
+}
 
 function settingsItem(page: SettingsPage): SettingsItem | undefined {
   for (const section of SETTINGS_SECTIONS) {
-    const item = section.items.find((entry) => entry.page === page);
-    if (item) return item;
+    const item = section.items.find((entry) => entry.page === page)
+    if (item) return item
   }
-  return undefined;
+  return undefined
 }
 
 export function settingsTitle(page: SettingsPage): string {
-  return settingsItem(page)?.title ?? "Settings";
+  return settingsItem(page)?.title ?? "Settings"
 }
 
 /** What a server-only page says it is for, or null for a page that works here. */
 export function serverOnlyReason(page: SettingsPage): string | null {
-  return settingsItem(page)?.needsServer ?? null;
+  return settingsItem(page)?.needsServer ?? null
 }

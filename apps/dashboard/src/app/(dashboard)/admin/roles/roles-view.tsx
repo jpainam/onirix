@@ -132,9 +132,8 @@ export function RolesView({
   const roles = useQuery(trpc.team.listRoles.queryOptions());
 
   return (
-    <Page>
+    <Page wide>
       <PageHeader
-        icon={ShieldIcon}
         title="Roles"
         description="What a member may administer. Everyone holds exactly one role."
         action={

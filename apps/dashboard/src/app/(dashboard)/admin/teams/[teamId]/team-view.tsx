@@ -93,7 +93,6 @@ export function TeamView({
       </Link>
 
       <PageHeader
-        icon={NetworkIcon}
         title={name}
         description={`${members.length} ${members.length === 1 ? "member" : "members"}${joined ? " · you are one of them" : ""}. Everyone here reaches what ${name} is shared with.`}
         action={

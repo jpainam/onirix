@@ -18,7 +18,6 @@ export default async function OrganizationPage() {
   return (
     <Page>
       <PageHeader
-        icon={BuildingIcon}
         title="Organization"
         description="Workspace details and data privacy."
       />

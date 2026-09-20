@@ -27,7 +27,7 @@ import { cn } from "@onirix/ui/lib/utils";
 import { LIMITS, type LibraryDocument } from "../src/local-bridge";
 
 import { errorMessage, getBridge } from "./bridge";
-import { Section } from "./settings-section";
+import { Section } from "@onirix/ui/components/settings-section";
 import { TILE } from "./tokens";
 
 function size(bytes: number): string {

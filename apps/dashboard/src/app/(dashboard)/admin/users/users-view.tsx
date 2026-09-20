@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { MailIcon, ShieldIcon, UserPlusIcon, UsersIcon } from "@onirix/ui/lib/icons";
+import { MailIcon, ShieldIcon, UserPlusIcon } from "@onirix/ui/lib/icons";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -128,9 +128,8 @@ export function UsersView({
   const roleOptions = assignableRoles(roles.data ?? []);
 
   return (
-    <Page>
+    <Page wide>
       <PageHeader
-        icon={UsersIcon}
         title="Users"
         description="Everyone in this workspace, their access level, and their teams."
         action={

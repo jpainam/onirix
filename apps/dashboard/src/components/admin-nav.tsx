@@ -1,142 +1,45 @@
-"use client";
-
-import {
-  BlocksIcon,
-  BookOpenIcon,
-  BuildingIcon,
-  CpuIcon,
-  DatabaseIcon,
-  DownloadIcon,
-  HistoryIcon,
-  LockIcon,
-  NetworkIcon,
-  PaletteIcon,
-  PieChartIcon,
-  ShieldIcon,
-  UsersIcon,
-} from "@onirix/ui/lib/icons";
-import type { LucideIcon } from "@onirix/ui/lib/icons";
 import type { Route } from "next";
-import Link from "next/link";
 
-import {
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@onirix/ui/components/sidebar";
+import { SETTINGS_PAGES, type SettingsPage } from "@onirix/ui/lib/settings-nav";
 
 /**
- * The admin menu, grouped the way the product spec splits administration.
+ * Where each row of the settings menu lives in this app.
  *
- * Sections are filled in progressively: an item without a `url` is a surface
- * the spec calls for but nothing implements yet, so it renders dimmed rather
- * than as a link into an empty page. The type is written out rather than
- * inferred from `as const` so that stays true when every current item happens
- * to have one.
+ * The menu itself, its groups and its wording are `@onirix/ui`'s, shared with
+ * the desktop app's local mode; all this app adds is a route per page. The
+ * paths stay under `/admin` whatever group a row is listed in, so moving a row
+ * between groups never breaks a link someone kept.
  */
-type AdminItem = { title: string; url?: Route; icon: LucideIcon };
+export const SETTINGS_ROUTES: Record<SettingsPage, Route> = {
+  general: "/admin/general",
+  appearance: "/admin/appearance",
+  model: "/admin/language-models",
+  "local-models": "/admin/open-models",
+  documents: "/admin/documents",
+  skills: "/admin/skills",
+  sources: "/admin/sources",
+  knowledge: "/admin/knowledge",
+  users: "/admin/users",
+  teams: "/admin/teams",
+  roles: "/admin/roles",
+  organization: "/admin/organization",
+  security: "/admin/security",
+  usage: "/admin/usage",
+  "query-history": "/admin/query-history",
+  server: "/admin/server",
+  about: "/admin/about",
+};
 
-const ADMIN_SECTIONS: { label: string | null; items: AdminItem[] }[] = [
-  {
-    label: null,
-    items: [
-      { title: "Language Models", url: "/admin/language-models", icon: CpuIcon },
-      { title: "Open Models", url: "/admin/open-models", icon: DownloadIcon },
-    ],
-  },
-  {
-    label: "Documents & Knowledge",
-    items: [
-      { title: "Sources", url: "/admin/sources", icon: DatabaseIcon },
-      { title: "Knowledge", url: "/admin/knowledge", icon: BookOpenIcon },
-      { title: "Skills", url: "/admin/skills", icon: BlocksIcon },
-    ],
-  },
-  {
-    label: "Permissions",
-    items: [
-      { title: "Users", url: "/admin/users", icon: UsersIcon },
-      { title: "Teams", url: "/admin/teams", icon: NetworkIcon },
-      { title: "Roles", url: "/admin/roles", icon: ShieldIcon },
-    ],
-  },
-  {
-    label: "Organization",
-    items: [
-      { title: "General", url: "/admin/organization", icon: BuildingIcon },
-      { title: "Appearance", url: "/admin/appearance", icon: PaletteIcon },
-      { title: "Security", url: "/admin/security", icon: LockIcon },
-    ],
-  },
-  {
-    label: "Usage",
-    items: [
-      { title: "Usage", url: "/admin/usage", icon: PieChartIcon },
-      { title: "Query History", url: "/admin/query-history", icon: HistoryIcon },
-    ],
-  },
-];
+/** Where the Settings entry lands; `/admin` also decides which menu shows. */
+export const SETTINGS_HOME = SETTINGS_ROUTES.general;
 
-export function AdminNav({
-  pathname,
-  query = "",
-}: {
-  pathname: string;
-  /** What was typed into "Search settings"; rows that do not match drop out. */
-  query?: string;
-}) {
-  const needle = query.trim().toLowerCase();
-  // A section whose rows have all dropped out goes with them, label and all.
-  const sections = ADMIN_SECTIONS.map((section) => ({
-    ...section,
-    items: section.items.filter(
-      (item) =>
-        needle === "" ||
-        item.title.toLowerCase().includes(needle) ||
-        (section.label ?? "").toLowerCase().includes(needle),
-    ),
-  })).filter((section) => section.items.length > 0);
-
-  if (sections.length === 0) {
-    return <p className="text-ink-03 px-3 py-2 text-sm">No setting matches that.</p>;
-  }
-
+/** The settings page a path belongs to, detail pages under it included. */
+export function settingsPageAt(pathname: string): SettingsPage | null {
   return (
-    <>
-      {sections.map((section, index) => (
-        <SidebarGroup key={section.label ?? `section-${index}`}>
-          {section.label ? <SidebarGroupLabel>{section.label}</SidebarGroupLabel> : null}
-          <SidebarMenu>
-            {section.items.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                {item.url ? (
-                  <SidebarMenuButton
-                    isActive={pathname.startsWith(item.url)}
-                    tooltip={item.title}
-                    render={
-                      <Link href={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    }
-                  />
-                ) : (
-                  <SidebarMenuButton
-                    aria-disabled
-                    tooltip={`${item.title}: coming soon`}
-                    className="cursor-default"
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                )}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarGroup>
-      ))}
-    </>
+    SETTINGS_PAGES.find(
+      (page) =>
+        pathname === SETTINGS_ROUTES[page] ||
+        pathname.startsWith(`${SETTINGS_ROUTES[page]}/`),
+    ) ?? null
   );
 }

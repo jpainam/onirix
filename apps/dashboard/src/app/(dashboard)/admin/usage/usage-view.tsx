@@ -153,9 +153,8 @@ export function UsageView({ canRead }: { canRead: boolean }) {
   );
 
   return (
-    <Page>
+    <Page wide>
       <PageHeader
-        icon={PieChartIcon}
         title="Usage"
         description="What this workspace asked, spent and indexed."
         // One range control, in the masthead, scoping everything below it. A

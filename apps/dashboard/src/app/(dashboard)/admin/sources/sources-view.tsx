@@ -14,14 +14,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircleIcon,
   ChevronRightIcon,
-  DatabaseIcon,
   PlugIcon,
   PlusIcon,
   RefreshCwIcon,
-  UploadIcon,
 } from "@onirix/ui/lib/icons";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@onirix/ui/components/badge";
@@ -35,14 +33,14 @@ import {
 } from "@onirix/ui/components/empty";
 import { Spinner } from "@onirix/ui/components/spinner";
 
-import { Page, PageHeader, Row, Section } from "@/components/page";
+import { Page, PageHeader, Section } from "@/components/page";
 import { SourceIcon } from "@/components/source-icon";
 import { formatCount, formatInterval, formatRelative } from "@/lib/format";
 import { trpc } from "@/utils/trpc";
 
 import { AddSourceDialog } from "./add-source-dialog";
 import { DatabasesSection } from "./databases-section";
-import { DocumentsTable } from "./documents-table";
+import { useUpload } from "./use-upload";
 
 /** A source's sync state as a pill. Queued and running both read as activity. */
 export const SYNC_STATUS = {
@@ -56,15 +54,12 @@ export const SYNC_STATUS = {
 export function SourcesView({
   canCreate,
   canManage,
-  canDelete,
 }: {
   canCreate: boolean;
   canManage: boolean;
-  canDelete: boolean;
 }) {
   const queryClient = useQueryClient();
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const files = useUpload();
   const [adding, setAdding] = useState(false);
   const [connectingDatabase, setConnectingDatabase] = useState(false);
 
@@ -73,11 +68,6 @@ export function SourcesView({
     // Syncs run in the worker; poll while any of them is queued or running.
     refetchInterval: (state) =>
       state.state.data?.some((row) => row.status === "queued" || row.status === "in_progress") ? 4000 : false,
-  });
-
-  const progress = useQuery({
-    ...trpc.knowledge.indexingProgress.queryOptions(),
-    refetchInterval: (state) => ((state.state.data?.pending ?? 0) > 0 ? 3000 : false),
   });
 
   const syncNow = useMutation(
@@ -90,44 +80,13 @@ export function SourcesView({
     }),
   );
 
-  async function upload(files: FileList | null) {
-    if (!files || files.length === 0) return;
-
-    const formData = new FormData();
-    for (const file of files) formData.append("files", file);
-
-    setUploading(true);
-    try {
-      const response = await fetch("/api/upload", { method: "POST", body: formData });
-      const result = await response.json();
-
-      if (!response.ok) {
-        toast.error(result.error ?? "Upload failed.");
-        return;
-      }
-      if (result.accepted.length > 0) {
-        toast.success(`Uploaded ${result.accepted.length} file(s). Onirix is indexing them now.`);
-      }
-      // Surface per-file rejections; a silent drop looks like data loss.
-      for (const rejected of result.rejected ?? []) {
-        toast.error(`${rejected.name}: ${rejected.reason}`);
-      }
-      void queryClient.invalidateQueries();
-    } finally {
-      setUploading(false);
-      if (fileInput.current) fileInput.current.value = "";
-    }
-  }
-
-  const summary = progress.data;
   const rows = connectors.data ?? [];
 
   return (
     <Page>
       <PageHeader
-        icon={DatabaseIcon}
         title="Sources"
-        description="Where the workspace's knowledge comes from: uploads, connected systems, and live databases."
+        description="Where the workspace's knowledge comes from: connected systems and live databases. Files added by hand are under Documents."
         action={
           canCreate ? (
             <Button onClick={() => setAdding(true)}>
@@ -138,13 +97,7 @@ export function SourcesView({
         }
       />
 
-      <input
-        ref={fileInput}
-        type="file"
-        multiple
-        hidden
-        onChange={(event) => void upload(event.target.files)}
-      />
+      {files.input}
 
       <div className="flex flex-col gap-10">
         <Section
@@ -236,45 +189,19 @@ export function SourcesView({
           )}
         </Section>
 
-        <Section title="Uploads" description="Files added by hand, from this page or from a chat.">
-          <Row
-            icon={<UploadIcon />}
-            title="File uploads"
-            description="PDF, Word, Excel, CSV, Markdown, HTML, and plain text. 50 MB per file."
-            action={
-              <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()} disabled={uploading}>
-                {uploading ? <Spinner /> : <UploadIcon />}
-                Add files
-              </Button>
-            }
-          />
-        </Section>
-
         <DatabasesSection
           canManage={canManage}
           connecting={connectingDatabase}
           onConnectingChange={setConnectingDatabase}
         />
 
-        <Section
-          title="Documents"
-          description={
-            summary && summary.total > 0
-              ? `${formatCount(summary.indexed)} of ${formatCount(summary.total)} indexed${
-                  summary.pending > 0 ? ` · ${formatCount(summary.pending)} in progress` : ""
-                }${summary.failed > 0 ? ` · ${formatCount(summary.failed)} failed` : ""}. From every source; search by title or address.`
-              : "Everything indexed, from every source. Search by title or address."
-          }
-        >
-          <DocumentsTable showSource canManage={canManage} canDelete={canDelete} />
-        </Section>
       </div>
 
       <AddSourceDialog
         open={adding}
         onOpenChange={setAdding}
         canConnectDatabase={canCreate}
-        onUploadFiles={() => fileInput.current?.click()}
+        onUploadFiles={files.pick}
         onConnectDatabase={() => setConnectingDatabase(true)}
       />
     </Page>
