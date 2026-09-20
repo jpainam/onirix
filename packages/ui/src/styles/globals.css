@@ -308,6 +308,18 @@
   --shadow-lg: 0 2px 12px 0 var(--shadow-02), 0 0 4px 1px var(--shadow-02);
   --shadow-xl: 0 2px 24px 0 var(--shadow-03), 0 0 12px 1px var(--shadow-03);
   --shadow-2xl: 0 2px 24px 0 var(--shadow-03), 0 0 12px 1px var(--shadow-03);
+
+  /* The countdown across the open tab of the public site's product tour. The
+     duration is the tour's rotation interval (ROTATE_MS in product-tour.tsx). */
+  --animate-tab-progress: tab-progress 6s linear both;
+  @keyframes tab-progress {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
 }
 
 @layer base {
@@ -366,6 +378,36 @@
     linear-gradient(to right, color-mix(in srgb, var(--tint-03) 70%, transparent) 1px, transparent 1px),
     linear-gradient(to bottom, color-mix(in srgb, var(--tint-03) 70%, transparent) 1px, transparent 1px);
   background-size: 56px 56px;
+}
+
+/* The horizon the product tour's window stands on: the page stepping down
+   into the ink band below it. Each step is a checkerboard of the next colour
+   over the last, not a gradient, so the ramp stays crisp at any zoom. The
+   steps are primitives rather than tints because the ramp crosses from the
+   light page into a dark band and belongs to neither scope. */
+@utility horizon-page {
+  background-color: var(--grey-00);
+  background-image: repeating-conic-gradient(var(--stone-10) 0 25%, transparent 0 50%);
+  background-size: 16px 16px;
+  background-position: 4px 4px;
+}
+
+@utility horizon-mist {
+  background-color: var(--stone-10);
+  background-image: repeating-conic-gradient(var(--stone-40) 0 25%, transparent 0 50%);
+  background-size: 8px 8px;
+}
+
+@utility horizon-stone {
+  background-color: var(--stone-40);
+  background-image: repeating-conic-gradient(var(--stone-80) 0 25%, transparent 0 50%);
+  background-size: 8px 8px;
+}
+
+@utility horizon-ink {
+  background-color: var(--stone-80);
+  background-image: repeating-conic-gradient(var(--stone-95) 0 25%, transparent 0 50%);
+  background-size: 8px 8px;
 }
 
 /* The desktop shell (apps/desktop) hides the macOS title bar and lets the
